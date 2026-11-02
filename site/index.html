@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>openOii — 开源 AI 漫剧创作画布</title>
+  <meta name="description" content="把一句故事想法变成完整漫剧短片：大纲规划、角色定妆、九宫格分镜与配音合成在同一块画布上分阶段推进">
+  <meta name="theme-color" content="#F5F3EE" id="meta-theme-color">
+
+  <!-- OpenGraph / Social Preview -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="openOii — 开源 AI 漫剧创作画布">
+  <meta property="og:description" content="从一句故事灵感到分镜漫剧成片：在同一块画布上规划大纲、角色与九宫格分镜，随时暂停微调任意一幕">
+  <meta property="og:url" content="https://xeronsh.github.io/openOii/">
+  <meta property="og:image" content="https://xeronsh.github.io/openOii/assets/screenshots/workbench.webp">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">
+  <link rel="preload" href="./assets/fonts/oii-display.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./assets/fonts/schibsted-grotesk-var.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="./assets/screenshots/workbench.webp" as="image" type="image/webp" fetchpriority="high">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+
+  <!-- Sticky Architectural Topbar -->
+  <header class="topbar">
+    <div class="topbar__inner">
+      <a href="#top" class="brand-mark" aria-label="openOii 首页">
+        <span class="brand-mark__serif">open<span>Oii</span></span>
+        <span class="brand-mark__tag">STUDIO CANVAS</span>
+      </a>
+
+      <nav class="topbar__nav" aria-label="主导航">
+        <a href="#storyboard">分镜修图台</a>
+        <a href="#workflow">创作全景</a>
+        <a href="#models">模型矩阵</a>
+        <a href="#deploy">Docker 部署</a>
+      </nav>
+
+      <div class="topbar__actions">
+        <button type="button" class="pill-btn" id="theme-toggle-btn" aria-label="切换明暗主题">
+          <span class="pill-btn__dot" aria-hidden="true"></span>
+          <span id="theme-toggle-label">深色外观</span>
+        </button>
+        <a
+          href="https://github.com/xeronsh/openOii"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="pill-btn"
+        >
+          GitHub ↗
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <main class="arch-shell" id="top">
+
+    <!-- ACT I: Asymmetric Split Hero + Overlapping Spatial Stage -->
+    <section class="arch-row hero-pad">
+      <div class="index-kicker">OPENOII · OPEN-SOURCE AI COMIC DRAMA WORKSPACE</div>
+
+      <div class="hero-split-header">
+        <h1 class="hero-display-title">
+          从一句故事灵感<br>
+          <span class="hero-display-title__muted">到分镜</span>
+          <a href="#storyboard" class="inline-film-pill" aria-label="查看乌鸦喝水分镜胶片">
+            <img src="./assets/shots/s01.webp" alt="" width="44" height="30" decoding="async">
+            <img src="./assets/shots/s04.webp" alt="" width="44" height="30" decoding="async">
+            <img src="./assets/shots/s06.webp" alt="" width="44" height="30" decoding="async">
+          </a>
+          <span class="hero-display-title__muted">漫剧成片</span>
+        </h1>
+
+        <div class="hero-aside">
+          <p class="hero-aside__lead">
+            先规划故事大纲、角色形象与九宫格分镜，再生成动态画面、角色配音与背景音乐。全程在同一块画布上分阶段推进，随时暂停修改任意一镜
+          </p>
+          <div class="hero-cta-bar">
+            <a href="#storyboard" class="btn-primary">体验分镜修图台 ↓</a>
+            <a href="#deploy" class="btn-ghost">Docker 一键部署</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Overlapping Multi-Layer Workspace Composition -->
+      <div class="spatial-stage">
+        <div class="spatial-stage__canvas">
+          <img
+            src="./assets/screenshots/workbench.webp"
+            data-theme-img="workbench"
+            alt="openOii 漫剧工作台：左侧创作记录、中央九宫格分镜画布、右侧检查器"
+            width="1440"
+            height="900"
+            fetchpriority="high"
+            decoding="async"
+          >
+        </div>
+
+        <aside class="spatial-stage__float-card" aria-label="单镜头审查与微调示例">
+          <div class="float-card__top">
+            <span>SHOT INSPECTOR · S02</span>
+            <span class="float-card__pill">定点微调</span>
+          </div>
+          <p class="float-card__quote">
+            “把第 2 镜小乌鸦的嘴尖移到细瓶颈口上方，突出够不着水的失落神态”
+          </p>
+          <div class="float-card__meta">
+            <span>其余 5 个达标镜头锁定不动</span>
+            <span class="float-card__status">● 复检 9.1 达标</span>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ACT II: Linear-Style Editorial Manifesto + FIG 0.1–0.3 Hairline Blueprint -->
+    <section class="arch-row" aria-label="设计理念与核心机制">
+      <div class="manifesto-box">
+        <p class="manifesto-statement">
+          <strong>告别盲盒式抽卡生成</strong> —— 传统工具把一段提示词直接扔进黑盒，一旦人物走形或动作穿帮只能整片重来；openOii 将漫剧制作拆解为透明的阶段画布，把每一镜的导演权交还给你
+        </p>
+      </div>
+
+      <div class="fig-grid">
+        <!-- FIG 0.1 -->
+        <article class="fig-cell">
+          <span class="fig-label">FIG 0.1 / GATED PIPELINE</span>
+          <div class="fig-diagram" aria-hidden="true">
+            <svg viewBox="0 0 260 120" fill="none">
+              <line x1="20" y1="60" x2="240" y2="60" stroke="currentColor" stroke-opacity="0.22" stroke-width="1.5" stroke-dasharray="4 4"/>
+              <rect x="18" y="38" width="52" height="44" rx="8" fill="rgb(var(--bg-elevated))" stroke="currentColor" stroke-width="1.5"/>
+              <text x="44" y="64" text-anchor="middle" font-size="11" fill="currentColor">大纲</text>
+              <rect x="104" y="32" width="52" height="56" rx="8" fill="rgb(var(--bg-elevated))" stroke="rgb(var(--brand-primary))" stroke-width="2"/>
+              <circle cx="130" cy="20" r="4" fill="rgb(var(--brand-primary))"/>
+              <text x="130" y="64" text-anchor="middle" font-size="11" font-weight="600" fill="rgb(var(--brand-primary))">分镜</text>
+              <rect x="190" y="38" width="52" height="44" rx="8" fill="rgb(var(--bg-elevated))" stroke="currentColor" stroke-width="1.5"/>
+              <text x="216" y="64" text-anchor="middle" font-size="11" fill="currentColor">成片</text>
+            </svg>
+          </div>
+          <div>
+            <h2 class="fig-title">阶段暂停与双模式切换</h2>
+            <p class="fig-desc">支持「逐步确认」与「自动确认」两种节奏，在剧本、角色、分镜任一节点均可停下审阅修改</p>
+          </div>
+        </article>
+
+        <!-- FIG 0.2 -->
+        <article class="fig-cell">
+          <span class="fig-label">FIG 0.2 / CHARACTER ANCHOR</span>
+          <div class="fig-diagram" aria-hidden="true">
+            <svg viewBox="0 0 260 120" fill="none">
+              <rect x="96" y="14" width="68" height="34" rx="7" fill="rgb(var(--bg-elevated))" stroke="rgb(var(--brand-primary))" stroke-width="1.75"/>
+              <text x="130" y="35" text-anchor="middle" font-size="10.5" font-weight="600" fill="rgb(var(--brand-primary))">角色定妆卡</text>
+              <path d="M130 48 L54 78 M130 48 L130 78 M130 48 L206 78" stroke="currentColor" stroke-opacity="0.28" stroke-width="1.25"/>
+              <rect x="26" y="78" width="56" height="28" rx="6" fill="rgb(var(--bg-elevated))" stroke="currentColor" stroke-width="1.25"/>
+              <text x="54" y="96" text-anchor="middle" font-size="10" fill="currentColor">S01</text>
+              <rect x="102" y="78" width="56" height="28" rx="6" fill="rgb(var(--bg-elevated))" stroke="currentColor" stroke-width="1.25"/>
+              <text x="130" y="96" text-anchor="middle" font-size="10" fill="currentColor">S02</text>
+              <rect x="178" y="78" width="56" height="28" rx="6" fill="rgb(var(--bg-elevated))" stroke="currentColor" stroke-width="1.25"/>
+              <text x="206" y="96" text-anchor="middle" font-size="10" fill="currentColor">S03</text>
+            </svg>
+          </div>
+          <div>
+            <h2 class="fig-title">跨镜头角色与画风锁定</h2>
+            <p class="fig-desc">角色立绘与故事宇宙资产贯穿全片，配合视觉质量审查自动把关多镜头人物形象一致</p>
+          </div>
+        </article>
+
+        <!-- FIG 0.3 -->
+        <article class="fig-cell">
+          <span class="fig-label">FIG 0.3 / SURGICAL REDRAW</span>
+          <div class="fig-diagram" aria-hidden="true">
+            <svg viewBox="0 0 260 120" fill="none">
+              <rect x="34" y="22" width="56" height="34" rx="6" fill="rgb(var(--bg-elevated))" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.25"/>
+              <rect x="102" y="18" width="56" height="42" rx="7" fill="rgb(var(--brand-primary) / 0.1)" stroke="rgb(var(--brand-primary))" stroke-width="2"/>
+              <text x="130" y="43" text-anchor="middle" font-size="10.5" font-weight="600" fill="rgb(var(--brand-primary))">S02 ↻</text>
+              <rect x="170" y="22" width="56" height="34" rx="6" fill="rgb(var(--bg-elevated))" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.25"/>
+              <rect x="34" y="68" width="56" height="34" rx="6" fill="rgb(var(--bg-elevated))" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.25"/>
+              <rect x="102" y="68" width="56" height="34" rx="6" fill="rgb(var(--bg-elevated))" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.25"/>
+              <rect x="170" y="68" width="56" height="34" rx="6" fill="rgb(var(--bg-elevated))" stroke="currentColor" stroke-opacity="0.35" stroke-width="1.25"/>
+            </svg>
+          </div>
+          <div>
+            <h2 class="fig-title">单镜头定点重绘</h2>
+            <p class="fig-desc">哪一幕构图或动作不满意，直接选中该分镜单独重画或改词，不波及已确认的其余镜头</p>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- ACT III: Interactive Storyboard Lightbox Desk (#storyboard) -->
+    <section class="arch-row" id="storyboard">
+      <div class="section-split-head">
+        <div>
+          <div class="index-kicker">01 / INTERACTIVE STORYBOARD DESK</div>
+          <h2 class="section-title">
+            选中任意一格分镜<br>
+            <span>只改你不满意的那一幕</span>
+          </h2>
+        </div>
+        <p class="section-lead">
+          点击左侧《乌鸦喝水》水彩分镜胶片（默认选中待微调的 <strong>S02</strong>），右侧导演修图台将同步展示该镜头的质量审查反馈与定点重绘效果
+        </p>
+      </div>
+
+      <div class="director-desk">
+        <!-- Left 8-Col 3x2 Contact Sheet -->
+        <div class="contact-sheet" role="group" aria-label="乌鸦喝水六格分镜">
+          <button type="button" class="shot-tile" data-shot-id="S01" aria-pressed="false">
+            <div class="shot-tile__img">
+              <img src="./assets/shots/s01.webp" alt="S01 炎夏寻水" width="206" height="100" loading="lazy" decoding="async">
+            </div>
+            <div class="shot-tile__meta">
+              <span>S01 · 00:00</span>
+              <span class="shot-badge shot-badge--pass" data-shot-badge>8.5 达标</span>
+            </div>
+            <div class="shot-tile__name">炎夏寻水 · 发现半瓶水</div>
+          </button>
+
+          <button type="button" class="shot-tile" data-shot-id="S02" aria-pressed="true">
+            <div class="shot-tile__img">
+              <img src="./assets/shots/s02.webp" alt="S02 瓶颈受阻" width="202" height="100" loading="lazy" decoding="async">
+            </div>
+            <div class="shot-tile__meta">
+              <span>S02 · 00:05</span>
+              <span class="shot-badge shot-badge--warn" data-shot-badge>6.5 待微调</span>
+            </div>
+            <div class="shot-tile__name">瓶颈受阻 · 够不着水面</div>
+          </button>
+
+          <button type="button" class="shot-tile" data-shot-id="S03" aria-pressed="false">
+            <div class="shot-tile__img">
+              <img src="./assets/shots/s03.webp" alt="S03 灵光一现" width="202" height="100" loading="lazy" decoding="async">
+            </div>
+            <div class="shot-tile__meta">
+              <span>S03 · 00:10</span>
+              <span class="shot-badge shot-badge--pass" data-shot-badge>8.8 达标</span>
+            </div>
+            <div class="shot-tile__name">灵光一现 · 目光锁定石子</div>
+          </button>
+
+          <button type="button" class="shot-tile" data-shot-id="S04" aria-pressed="false">
+            <div class="shot-tile__img">
+              <img src="./assets/shots/s04.webp" alt="S04 衔石入瓶" width="206" height="102" loading="lazy" decoding="async">
+            </div>
+            <div class="shot-tile__meta">
+              <span>S04 · 00:15</span>
+              <span class="shot-badge shot-badge--pass" data-shot-badge>8.6 达标</span>
+            </div>
+            <div class="shot-tile__name">衔石入瓶 · 石子落水</div>
+          </button>
+
+          <button type="button" class="shot-tile" data-shot-id="S05" aria-pressed="false">
+            <div class="shot-tile__img">
+              <img src="./assets/shots/s05.webp" alt="S05 水位上升" width="202" height="102" loading="lazy" decoding="async">
+            </div>
+            <div class="shot-tile__meta">
+              <span>S05 · 00:20</span>
+              <span class="shot-badge shot-badge--pass" data-shot-badge>8.7 达标</span>
+            </div>
+            <div class="shot-tile__name">锲而不舍 · 水位稳步上升</div>
+          </button>
+
+          <button type="button" class="shot-tile" data-shot-id="S06" aria-pressed="false">
+            <div class="shot-tile__img">
+              <img src="./assets/shots/s06.webp" alt="S06 畅饮甘泉" width="202" height="102" loading="lazy" decoding="async">
+            </div>
+            <div class="shot-tile__meta">
+              <span>S06 · 00:25</span>
+              <span class="shot-badge shot-badge--pass" data-shot-badge>9.2 达标</span>
+            </div>
+            <div class="shot-tile__name">畅饮甘泉 · 智慧解渴</div>
+          </button>
+        </div>
+
+        <!-- Right 4-Col Live Director Inspector -->
+        <aside class="director-inspector" aria-live="polite">
+          <div>
+            <div class="inspector-head">
+              <span class="inspector-head__id" id="inspector-shot-id">DIRECTOR INSPECTOR · S02</span>
+              <span class="shot-badge shot-badge--warn" id="inspector-shot-badge">6.5 待微调</span>
+            </div>
+          </div>
+
+          <div class="inspector-preview" id="inspector-preview-box">
+            <img id="inspector-shot-img" src="./assets/shots/s02.webp" alt="当前选中分镜预览" width="202" height="100" decoding="async">
+          </div>
+
+          <div>
+            <h3 class="inspector-title" id="inspector-shot-title">瓶颈受阻 · 够不着水面</h3>
+            <p class="inspector-note" id="inspector-shot-prompt">
+              质量审查提示：嘴未伸入瓶口且缺少够不着水的失落感，建议调整小乌鸦嘴部位置与神态后重新生成
+            </p>
+          </div>
+
+          <div class="inspector-actions">
+            <button type="button" class="btn-inspector-run" id="dock-approve-btn">
+              确认重绘 S02
+            </button>
+            <button type="button" class="btn-inspector-reset" id="dock-reset-btn">
+              还原
+            </button>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ACT IV: Cosmos/Rive Oversized Typographic Index + Canvas (#workflow) -->
+    <section class="arch-row" id="workflow">
+      <div class="workflow-index-layout">
+        <!-- Left Column: Oversized Interactive Typographic Index -->
+        <div class="workflow-index-list" role="tablist" aria-label="创作流程视图切换">
+          <div class="workflow-index-head">
+            <div class="index-kicker">02 / FOUR-ACT WORKSPACE</div>
+            <h2 class="section-title">
+              一套透明画布<br>
+              <span>串联完整漫剧生命周期</span>
+            </h2>
+          </div>
+
+          <button type="button" class="workflow-step-btn" role="tab" aria-selected="true" data-act="0">
+            <div class="workflow-step-btn__row">
+              <span class="workflow-step-btn__num">01</span>
+              <span class="workflow-step-btn__title">故事灵感与世界观设定</span>
+            </div>
+            <p class="workflow-step-btn__desc">
+              输入故事创意，自由选择水彩、赛博、国风等画风及「逐步确认 / 自动确认」模式
+            </p>
+          </button>
+
+          <button type="button" class="workflow-step-btn" role="tab" aria-selected="false" data-act="1">
+            <div class="workflow-step-btn__row">
+              <span class="workflow-step-btn__num">02</span>
+              <span class="workflow-step-btn__title">九宫格分镜与检查器</span>
+            </div>
+            <p class="workflow-step-btn__desc">
+              左栏追踪创作进度与质量评分，中央铺开九宫格分镜画布，右栏检查器随时微调镜头属性
+            </p>
+          </button>
+
+          <button type="button" class="workflow-step-btn" role="tab" aria-selected="false" data-act="2">
+            <div class="workflow-step-btn__row">
+              <span class="workflow-step-btn__num">03</span>
+              <span class="workflow-step-btn__title">项目库与多版本归档</span>
+            </div>
+            <p class="workflow-step-btn__desc">
+              集中管理全部漫剧项目，生成进度实时落盘保存，刷新或断线后随时接着创作
+            </p>
+          </button>
+
+          <button type="button" class="workflow-step-btn" role="tab" aria-selected="false" data-act="3">
+            <div class="workflow-step-btn__row">
+              <span class="workflow-step-btn__num">04</span>
+              <span class="workflow-step-btn__title">多模态服务商预设卡</span>
+            </div>
+            <p class="workflow-step-btn__desc">
+              文本、图像、视频、视觉审查、配音与背景音乐均内置预设卡片，填入密钥即可调用
+            </p>
+          </button>
+        </div>
+
+        <!-- Right Column: Live Product Canvas -->
+        <div class="workflow-stage-pane">
+          <div class="workflow-stage-frame">
+            <img
+              id="workflow-stage-img"
+              src="./assets/screenshots/home.webp"
+              data-theme-img="home"
+              alt="openOii 创作流程界面预览"
+              width="1440"
+              height="900"
+              loading="lazy"
+              decoding="async"
+            >
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACT V: Flush Architectural Split (Audio/Export Collage + 6-Cell Model Matrix) -->
+    <section class="arch-row" id="models">
+      <div class="arch-split-two">
+        <!-- Left Pane: Layered Collage of Native Export & Audio Controls -->
+        <div class="arch-pane-left">
+          <div>
+            <div class="index-kicker">03 / PRODUCTION &amp; EXPORT</div>
+            <h2 class="section-title">
+              配音字幕与多格式导出<br>
+              <span>一次合成到位</span>
+            </h2>
+          </div>
+
+          <div class="layered-collage">
+            <img
+              class="layered-collage__back"
+              src="./assets/screenshots/production-options-card.webp"
+              alt="成片选项：配音、字幕与背景音乐开关"
+              width="340"
+              height="208"
+              loading="lazy"
+              decoding="async"
+            >
+            <img
+              class="layered-collage__front"
+              src="./assets/screenshots/export-menu.webp"
+              alt="导出成片、版本对比与 Webtoon 竖屏长图"
+              width="740"
+              height="170"
+              loading="lazy"
+              decoding="async"
+            >
+          </div>
+
+          <p class="section-lead">
+            按项目自由开关角色配音、软硬字幕与背景音乐；支持历史版本对比，一键下载高清视频短片或导出 Webtoon 竖屏条漫长图
+          </p>
+        </div>
+
+        <!-- Right Pane: Flush 6-Cell Multi-Model Blueprint Grid -->
+        <div class="arch-pane-right">
+          <div class="arch-pane-right__head">
+            <div class="index-kicker">04 / MULTI-MODEL ECOSYSTEM</div>
+            <h2 class="section-title">
+              主流多模态模型<br>
+              <span>按创作环节自由混搭</span>
+            </h2>
+          </div>
+
+          <div class="provider-flush-grid">
+            <div class="provider-cell">
+              <div class="provider-cell__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <defs>
+                    <linearGradient id="kling-a" x1="4" y1="4" x2="20" y2="14" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#00F2FE"/>
+                      <stop offset="0.5" stop-color="#4FACFE"/>
+                      <stop offset="1" stop-color="#00E676"/>
+                    </linearGradient>
+                    <linearGradient id="kling-b" x1="20" y1="20" x2="4" y2="10" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#A8FF78"/>
+                      <stop offset="0.5" stop-color="#00E676"/>
+                      <stop offset="1" stop-color="#00B0FF"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M14.5 4.5H10C6.96 4.5 4.5 6.96 4.5 10C4.5 11.8 5.36 13.4 6.7 14.4L9.2 11.9C8.45 11.45 8 10.77 8 10C8 8.62 9.12 7.5 10.5 7.5H14.5C15.88 7.5 17 8.62 17 10H20.5C20.5 6.96 18.04 4.5 14.5 4.5Z" fill="url(#kling-a)"/>
+                  <path d="M9.5 19.5H14C17.04 19.5 19.5 17.04 19.5 14C19.5 12.2 18.64 10.6 17.3 9.6L14.8 12.1C15.55 12.55 16 13.23 16 14C16 15.38 14.88 16.5 13.5 16.5H9.5C8.12 16.5 7 15.38 7 14H3.5C3.5 17.04 5.96 19.5 9.5 19.5Z" fill="url(#kling-b)"/>
+                </svg>
+              </div>
+              <div>
+                <div class="provider-cell__name">Kling 可灵</div>
+                <div class="provider-cell__role">分镜图生视频</div>
+              </div>
+            </div>
+
+            <div class="provider-cell">
+              <div class="provider-cell__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 2.5L15.2 8.2L12 10.1L8.8 8.2L12 2.5Z" fill="#6366F1"/>
+                  <path d="M21 7.8L18.2 13.7L14.8 11.8L14.8 7.8L21 7.8Z" fill="#818CF8"/>
+                  <path d="M18.8 18.5L12.3 19.2L12.3 15.3L15.7 13.4L18.8 18.5Z" fill="#4F46E5"/>
+                  <path d="M5.2 18.5L8.3 13.4L11.7 15.3L11.7 19.2L5.2 18.5Z" fill="#6366F1"/>
+                  <path d="M3 7.8L9.2 7.8L9.2 11.8L5.8 13.7L3 7.8Z" fill="#A5B4FC"/>
+                </svg>
+              </div>
+              <div>
+                <div class="provider-cell__name">通义万相 Wan</div>
+                <div class="provider-cell__role">画面生成与视觉审查</div>
+              </div>
+            </div>
+
+            <div class="provider-cell">
+              <div class="provider-cell__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <defs>
+                    <linearGradient id="volc-g" x1="4" y1="3" x2="20" y2="21" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#38BDF8"/>
+                      <stop offset="0.55" stop-color="#6366F1"/>
+                      <stop offset="1" stop-color="#EC4899"/>
+                    </linearGradient>
+                  </defs>
+                  <path d="M7.5 3.5C5.84 3.5 4.5 4.84 4.5 6.5V17.5C4.5 19.16 5.84 20.5 7.5 20.5C8.1 20.5 8.68 20.32 9.17 19.99L18.67 13.99C20.07 13.1 20.07 10.9 18.67 10.01L9.17 4.01C8.68 3.68 8.1 3.5 7.5 3.5Z" fill="url(#volc-g)"/>
+                  <path d="M9 8.8L14.5 12L9 15.2V8.8Z" fill="#FFFFFF" fill-opacity="0.9"/>
+                </svg>
+              </div>
+              <div>
+                <div class="provider-cell__name">火山 Seedance</div>
+                <div class="provider-cell__role">动态镜头与角色立绘</div>
+              </div>
+            </div>
+
+            <div class="provider-cell">
+              <div class="provider-cell__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <defs>
+                    <linearGradient id="mm-g" x1="2" y1="4" x2="22" y2="20" gradientUnits="userSpaceOnUse">
+                      <stop offset="0" stop-color="#FF3B5C"/>
+                      <stop offset="1" stop-color="#FF6B3D"/>
+                    </linearGradient>
+                  </defs>
+                  <circle cx="12" cy="12" r="9.5" stroke="url(#mm-g)" stroke-width="2" fill="url(#mm-g)" fill-opacity="0.08"/>
+                  <path d="M5.5 13.5V10.5M8.2 15.8V8.2M10.9 14.2V9.8M13.6 16.2V7.8M16.3 13.8V10.2M18.5 12.8V11.2" stroke="url(#mm-g)" stroke-width="1.9" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div>
+                <div class="provider-cell__name">MiniMax 海螺</div>
+                <div class="provider-cell__role">角色配音与视频生成</div>
+              </div>
+            </div>
+
+            <div class="provider-cell">
+              <div class="provider-cell__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" fill="#101827"/>
+                  <g stroke="#FFFFFF" stroke-width="1.45" fill="none">
+                    <rect x="8.2" y="4.8" width="7.6" height="14.4" rx="3.8"/>
+                    <rect x="8.2" y="4.8" width="7.6" height="14.4" rx="3.8" transform="rotate(60 12 12)"/>
+                    <rect x="8.2" y="4.8" width="7.6" height="14.4" rx="3.8" transform="rotate(120 12 12)"/>
+                  </g>
+                </svg>
+              </div>
+              <div>
+                <div class="provider-cell__name">OpenAI</div>
+                <div class="provider-cell__role">剧本规划与分镜绘制</div>
+              </div>
+            </div>
+
+            <div class="provider-cell">
+              <div class="provider-cell__icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                  <path d="M21.2 11.2C20.1 11.4 19.1 10.8 18.6 9.8C18.3 9.1 18.4 8.3 18.9 7.8C17.8 8.1 16.9 8.9 16.4 10C15.2 8.2 13.1 7 10.6 7C6.5 7 3.2 9.9 3.2 13.5C3.2 17.1 6.5 20 10.6 20C14.8 20 18.1 17 18.4 13.1C19.5 12.9 20.6 12.2 21.2 11.2Z" fill="#4D6BFE"/>
+                  <circle cx="8.2" cy="12.2" r="1.15" fill="#FFFFFF"/>
+                  <path d="M5.2 15.2C6.8 16.8 9.8 17.2 12.8 16.1" stroke="#FFFFFF" stroke-width="1.4" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <div>
+                <div class="provider-cell__name">DeepSeek</div>
+                <div class="provider-cell__role">大纲拆解与项目助手</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACT VI: Split Docker Compose Terminal (#deploy) -->
+    <section class="arch-row" id="deploy">
+      <div class="deploy-split">
+        <div>
+          <div class="index-kicker">05 / SELF-HOSTED DOCKER COMPOSE</div>
+          <h2 class="section-title">
+            一行命令<br>
+            <span>本地启动创作画布</span>
+          </h2>
+          <p class="section-lead" style="margin-top: 1rem;">
+            前后端与工作流引擎已完整容器化打包，启动后浏览器打开 <code>localhost:15173</code> 即可开始创作
+          </p>
+        </div>
+
+        <div class="terminal-card">
+          <div class="terminal-card__bar">
+            <div class="terminal-dots" aria-hidden="true">
+              <span></span><span></span><span></span>
+            </div>
+            <span>docker-compose · bash</span>
+            <button type="button" class="terminal-copy-btn" id="copy-cmd-btn">复制命令</button>
+          </div>
+          <div class="terminal-card__body">
+            <code id="quickstart-cmd" hidden>git clone https://github.com/xeronsh/openOii.git &amp;&amp; cd openOii &amp;&amp; docker compose up -d</code>
+            <div class="term-line">
+              <span class="term-line__num">01</span>
+              <span class="term-line__cmd">git clone https://github.com/xeronsh/openOii.git</span>
+            </div>
+            <div class="term-line">
+              <span class="term-line__num">02</span>
+              <span class="term-line__cmd">cd openOii &amp;&amp; docker compose up -d</span>
+            </div>
+            <div class="term-line">
+              <span class="term-line__num">03</span>
+              <span class="term-line__comment"># Web 创作画布已就绪 → http://localhost:15173</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="site-footer">
+    <div>
+      <strong>openOii</strong> · 开源 AI 漫剧创作工作台 · MIT License
+    </div>
+    <div class="site-footer__links">
+      <a href="#top">回到顶部 ↑</a>
+      <a href="#storyboard">分镜修图台</a>
+      <a href="#workflow">创作全景</a>
+      <a href="https://github.com/xeronsh/openOii" target="_blank" rel="noopener noreferrer">GitHub ↗</a>
+    </div>
+  </footer>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>
