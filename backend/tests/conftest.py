@@ -11,7 +11,7 @@ from typing import AsyncGenerator
 # Must run before any app.db.session import: the global engine/maker is built
 # from Settings(.env) at import time. Without this, unpatched production paths
 # (WS replay, export cache, run confirm signal) would open the real
-# data/openoii.db from tests and leak handles.
+# data/komaslate.db from tests and leak handles.
 _TEST_GLOBAL_DB = Path(__file__).resolve().parent / "test-global-sandbox.db"
 os.environ.setdefault("DATABASE_URL", f"sqlite+aiosqlite:///{_TEST_GLOBAL_DB}")
 

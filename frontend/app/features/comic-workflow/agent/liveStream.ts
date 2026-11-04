@@ -22,7 +22,7 @@ export function tidyStreamText(text: string): string {
 	return text.replace(/^\s*·\s*/, "").replace(/\s*·\s*$/, "");
 }
 
-const FAILED_KEY = "openoii.failedStream.";
+const FAILED_KEY = "komaslate.failedStream.";
 
 /** The interrupted output survives a reload of a failed project (same tab). */
 export function rememberFailedStream(projectId: number, stream: LiveStream | null): void {
@@ -36,7 +36,7 @@ export function rememberFailedStream(projectId: number, stream: LiveStream | nul
 
 export function recallFailedStream(projectId: number): LiveStream | null {
 	try {
-		const raw = sessionStorage.getItem(FAILED_KEY + projectId);
+		const raw = sessionStorage.getItem(FAILED_KEY + projectId) ?? sessionStorage.getItem("openoii.failedStream." + projectId);
 		const stream = raw ? (JSON.parse(raw) as LiveStream) : null;
 		return stream?.status === "error" && typeof stream.streamId === "string" ? stream : null;
 	} catch {

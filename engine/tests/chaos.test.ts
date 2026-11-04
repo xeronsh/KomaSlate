@@ -29,7 +29,7 @@ describe("chaos matrix", () => {
   let shared: SharedDb;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "openoii-chaos-"));
+    dir = mkdtempSync(join(tmpdir(), "komaslate-chaos-"));
     file = join(dir, "o.db");
     const raw = new SqliteDatabase(file);
     raw.exec(SCHEMA);
@@ -206,7 +206,7 @@ describe("chaos matrix", () => {
 
   describe("4. provider failure", () => {
     it("propagates a provider error rather than swallowing it", async () => {
-      vi.stubEnv("OPENOII_PROVIDER_RETRY_MS", "1");
+      vi.stubEnv("KOMASLATE_PROVIDER_RETRY_MS", "1");
       vi.stubGlobal(
         "fetch",
         vi.fn(async () => ({ ok: false, status: 503 }) as unknown as Response),
@@ -295,9 +295,9 @@ describe("5. observability under failure", () => {
       expect(spans.length).toBeGreaterThan(0);
       const stage = spans.find((span) => span.name === "stage render_characters");
       expect(stage, "the targeted run must emit a stage span").toBeDefined();
-      expect(stage!.attributes["openoii.run_id"]).toBe(1);
-      expect(stage!.attributes["openoii.project_id"]).toBe(1);
-      expect(typeof stage!.attributes["openoii.stage_attempt_id"]).toBe("string");
+      expect(stage!.attributes["komaslate.run_id"]).toBe(1);
+      expect(stage!.attributes["komaslate.project_id"]).toBe(1);
+      expect(typeof stage!.attributes["komaslate.stage_attempt_id"]).toBe("string");
     } finally {
       exporter.reset();
       await provider.shutdown();

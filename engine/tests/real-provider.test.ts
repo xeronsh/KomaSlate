@@ -72,7 +72,7 @@ function sse(text: string): string {
 describe("structured output repair", () => {
   let dir: string;
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "openoii-repair-"));
+    dir = mkdtempSync(join(tmpdir(), "komaslate-repair-"));
   });
   afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -316,7 +316,7 @@ describe("OpenAI-compatible text endpoint", () => {
   let base: string;
 
   beforeEach(async () => {
-    dir = mkdtempSync(join(tmpdir(), "openoii-text-"));
+    dir = mkdtempSync(join(tmpdir(), "komaslate-text-"));
     seen = [];
     server = createServer(async (req, res) => {
       const body = JSON.parse((await readBody(req)) || "{}") as Record<string, unknown>;
@@ -538,7 +538,7 @@ describe("OpenAI-compatible media provider", () => {
 
   beforeEach(async () => {
     imageFailures = 0;
-    dir = mkdtempSync(join(tmpdir(), "openoii-media-"));
+    dir = mkdtempSync(join(tmpdir(), "komaslate-media-"));
     seen = [];
     polls = 0;
     server = createServer(async (req, res) => {
@@ -623,7 +623,7 @@ describe("OpenAI-compatible media provider", () => {
   });
 
   it("polls an async video task, inlines a remote reference image and stores the mp4", async () => {
-    vi.stubEnv("OPENOII_VIDEO_POLL_MS", "5");
+    vi.stubEnv("KOMASLATE_VIDEO_POLL_MS", "5");
     const { media } = service();
     const url = await media.generateVideoUrl({
       prompt: "clip",
@@ -639,7 +639,7 @@ describe("OpenAI-compatible media provider", () => {
   });
 
   it("retries transient provider failures (gateway 524) with the same idempotency key", async () => {
-    vi.stubEnv("OPENOII_PROVIDER_RETRY_MS", "1");
+    vi.stubEnv("KOMASLATE_PROVIDER_RETRY_MS", "1");
     imageFailures = 2;
     const { media } = service();
     const url = await media.generateImageUrl({ prompt: "lantern" });
@@ -648,7 +648,7 @@ describe("OpenAI-compatible media provider", () => {
   });
 
   it("gives up after the retry budget and reports the status", async () => {
-    vi.stubEnv("OPENOII_PROVIDER_RETRY_MS", "1");
+    vi.stubEnv("KOMASLATE_PROVIDER_RETRY_MS", "1");
     imageFailures = 10;
     const { media } = service();
     await expect(media.generateImageUrl({ prompt: "lantern" })).rejects.toThrow(

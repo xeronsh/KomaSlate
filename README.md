@@ -174,7 +174,7 @@ cd frontend && pnpm install && pnpm dev
 
 ```bash
 cd engine && \
-ENGINE_DB_PATH=../backend/data/openoii.db ENGINE_BACKEND_DIR=../backend \
+ENGINE_DB_PATH=../backend/data/komaslate.db ENGINE_BACKEND_DIR=../backend \
 ENGINE_STATIC_DIR=../backend/app/static ENGINE_PYTHON=../backend/.venv/bin/python pnpm dev
 ```
 

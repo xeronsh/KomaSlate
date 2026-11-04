@@ -534,8 +534,8 @@ async def test_final_video_download_name_is_safe():
     from app.api.v1.routes.projects import _download_name
 
     assert _download_name("末班地铁 / 橘猫: 名字?", 3, ".mp4") == "末班地铁   橘猫  名字.mp4"
-    assert _download_name("  ..  ", 3, ".mp4") == "openoii-3.mp4"
-    assert _download_name(None, 3, "") == "openoii-3.mp4"
+    assert _download_name("  ..  ", 3, ".mp4") == "komaslate-3.mp4"
+    assert _download_name(None, 3, "") == "komaslate-3.mp4"
 
 
 @pytest.mark.asyncio

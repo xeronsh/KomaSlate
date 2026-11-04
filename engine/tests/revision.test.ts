@@ -20,7 +20,7 @@ describe("entity revision compare-and-set", () => {
   let shared: SharedDb;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "openoii-revision-"));
+    dir = mkdtempSync(join(tmpdir(), "komaslate-revision-"));
     path = join(dir, "test.db");
     const raw = new SqliteDatabase(path);
     raw.exec(`

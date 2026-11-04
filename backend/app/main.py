@@ -34,7 +34,7 @@ def _local_dev_origin_regex(environment: str | None) -> str | None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    log = logging.getLogger("openOii.lifespan")
+    log = logging.getLogger("KomaSlate.lifespan")
     STATIC_DIR.mkdir(parents=True, exist_ok=True)
     (STATIC_DIR / "videos").mkdir(parents=True, exist_ok=True)
     (STATIC_DIR / "images").mkdir(parents=True, exist_ok=True)

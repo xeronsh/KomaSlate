@@ -1,5 +1,5 @@
 # ── engine sidecar build ──────────────────────────────────────────────────────
-# openOii workflow engine 是 TypeScript sidecar。后端首次触发生成时会拉起它，因此镜像里
+# KomaSlate workflow engine 是 TypeScript sidecar。后端首次触发生成时会拉起它，因此镜像里
 # 必须同时具备 node + engine 依赖（better-sqlite3 是原生模块，需要编译工具链）。
 FROM node:22-bookworm-slim AS engine
 

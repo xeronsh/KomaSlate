@@ -90,7 +90,7 @@ async def init_db() -> None:
     from app.services.config_service import ConfigService
     from app.services.style_template_seeds import ensure_builtin_templates
 
-    log = logging.getLogger("openOii.init_db")
+    log = logging.getLogger("KomaSlate.init_db")
     settings = get_settings()
 
     log.info("init_db: upgrading Alembic schema")

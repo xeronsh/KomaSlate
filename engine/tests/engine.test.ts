@@ -19,7 +19,7 @@ describe("engine sidecar", () => {
 
   beforeEach(async () => {
     process.env.TEXT_PROVIDER = "fake";
-    cleanupDir = mkdtempSync(join(tmpdir(), "openoii-engine-"));
+    cleanupDir = mkdtempSync(join(tmpdir(), "komaslate-engine-"));
     const dbFile = join(cleanupDir, "test.db");
     const migrated = new SqliteDatabase(dbFile);
     // POST /runs validates targets against project rows, so the sidecar needs the app tables too.
@@ -103,7 +103,7 @@ describe("engine sidecar", () => {
 
 describe("schema ownership", () => {
   it("fails fast when Alembic runtime tables are missing", () => {
-    const dir = mkdtempSync(join(tmpdir(), "openoii-unmigrated-"));
+    const dir = mkdtempSync(join(tmpdir(), "komaslate-unmigrated-"));
     try {
       expect(() => createEngineApp(join(dir, "empty.db"))).toThrow(
         /engine database schema is not migrated/,

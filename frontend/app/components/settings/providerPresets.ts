@@ -5,7 +5,7 @@
  * 预设只是把已有配置项填好：它映射到 provider 类型（openai 兼容 / anthropic /
  * modelscope / doubao / fake，以及视频服务商原生接口 kling / vidu / zhipu /
  * minimax / dashscope / veo）。
- * 官方接口和 openOii 的请求形状对不上的服务商不放进来，原因写在 docs/providers.md。
+ * 官方接口和 KomaSlate 的请求形状对不上的服务商不放进来，原因写在 docs/providers.md。
  */
 
 export const PRESETS_VERIFIED_AT = "2026-10-30";

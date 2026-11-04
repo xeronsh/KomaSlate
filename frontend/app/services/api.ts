@@ -24,7 +24,9 @@ const API_BASE = getApiBase();
 
 function getAdminHeaders(): Record<string, string> {
 	try {
-		const adminToken = localStorage.getItem("openoii_admin_token");
+		const adminToken =
+			localStorage.getItem("komaslate_admin_token") ??
+			localStorage.getItem("openoii_admin_token");
 		return adminToken ? { "X-Admin-Token": adminToken } : {};
 	} catch {
 		return {};
@@ -552,8 +554,10 @@ export const configApi = {
 				if ("ADMIN_TOKEN" in config) {
 					const token = config.ADMIN_TOKEN;
 					if (typeof token === "string" && token.length > 0) {
-						localStorage.setItem("openoii_admin_token", token);
+						localStorage.setItem("komaslate_admin_token", token);
+						localStorage.removeItem("openoii_admin_token");
 					} else {
+						localStorage.removeItem("komaslate_admin_token");
 						localStorage.removeItem("openoii_admin_token");
 					}
 				}

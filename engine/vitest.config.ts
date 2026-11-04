@@ -5,6 +5,6 @@ export default defineConfig({
     include: ["tests/**/*.test.ts"],
     testTimeout: 15000,
     // Fake LLM calls stream without delay in tests.
-    env: { OPENOII_FAKE_STREAM_MS: "0" },
+    env: { KOMASLATE_FAKE_STREAM_MS: "0" },
   },
 });

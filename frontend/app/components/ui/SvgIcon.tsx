@@ -1,5 +1,5 @@
 // Generic glyphs: Iconoir v7.12.1 (MIT, © 2021 Luca Burgio, https://iconoir.com), path data copied
-// from icons/regular. Domain glyphs (approve-gate, arrow-down-to-line, layers, render, shot, stop, storyboard) are drawn for openOii on the same 24 grid
+// from icons/regular. Domain glyphs (approve-gate, arrow-down-to-line, layers, render, shot, stop, storyboard) are drawn for KomaSlate on the same 24 grid
 // with a 1.5 stroke. All icons render through this one component; sizes stay on ICON_SCALE.
 import type { SETTINGS_ICONS } from "./icons/settingsIcons";
 import type { WORKBENCH_ICONS } from "./icons/workbenchIcons";

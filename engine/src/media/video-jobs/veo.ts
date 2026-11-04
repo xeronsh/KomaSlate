@@ -55,7 +55,7 @@ export const veo: VideoJobAdapter = {
     const video = Array.isArray(result.videos) ? record(result.videos[0]) : {};
     const bytes = text(video.bytesBase64Encoded);
     if (bytes) return { state: "done", result: { bytes: Buffer.from(bytes, "base64") } };
-    if (text(video.gcsUri)) return { state: "failed", message: `${label}把结果写到了 Cloud Storage，openOii 不读取 gs:// 地址` };
+    if (text(video.gcsUri)) return { state: "failed", message: `${label}把结果写到了 Cloud Storage，KomaSlate 不读取 gs:// 地址` };
     if (Number(result.raiMediaFilteredCount ?? 0) > 0) return { state: "failed", message: `${label}结果被安全策略过滤` };
     return { state: "failed", message: `${label}任务完成但没有视频` };
   },

@@ -24,8 +24,8 @@ describe("pipeline runner (fake providers, auto-mode)", () => {
     process.env.VIDEO_PROVIDER = "fake";
     process.env.TTS_ENABLED = "false";
     process.env.BGM_ENABLED = "false";
-    cleanupDir = mkdtempSync(join(tmpdir(), "openoii-pipeline-"));
-    dbFile = join(cleanupDir, "openoii.db");
+    cleanupDir = mkdtempSync(join(tmpdir(), "komaslate-pipeline-"));
+    dbFile = join(cleanupDir, "komaslate.db");
     const raw = new SqliteDatabase(dbFile);
     raw.exec(SCHEMA);
     installExecutionLeaseColumns(raw);

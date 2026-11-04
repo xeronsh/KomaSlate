@@ -132,7 +132,7 @@ describe("one operation contract across providers", () => {
       timeoutMs: 60_000,
     });
 
-    const media = new MediaService({ staticDir: "/tmp/openOii-op" } as never);
+    const media = new MediaService({ staticDir: "/tmp/KomaSlate-op" } as never);
     media.setAbortSignal(controller.signal);
     media.setOperation(operation);
 
@@ -149,7 +149,7 @@ describe("one operation contract across providers", () => {
   it("lets a media request observe the operation deadline", async () => {
     const { MediaService } = await import("../src/media/media.js");
     const media = new MediaService({
-      staticDir: "/tmp/openOii-op",
+      staticDir: "/tmp/KomaSlate-op",
       imageProvider: "openai",
       imageApiKey: "k",
       imageBaseUrl: "https://example.test",

@@ -21,7 +21,7 @@ describe("atomic state + event commit", () => {
   let emitter: PipelineEmitter;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "openoii-atomic-"));
+    dir = mkdtempSync(join(tmpdir(), "komaslate-atomic-"));
     path = join(dir, "test.db");
     const raw = new SqliteDatabase(path);
     raw.exec(`

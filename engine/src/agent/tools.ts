@@ -21,7 +21,7 @@ export class BackendError extends Error {
   }
 }
 
-/** Loopback client for the backend product API (`OPENOII_BACKEND_URL`). */
+/** Loopback client for the backend product API (`KOMASLATE_BACKEND_URL`). */
 export function backendFetch(baseUrl: string): BackendFetch {
   return async (path, init = {}) => {
     const res = await fetch(`${baseUrl.replace(/\/$/, "")}/api/v1${path}`, {

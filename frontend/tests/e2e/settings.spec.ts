@@ -200,7 +200,7 @@ test("服务商卡片显示品牌彩色 logo，深色模式下也放在浅色方
 		if (res.url().includes("/provider-logos/")) logoResponses.push(res.status());
 	});
 	await page.emulateMedia({ colorScheme: "dark" });
-	await page.addInitScript(() => localStorage.setItem("openoii-theme", JSON.stringify({ state: { theme: "dark" }, version: 0 })));
+	await page.addInitScript(() => localStorage.setItem("komaslate-theme", JSON.stringify({ state: { theme: "dark" }, version: 0 })));
 	await mockConfig(page);
 	await openSettings(page);
 	const dialog = page.getByRole("dialog", { name: /系统设置/ });

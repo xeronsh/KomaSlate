@@ -32,6 +32,15 @@ function applyTheme(theme: Theme) {
   if (paper) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", `rgb(${paper})`);
 }
 
+try {
+  if (typeof window !== "undefined" && localStorage.getItem("komaslate-theme") === null) {
+    const legacyTheme = localStorage.getItem("openoii-theme");
+    if (legacyTheme !== null) localStorage.setItem("komaslate-theme", legacyTheme);
+  }
+} catch {
+  // ignore storage errors
+}
+
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set, get) => ({
@@ -47,7 +56,7 @@ export const useThemeStore = create<ThemeState>()(
       },
     }),
     {
-      name: "openoii-theme",
+      name: "komaslate-theme",
       version: 1,
       migrate: (persisted) => ({
         theme: migrateTheme((persisted as { theme?: unknown } | null)?.theme),

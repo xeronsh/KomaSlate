@@ -11,7 +11,7 @@ describe("durable stage attempts", () => {
   let path: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "openoii-stage-attempt-"));
+    dir = mkdtempSync(join(tmpdir(), "komaslate-stage-attempt-"));
     path = join(dir, "test.db");
     const raw = new SqliteDatabase(path);
     installEngineRuntimeSchema(raw);

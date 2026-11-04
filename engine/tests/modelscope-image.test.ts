@@ -40,8 +40,8 @@ describe("ModelScope async image generation", () => {
   let finalState: Record<string, unknown>;
 
   beforeEach(async () => {
-    vi.stubEnv("OPENOII_IMAGE_POLL_MS", "5");
-    dir = mkdtempSync(join(tmpdir(), "openoii-ms-"));
+    vi.stubEnv("KOMASLATE_IMAGE_POLL_MS", "5");
+    dir = mkdtempSync(join(tmpdir(), "komaslate-ms-"));
     seen = [];
     polls = 0;
     finalState = { task_status: "SUCCEED", output_images: ["/media/out.webp"] };

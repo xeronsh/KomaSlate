@@ -23,16 +23,16 @@ import {
 import { AsyncLocalStorageContextManager } from "@opentelemetry/context-async-hooks";
 import type { AiOperation } from "./ai-operation.js";
 
-export const TRACER_NAME = "openoii-engine";
+export const TRACER_NAME = "komaslate-engine";
 
 /** Engine-specific identity attributes, kept stable for log correlation. */
 export interface OperationSpanAttributes {
   [key: string]: string | number | boolean | undefined;
-  "openoii.run_id": number;
-  "openoii.project_id": number;
-  "openoii.stage": string;
-  "openoii.stage_attempt_id": string;
-  "openoii.execution_attempt"?: number;
+  "komaslate.run_id": number;
+  "komaslate.project_id": number;
+  "komaslate.stage": string;
+  "komaslate.stage_attempt_id": string;
+  "komaslate.execution_attempt"?: number;
 }
 
 export interface GenAiSpanAttributes {
@@ -42,9 +42,9 @@ export interface GenAiSpanAttributes {
   "gen_ai.request.model"?: string;
   "gen_ai.usage.input_tokens"?: number;
   "gen_ai.usage.output_tokens"?: number;
-  "openoii.retry_count"?: number;
-  "openoii.status"?: string;
-  "openoii.error_type"?: string;
+  "komaslate.retry_count"?: number;
+  "komaslate.status"?: string;
+  "komaslate.error_type"?: string;
 }
 
 function tracer(): Tracer {
@@ -98,7 +98,7 @@ export async function withSpan<T>(
       message: error instanceof Error ? error.message : String(error),
     });
     span.recordException(error instanceof Error ? error : String(error));
-    span.setAttribute("openoii.error_type", errorTypeOf(error));
+    span.setAttribute("komaslate.error_type", errorTypeOf(error));
     throw error;
   } finally {
     span.end();
@@ -168,7 +168,7 @@ export function recordUsage(
     span.setAttribute("gen_ai.usage.output_tokens", usage.output);
   }
   if (typeof usage.cost?.total === "number") {
-    span.setAttribute("openoii.cost.total", usage.cost.total);
+    span.setAttribute("komaslate.cost.total", usage.cost.total);
   }
 }
 
@@ -181,10 +181,10 @@ export function recordUsage(
  */
 export function operationSpanAttributes(operation: AiOperation): OperationSpanAttributes {
   return {
-    "openoii.run_id": operation.runId,
-    "openoii.project_id": operation.projectId,
-    "openoii.stage": operation.stage,
-    "openoii.stage_attempt_id": operation.operationId,
+    "komaslate.run_id": operation.runId,
+    "komaslate.project_id": operation.projectId,
+    "komaslate.stage": operation.stage,
+    "komaslate.stage_attempt_id": operation.operationId,
   };
 }
 
@@ -194,5 +194,5 @@ export async function withRunSpan<T>(
   projectId: number,
   fn: (span: Span) => Promise<T>,
 ): Promise<T> {
-  return withSpan("run", { "openoii.run_id": runId, "openoii.project_id": projectId }, fn);
+  return withSpan("run", { "komaslate.run_id": runId, "komaslate.project_id": projectId }, fn);
 }

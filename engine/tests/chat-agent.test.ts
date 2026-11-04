@@ -78,8 +78,8 @@ describe("chat agent", () => {
 
   beforeEach(() => {
     process.env.TEXT_PROVIDER = "fake";
-    process.env.OPENOII_FAKE_STREAM_MS = "0";
-    dir = mkdtempSync(join(tmpdir(), "openoii-chat-"));
+    process.env.KOMASLATE_FAKE_STREAM_MS = "0";
+    dir = mkdtempSync(join(tmpdir(), "komaslate-chat-"));
     const file = join(dir, "o.db");
     const raw = new SqliteDatabase(file);
     raw.exec(SCHEMA);
@@ -349,7 +349,7 @@ describe("chat HTTP routes", () => {
 
   beforeEach(async () => {
     process.env.TEXT_PROVIDER = "fake";
-    process.env.OPENOII_FAKE_STREAM_MS = "0";
+    process.env.KOMASLATE_FAKE_STREAM_MS = "0";
     backend = createServer((req: IncomingMessage, res) => {
       const path = (req.url ?? "").replace(/^\/api\/v1/, "");
       if (path === "/wrapped") {
@@ -361,8 +361,8 @@ describe("chat HTTP routes", () => {
       res.writeHead(body === undefined ? 404 : 200, { "Content-Type": "application/json" });
       res.end(JSON.stringify(body ?? { detail: `missing ${path}` }));
     });
-    process.env.OPENOII_BACKEND_URL = await listen(backend);
-    dir = mkdtempSync(join(tmpdir(), "openoii-chat-http-"));
+    process.env.KOMASLATE_BACKEND_URL = await listen(backend);
+    dir = mkdtempSync(join(tmpdir(), "komaslate-chat-http-"));
     const file = join(dir, "o.db");
     const raw = new SqliteDatabase(file);
     raw.exec(SCHEMA);
@@ -376,7 +376,7 @@ describe("chat HTTP routes", () => {
     await new Promise((done) => app.server.close(done));
     await new Promise((done) => backend.close(done));
     app.db.close();
-    delete process.env.OPENOII_BACKEND_URL;
+    delete process.env.KOMASLATE_BACKEND_URL;
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -407,7 +407,7 @@ describe("chat HTTP routes", () => {
   });
 
   it("surfaces backend errors with their detail", async () => {
-    await expect(backendFetch(process.env.OPENOII_BACKEND_URL!)("/nope")).rejects.toThrow(/missing \/nope/);
-    await expect(backendFetch(process.env.OPENOII_BACKEND_URL!)("/wrapped")).rejects.toThrow("已有运行在进行");
+    await expect(backendFetch(process.env.KOMASLATE_BACKEND_URL!)("/nope")).rejects.toThrow(/missing \/nope/);
+    await expect(backendFetch(process.env.KOMASLATE_BACKEND_URL!)("/wrapped")).rejects.toThrow("已有运行在进行");
   });
 });

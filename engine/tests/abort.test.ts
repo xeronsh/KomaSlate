@@ -3,7 +3,7 @@ import { MediaService, type MediaSettings } from "../src/media/media.js";
 
 function settings(overrides: Partial<MediaSettings>): MediaSettings {
   return {
-    staticDir: "/tmp/openoii-abort-test",
+    staticDir: "/tmp/komaslate-abort-test",
     imageProvider: "openai",
     imageApiKey: "test-key",
     imageBaseUrl: "https://example.test",

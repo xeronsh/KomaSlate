@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from functools import lru_cache
+from pathlib import Path
 from typing import Any
 
 from pydantic import Field
@@ -12,7 +13,7 @@ class Settings(BaseSettings):
     # should not implicitly read the repo's .env. Runtime uses get_settings().
     model_config = SettingsConfigDict(extra="ignore")
 
-    app_name: str = "openOii-backend"
+    app_name: str = "komaslate-backend"
     environment: str = Field(default="dev", description="dev|staging|prod")
 
     # pi engine sidecar 的 loopback 地址（编排唯一引擎）
@@ -30,7 +31,11 @@ class Settings(BaseSettings):
 
     # 数据库：单文件 SQLite（WAL），与 pi engine sidecar 共享同一文件
     database_url: str = Field(
-        default="sqlite+aiosqlite:///./data/openoii.db"
+        default_factory=lambda: (
+            "sqlite+aiosqlite:///./data/openoii.db"
+            if not Path("./data/komaslate.db").exists() and Path("./data/openoii.db").exists()
+            else "sqlite+aiosqlite:///./data/komaslate.db"
+        )
     )
     db_echo: bool = False
 

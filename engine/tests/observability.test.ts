@@ -42,10 +42,10 @@ describe("engine observability", () => {
   });
 
   const baseAttributes = {
-    "openoii.run_id": 7,
-    "openoii.project_id": 3,
-    "openoii.stage": "render_shots",
-    "openoii.stage_attempt_id": "attempt-1",
+    "komaslate.run_id": 7,
+    "komaslate.project_id": 3,
+    "komaslate.stage": "render_shots",
+    "komaslate.stage_attempt_id": "attempt-1",
   } as const;
 
   function names(spans: ReadableSpan[]): string[] {
@@ -54,15 +54,15 @@ describe("engine observability", () => {
 
   it("records a stage span with the run identity", async () => {
     const result = await withStageSpan("stage render_shots", baseAttributes, async (span: Span) => {
-      span.setAttribute("openoii.status", "succeeded");
+      span.setAttribute("komaslate.status", "succeeded");
       return "ok";
     });
 
     expect(result).toBe("ok");
     const spans = exporter.getFinishedSpans();
     expect(names(spans)).toEqual(["stage render_shots"]);
-    expect(spans[0]!.attributes["openoii.run_id"]).toBe(7);
-    expect(spans[0]!.attributes["openoii.stage"]).toBe("render_shots");
+    expect(spans[0]!.attributes["komaslate.run_id"]).toBe(7);
+    expect(spans[0]!.attributes["komaslate.stage"]).toBe("render_shots");
     expect(spans[0]!.status.code).toBe(SpanStatusCode.OK);
   });
 
@@ -70,7 +70,7 @@ describe("engine observability", () => {
     await withStageSpan("stage render_shots", baseAttributes, async () => {
       await withProviderSpan(
         "gen_ai.image.generate",
-        { ...baseAttributes, "gen_ai.system": "doubao", "openoii.retry_count": 0 },
+        { ...baseAttributes, "gen_ai.system": "doubao", "komaslate.retry_count": 0 },
         async () => "url",
       );
     });
@@ -79,7 +79,7 @@ describe("engine observability", () => {
     const providerSpan = spans.find((span) => span.name === "gen_ai.image.generate")!;
     const stageSpan = spans.find((span) => span.name === "stage render_shots")!;
     expect(providerSpan.attributes["gen_ai.system"]).toBe("doubao");
-    expect(providerSpan.attributes["openoii.retry_count"]).toBe(0);
+    expect(providerSpan.attributes["komaslate.retry_count"]).toBe(0);
     expect(stageSpan.name).toBe("stage render_shots");
   });
 
@@ -95,7 +95,7 @@ describe("engine observability", () => {
     expect(span.attributes["gen_ai.usage.input_tokens"]).toBe(120);
     expect(span.attributes["gen_ai.usage.output_tokens"]).toBe(44);
     expect(span.attributes["gen_ai.request.model"]).toBe("claude-sonnet-4-5");
-    expect(span.attributes["openoii.cost.total"]).toBe(0.0031);
+    expect(span.attributes["komaslate.cost.total"]).toBe(0.0031);
   });
 
   it("ends the span and records the error when work fails", async () => {
@@ -109,7 +109,7 @@ describe("engine observability", () => {
     expect(span.status.code).toBe(SpanStatusCode.ERROR);
     // A plain Error reports its constructor name; classified kinds are used
     // only for the cases the engine distinguishes.
-    expect(span.attributes["openoii.error_type"]).toBe("Error");
+    expect(span.attributes["komaslate.error_type"]).toBe("Error");
     expect(span.events.length).toBeGreaterThan(0);
   });
 
@@ -130,7 +130,7 @@ describe("engine observability", () => {
       }),
     ).rejects.toThrow();
 
-    const kinds = exporter.getFinishedSpans().map((span) => span.attributes["openoii.error_type"]);
+    const kinds = exporter.getFinishedSpans().map((span) => span.attributes["komaslate.error_type"]);
     expect(kinds).toEqual(["cancelled", "timeout", "lease_lost"]);
   });
 
@@ -149,7 +149,7 @@ describe("engine observability", () => {
 
   it("shares one tracer so spans correlate", async () => {
     await withStageSpan("stage", baseAttributes, async () => undefined);
-    expect(TRACER_NAME).toBe("openoii-engine");
+    expect(TRACER_NAME).toBe("komaslate-engine");
   });
 
   it("emits nothing when no provider is registered", async () => {
@@ -179,19 +179,19 @@ describe("run -> stage -> provider span tree", () => {
         await withStageSpan(
           "stage render_shots",
           {
-            "openoii.run_id": 7,
-            "openoii.project_id": 3,
-            "openoii.stage": "render_shots",
-            "openoii.stage_attempt_id": "attempt-1",
+            "komaslate.run_id": 7,
+            "komaslate.project_id": 3,
+            "komaslate.stage": "render_shots",
+            "komaslate.stage_attempt_id": "attempt-1",
           },
           async () => {
             await withProviderSpan(
               "gen_ai.image.generate",
               {
-                "openoii.run_id": 7,
-                "openoii.project_id": 3,
-                "openoii.stage": "render_shots",
-                "openoii.stage_attempt_id": "attempt-1",
+                "komaslate.run_id": 7,
+                "komaslate.project_id": 3,
+                "komaslate.stage": "render_shots",
+                "komaslate.stage_attempt_id": "attempt-1",
                 "gen_ai.system": "doubao",
               },
               async () => "url",
@@ -211,8 +211,8 @@ describe("run -> stage -> provider span tree", () => {
       expect(stage.parentSpanContext?.spanId).toBe(run.spanContext().spanId);
       expect(providerSpan.parentSpanContext?.spanId).toBe(stage.spanContext().spanId);
       // Identity is on every level, so a provider call is traceable to its run.
-      expect(providerSpan.attributes["openoii.run_id"]).toBe(7);
-      expect(providerSpan.attributes["openoii.stage_attempt_id"]).toBe("attempt-1");
+      expect(providerSpan.attributes["komaslate.run_id"]).toBe(7);
+      expect(providerSpan.attributes["komaslate.stage_attempt_id"]).toBe("attempt-1");
     } finally {
       exporter.reset();
       await provider.shutdown();

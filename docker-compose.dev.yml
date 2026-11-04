@@ -6,7 +6,7 @@ services:
     env_file:
       - ./backend/.env
     environment:
-      DATABASE_URL: sqlite+aiosqlite:///./data/openoii.db
+      DATABASE_URL: sqlite+aiosqlite:///./data/komaslate.db
       ENGINE_URL: http://127.0.0.1:18766
       WEB_CONCURRENCY: "1"
     ports:

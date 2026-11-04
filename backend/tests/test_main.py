@@ -26,7 +26,7 @@ def test_local_dev_origin_regex_disabled_in_production():
 
 def test_create_app_mounts_static_and_health(monkeypatch):
     settings = SimpleNamespace(
-        app_name="openOii",
+        app_name="KomaSlate",
         cors_origins=["http://localhost:3000"],
         api_v1_prefix="/api/v1",
         environment="development",
@@ -42,7 +42,7 @@ def test_create_app_mounts_static_and_health(monkeypatch):
 @pytest.mark.asyncio
 async def test_health_endpoint_returns_ok(monkeypatch):
     settings = SimpleNamespace(
-        app_name="openOii",
+        app_name="KomaSlate",
         cors_origins=[],
         api_v1_prefix="/api/v1",
         environment="development",
@@ -89,7 +89,7 @@ def _mark_called(called):
 @pytest.mark.asyncio
 async def test_app_exception_handler_returns_error_payload(monkeypatch):
     settings = SimpleNamespace(
-        app_name="openOii",
+        app_name="KomaSlate",
         cors_origins=[],
         api_v1_prefix="/api/v1",
         environment="development",
@@ -109,7 +109,7 @@ async def test_app_exception_handler_returns_error_payload(monkeypatch):
 @pytest.mark.asyncio
 async def test_general_exception_handler_in_development_includes_details(monkeypatch):
     settings = SimpleNamespace(
-        app_name="openOii",
+        app_name="KomaSlate",
         cors_origins=[],
         api_v1_prefix="/api/v1",
         environment="development",
@@ -128,7 +128,7 @@ async def test_general_exception_handler_in_development_includes_details(monkeyp
 @pytest.mark.asyncio
 async def test_general_exception_handler_in_production_omits_details(monkeypatch):
     settings = SimpleNamespace(
-        app_name="openOii",
+        app_name="KomaSlate",
         cors_origins=[],
         api_v1_prefix="/api/v1",
         environment="production",
@@ -209,7 +209,7 @@ async def test_ws_projects_handles_ping_and_echo(monkeypatch):
         main_module,
         "get_settings",
         lambda: SimpleNamespace(
-            app_name="openOii",
+            app_name="KomaSlate",
             cors_origins=[],
             api_v1_prefix="/api/v1",
             environment="development",
@@ -284,7 +284,7 @@ async def test_ws_projects_replays_awaiting_payload(monkeypatch):
         main_module,
         "get_settings",
         lambda: SimpleNamespace(
-            app_name="openOii", cors_origins=[], api_v1_prefix="/api/v1", environment="development"
+            app_name="KomaSlate", cors_origins=[], api_v1_prefix="/api/v1", environment="development"
         ),
     )
     monkeypatch.setattr(main_module, "init_db", lambda: None)
@@ -358,7 +358,7 @@ async def test_ws_projects_confirm_invalid_run_sends_error(monkeypatch):
         main_module,
         "get_settings",
         lambda: SimpleNamespace(
-            app_name="openOii",
+            app_name="KomaSlate",
             cors_origins=[],
             api_v1_prefix="/api/v1",
             environment="development",
@@ -445,7 +445,7 @@ async def test_ws_projects_confirm_with_feedback_requests_changes_not_approval(m
         main_module,
         "get_settings",
         lambda: SimpleNamespace(
-            app_name="openOii", cors_origins=[], api_v1_prefix="/api/v1", environment="development"
+            app_name="KomaSlate", cors_origins=[], api_v1_prefix="/api/v1", environment="development"
         ),
     )
     monkeypatch.setattr(main_module, "init_db", lambda: None)
@@ -519,7 +519,7 @@ async def test_ws_projects_confirm_without_feedback_approves(monkeypatch):
         main_module,
         "get_settings",
         lambda: SimpleNamespace(
-            app_name="openOii", cors_origins=[], api_v1_prefix="/api/v1", environment="development"
+            app_name="KomaSlate", cors_origins=[], api_v1_prefix="/api/v1", environment="development"
         ),
     )
     monkeypatch.setattr(main_module, "init_db", lambda: None)
@@ -580,7 +580,7 @@ async def test_ws_projects_feedback_save_error_sends_ws_error(monkeypatch):
         main_module,
         "get_settings",
         lambda: SimpleNamespace(
-            app_name="openOii", cors_origins=[], api_v1_prefix="/api/v1", environment="development"
+            app_name="KomaSlate", cors_origins=[], api_v1_prefix="/api/v1", environment="development"
         ),
     )
     monkeypatch.setattr(main_module, "init_db", lambda: None)
@@ -655,7 +655,7 @@ async def test_ws_projects_message_exception_sends_error(monkeypatch):
         main_module,
         "get_settings",
         lambda: SimpleNamespace(
-            app_name="openOii", cors_origins=[], api_v1_prefix="/api/v1", environment="development"
+            app_name="KomaSlate", cors_origins=[], api_v1_prefix="/api/v1", environment="development"
         ),
     )
     monkeypatch.setattr(main_module, "init_db", lambda: None)
@@ -689,7 +689,7 @@ async def test_http_exception_handler_uses_error_envelope(monkeypatch):
     "This character is already being regenerated" 变成 "Conflict"）。
     """
     settings = SimpleNamespace(
-        app_name="openOii",
+        app_name="KomaSlate",
         cors_origins=[],
         api_v1_prefix="/api/v1",
         environment="development",
@@ -718,7 +718,7 @@ async def test_http_exception_handler_uses_error_envelope(monkeypatch):
 @pytest.mark.asyncio
 async def test_validation_error_handler_uses_error_envelope(monkeypatch):
     settings = SimpleNamespace(
-        app_name="openOii",
+        app_name="KomaSlate",
         cors_origins=[],
         api_v1_prefix="/api/v1",
         environment="development",

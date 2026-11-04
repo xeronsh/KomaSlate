@@ -1,4 +1,4 @@
-# openOii Backend
+# KomaSlate Backend
 
 FastAPI + SQLModel + SQLite(与 pi 引擎共享同一文件)后端。测试使用内存 SQLite。
 

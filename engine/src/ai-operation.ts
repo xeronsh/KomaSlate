@@ -71,16 +71,16 @@ function envMs(name: string): number | null {
 
 /**
  * Wall-clock budget for one stage attempt: the base budget
- * (`OPENOII_STAGE_TIMEOUT_MS`, default 10 min) or, for per-item stages,
- * items × per-item budget (`OPENOII_STAGE_ITEM_TIMEOUT_MS` overrides the
+ * (`KOMASLATE_STAGE_TIMEOUT_MS`, default 10 min) or, for per-item stages,
+ * items × per-item budget (`KOMASLATE_STAGE_ITEM_TIMEOUT_MS` overrides the
  * per-stage default), whichever is larger.
  */
 export function stageOperationTimeoutMs(stage: string, itemCount: number): number {
-  const base = envMs("OPENOII_STAGE_TIMEOUT_MS") ?? DEFAULT_OPERATION_TIMEOUT_MS;
+  const base = envMs("KOMASLATE_STAGE_TIMEOUT_MS") ?? envMs("OPENOII_STAGE_TIMEOUT_MS") ?? DEFAULT_OPERATION_TIMEOUT_MS;
   const perItem = STAGE_ITEM_TIMEOUT_MS[stage];
   if (perItem === undefined) return base;
   const items = Math.max(0, Math.floor(itemCount));
-  return Math.max(base, items * (envMs("OPENOII_STAGE_ITEM_TIMEOUT_MS") ?? perItem));
+  return Math.max(base, items * (envMs("KOMASLATE_STAGE_ITEM_TIMEOUT_MS") ?? envMs("OPENOII_STAGE_ITEM_TIMEOUT_MS") ?? perItem));
 }
 
 export function beginAiOperation(context: AiOperationContext): AiOperation {

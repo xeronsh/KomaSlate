@@ -13,7 +13,7 @@ describe("durable websocket cursor", () => {
 	});
 
 	it("ignores malformed persisted values", () => {
-		window.sessionStorage.setItem("openoii.ws.cursor.42", "not-a-number");
+		window.sessionStorage.setItem("komaslate.ws.cursor.42", "not-a-number");
 		expect(readWsCursor(42)).toBeNull();
 	});
 

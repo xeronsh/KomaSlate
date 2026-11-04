@@ -56,8 +56,8 @@ describe("MediaService vendor video", () => {
   let createStatus: number;
 
   beforeEach(async () => {
-    vi.stubEnv("OPENOII_VIDEO_POLL_MS", "2");
-    dir = mkdtempSync(join(tmpdir(), "openoii-vj-"));
+    vi.stubEnv("KOMASLATE_VIDEO_POLL_MS", "2");
+    dir = mkdtempSync(join(tmpdir(), "komaslate-vj-"));
     seen = [];
     polls = 0;
     createStatus = 200;

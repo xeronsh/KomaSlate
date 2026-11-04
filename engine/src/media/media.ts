@@ -1636,22 +1636,22 @@ const PROVIDER_MAX_RETRIES = 3;
 /**
  * Backoff base for provider retries (waits base, 3×, 9×: 5 s / 15 s / 45 s), so
  * a gateway blip of up to about a minute does not fail the stage.
- * OPENOII_PROVIDER_RETRY_MS overrides it (tests).
+ * KOMASLATE_PROVIDER_RETRY_MS overrides it (tests).
  */
 function providerRetryBaseMs(): number {
-  const raw = Number(process.env.OPENOII_PROVIDER_RETRY_MS ?? 5_000);
+  const raw = Number(process.env.KOMASLATE_PROVIDER_RETRY_MS ?? process.env.OPENOII_PROVIDER_RETRY_MS ?? 5_000);
   return Number.isFinite(raw) && raw >= 0 ? raw : 5_000;
 }
 
-/** Async video task poll interval; OPENOII_VIDEO_POLL_MS overrides it (tests, slow providers). */
+/** Async video task poll interval; KOMASLATE_VIDEO_POLL_MS overrides it (tests, slow providers). */
 function videoTaskPollMs(): number {
-  const raw = Number(process.env.OPENOII_VIDEO_POLL_MS ?? 5_000);
+  const raw = Number(process.env.KOMASLATE_VIDEO_POLL_MS ?? process.env.OPENOII_VIDEO_POLL_MS ?? 5_000);
   return Number.isFinite(raw) && raw >= 0 ? raw : 5_000;
 }
 const VIDEO_TASK_MAX_WAIT_MS = 15 * 60_000;
-/** ModelScope image task poll interval; OPENOII_IMAGE_POLL_MS overrides it (tests). */
+/** ModelScope image task poll interval; KOMASLATE_IMAGE_POLL_MS overrides it (tests). */
 function imageTaskPollMs(): number {
-  const raw = Number(process.env.OPENOII_IMAGE_POLL_MS ?? 5_000);
+  const raw = Number(process.env.KOMASLATE_IMAGE_POLL_MS ?? process.env.OPENOII_IMAGE_POLL_MS ?? 5_000);
   return Number.isFinite(raw) && raw >= 0 ? raw : 5_000;
 }
 const IMAGE_TASK_MAX_WAIT_MS = 5 * 60_000;

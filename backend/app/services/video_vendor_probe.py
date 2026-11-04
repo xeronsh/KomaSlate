@@ -25,7 +25,7 @@ from app.services.connection_probe import (
     describe_http_status,
 )
 
-PROBE_TASK_ID = "openoii-connection-probe"
+PROBE_TASK_ID = "komaslate-connection-probe"
 VIDEO_VENDOR_LABELS = {
     "kling": "可灵",
     "vidu": "Vidu",

@@ -26,8 +26,8 @@ describe("targeted runs", () => {
     process.env.VIDEO_PROVIDER = "fake";
     process.env.TTS_ENABLED = "false";
     process.env.BGM_ENABLED = "false";
-    cleanupDir = mkdtempSync(join(tmpdir(), "openoii-targeted-"));
-    dbFile = join(cleanupDir, "openoii.db");
+    cleanupDir = mkdtempSync(join(tmpdir(), "komaslate-targeted-"));
+    dbFile = join(cleanupDir, "komaslate.db");
     const raw = new SqliteDatabase(dbFile);
     raw.exec(SCHEMA);
     installExecutionLeaseColumns(raw);

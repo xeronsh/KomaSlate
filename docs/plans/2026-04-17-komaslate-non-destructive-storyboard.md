@@ -2,7 +2,7 @@
 
 > **给执行者：** 按任务逐步落实，严格遵守文件边界（4 个并行 worktree 零文件重叠）。按仓库 `AGENTS.md` 约定：**默认不跑测试命令（不执行 pytest / vitest / tsc / pnpm build / ruff），不新增或修改测试文件，不 git push**。每个 worktree 完成后在各自分支做一次英文 Conventional Commit（`<=72` 字符）。
 
-**目标：** 补齐 KomaSlate（原 openOii）单镜头非破坏性编辑、重规划保活、回滚一致性、视频版本对比与通用剪辑包（ZIP + SRT + FCPXML v1.9）导出闭环。
+**目标：** 补齐 KomaSlate单镜头非破坏性编辑、重规划保活、回滚一致性、视频版本对比与通用剪辑包（ZIP + SRT + FCPXML v1.9）导出闭环。
 
 **架构：** 保持 ADR 0008 边界——`engine/` 持有分镜重规划保活与渲染/合成提示词拼接；`backend/` 负责参数透传、空镜审批放行、回滚事务同步与 ZIP/FCPXML 打包；`frontend/` 暴露角色芯片绑定、单镜重画微调输入、双栏视频对比与剪辑包导出按钮。
 

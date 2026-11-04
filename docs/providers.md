@@ -53,7 +53,7 @@
 | 国内 | [Kimi（月之暗面）](https://platform.kimi.com/docs/api/overview) | `openai` | 国内：`https://api.moonshot.cn/v1`<br>海外：`https://api.moonshot.ai/v1` | `/chat/completions` | `kimi-k3` | K3 的推理强度对应高级设置里的「推理强度」：low / high 可用，max 引擎暂不支持。 |
 | 国内 | [MiniMax](https://platform.minimax.io/docs/api-reference/text-openai-api) | `openai` | 国内：`https://api.minimaxi.com/v1`<br>海外：`https://api.minimax.io/v1` | `/chat/completions` | `MiniMax-M3`, `MiniMax-M3.1-Flash` | MiniMax-M2.5 / M2.7 将于 2026-11-18 下线。 |
 | 国内 | [火山方舟](https://ark.volcengine.com/region:cn-beijing/docs/compatible-with-openai-sdk) | `openai` | 北京：`https://ark.cn-beijing.volces.com/api/v3` | `/chat/completions` | `doubao-seed-2-1-pro-260915` | — |
-| 国内 | [百度千帆](https://cloud.baidu.com/doc/qianfan/s/Hmh4suq26) | `openai` | 国内：`https://qianfan.baidubce.com/v2` | `/chat/completions` | `ernie-4.5-turbo-128k`, `deepseek-v3.1-250821` | openOii 不发送 appid 请求头：请使用对全部应用有权限的 API Key。 |
+| 国内 | [百度千帆](https://cloud.baidu.com/doc/qianfan/s/Hmh4suq26) | `openai` | 国内：`https://qianfan.baidubce.com/v2` | `/chat/completions` | `ernie-4.5-turbo-128k`, `deepseek-v3.1-250821` | KomaSlate 不发送 appid 请求头：请使用对全部应用有权限的 API Key。 |
 | 国内 | [腾讯混元](https://cloud.tencent.com/document/product/1823/130051) | `openai` | 国内：`https://tokenhub.tencentmaas.com/v1`<br>国际：`https://tokenhub-intl.tencentcloudmaas.com/v1` | `/chat/completions` | `hy4-preview`, `hy3` | 旧地址 api.hunyuan.cloud.tencent.com 已于 2026-09-30 停用。 |
 | 国内 | [硅基流动](https://docs.siliconflow.cn/) | `openai` | 国内：`https://api.siliconflow.cn/v1` | `/chat/completions` | `deepseek-ai/DeepSeek-V4.1-Flash`, `zai-org/GLM-5.3`, `tencent/Hy4-preview` | 官方已从 .com 迁移到 api.siliconflow.cn。 |
 | 海外 | [OpenAI](https://developers.openai.com/api/reference/python/resources/chat/index.md) | `openai` | 官方：`https://api.openai.com/v1` | `/chat/completions` | `gpt-6-astra`, `gpt-6.1-terra`, `gpt-6.1-sol` | — |
@@ -66,8 +66,8 @@
 | 海外 | [Together AI](https://docs.together.ai/docs/openai-api-compatibility) | `openai` | 官方：`https://api.together.xyz/v1` | `/chat/completions` | `openai/gpt-oss-120b` | — |
 | 海外 | [Azure OpenAI](https://learn.microsoft.com/azure/ai-foundry/openai/api-version-lifecycle) | `openai` | 资源终结点：`https://{resource}.openai.azure.com/openai/v1` | `/chat/completions` | — | 需要填写：resource；使用不带 api-version 的 v1 接口；旧的 /deployments/…?api-version= 地址请用自定义。 |
 | 海外 | [Amazon Bedrock](https://docs.aws.amazon.com/bedrock/latest/userguide/inference-chat-completions.html) | `openai` | us-east-1：`https://bedrock-runtime.us-east-1.amazonaws.com/openai/v1`<br>us-west-2：`https://bedrock-runtime.us-west-2.amazonaws.com/openai/v1` | `/chat/completions` | `openai.gpt-oss-120b-1:0`, `openai.gpt-oss-20b-1:0` | 只能用 Bedrock API Key（Bearer）；AWS SigV4 签名不支持。 |
-| 本地与自定义 | [Ollama](https://docs.ollama.com/api/openai-compatibility) | `openai` | 本机：`http://localhost:11434/v1` | `/chat/completions` | — | localhost 指运行 openOii 后端的机器；本地地址需先保存再测试连接。 |
-| 本地与自定义 | [LM Studio](https://lmstudio.ai/docs/developer/openai-compat) | `openai` | 本机：`http://localhost:1234/v1` | `/chat/completions` | — | localhost 指运行 openOii 后端的机器；本地地址需先保存再测试连接。 |
+| 本地与自定义 | [Ollama](https://docs.ollama.com/api/openai-compatibility) | `openai` | 本机：`http://localhost:11434/v1` | `/chat/completions` | — | localhost 指运行 KomaSlate 后端的机器；本地地址需先保存再测试连接。 |
+| 本地与自定义 | [LM Studio](https://lmstudio.ai/docs/developer/openai-compat) | `openai` | 本机：`http://localhost:1234/v1` | `/chat/completions` | — | localhost 指运行 KomaSlate 后端的机器；本地地址需先保存再测试连接。 |
 | 本地与自定义 | 自定义 · OpenAI 兼容 | `openai` | — | — | — | 只切换类型，保留已有地址和模型 |
 | 测试模式（小选项） | 测试模式（Fake） | `fake` | — | — | — | — |
 
@@ -75,7 +75,7 @@
 
 | 分组 | 预设 | 类型 | 地址 | 接口路径 | 推荐模型 | 特殊配置 / 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
-| 国内 | [火山方舟 Seedream](https://ark.volcengine.com/region:cn-beijing/docs/image-generation-api) | `openai` | 北京：`https://ark.cn-beijing.volces.com/api/v3` | `/images/generations` | `doubao-seedream-4-0-250828`, `doubao-seedream-5-0-pro-260628`, `doubao-seedream-5-0-flash-260915` | openOii 固定请求 1024×1024：5.0 lite 最低 2K，不在推荐列表里。；Seedream 默认加水印，openOii 目前不传 watermark 参数。 |
+| 国内 | [火山方舟 Seedream](https://ark.volcengine.com/region:cn-beijing/docs/image-generation-api) | `openai` | 北京：`https://ark.cn-beijing.volces.com/api/v3` | `/images/generations` | `doubao-seedream-4-0-250828`, `doubao-seedream-5-0-pro-260628`, `doubao-seedream-5-0-flash-260915` | KomaSlate 固定请求 1024×1024：5.0 lite 最低 2K，不在推荐列表里。；Seedream 默认加水印，KomaSlate 目前不传 watermark 参数。 |
 | 国内 | [智谱 CogView](https://docs.bigmodel.cn/cn/guide/models/image-generation/cogview-4) | `openai` | 国内：`https://open.bigmodel.cn/api/paas/v4` | `/images/generations` | `cogview-4-250304`, `cogview-4` | — |
 | 国内 | [ModelScope 魔搭](https://modelscope.cn/docs/model-service/API-Inference/intro) | `modelscope` | 国内：`https://api-inference.modelscope.cn` | `/v1/images/generations` | `Tongyi-MAI/Z-Image-Turbo`, `Qwen/Qwen-Image` | 异步任务：提交后轮询 /v1/tasks/{id}，引擎和后端都已支持。 |
 | 海外 | [OpenAI 图像](https://developers.openai.com/api/docs/guides/image-generation) | `openai` | 官方：`https://api.openai.com/v1` | `/images/generations` | `gpt-image-2.5-flare`, `gpt-image-2.5-sunburst` | — |
@@ -84,7 +84,7 @@
 
 ## 视频服务（写入 `VIDEO_*`（豆包为 `DOUBAO_*`））
 
-可灵、Vidu、CogVideoX、MiniMax 海螺、通义万相、Veo 走各自的**原生异步接口**（`VIDEO_PROVIDER` = `kling` / `vidu` / `zhipu` / `minimax` / `dashscope` / `veo`），由引擎 `engine/src/media/video-jobs/` 里每个服务商一个模块实现：提交 → 轮询 → 下载。轮询间隔 `OPENOII_VIDEO_POLL_MS`（默认 5 秒），最长 15 分钟；网络错误和 429 / 5xx 退避重试，连续 5 次失败才放弃；401 / 403 / 参数错误立即失败。取消运行只停止本地轮询，服务商侧已排队的任务不会撤回（这些接口大多没有取消 API）。成片下载到本地，非服务商域名的地址要先通过公网地址检查。分镜时长和 `VIDEO_RATIO`（画幅，默认 16:9）按下表取到服务商允许的值。接口均于 2026-10-30 按官方文档核对，**没有用真实密钥调用过**。
+可灵、Vidu、CogVideoX、MiniMax 海螺、通义万相、Veo 走各自的**原生异步接口**（`VIDEO_PROVIDER` = `kling` / `vidu` / `zhipu` / `minimax` / `dashscope` / `veo`），由引擎 `engine/src/media/video-jobs/` 里每个服务商一个模块实现：提交 → 轮询 → 下载。轮询间隔 `KOMASLATE_VIDEO_POLL_MS`（默认 5 秒），最长 15 分钟；网络错误和 429 / 5xx 退避重试，连续 5 次失败才放弃；401 / 403 / 参数错误立即失败。取消运行只停止本地轮询，服务商侧已排队的任务不会撤回（这些接口大多没有取消 API）。成片下载到本地，非服务商域名的地址要先通过公网地址检查。分镜时长和 `VIDEO_RATIO`（画幅，默认 16:9）按下表取到服务商允许的值。接口均于 2026-10-30 按官方文档核对，**没有用真实密钥调用过**。
 
 | 服务商 | 文生 / 图生 | 时长（秒） | 画幅 | 特殊处理 |
 | --- | --- | --- | --- | --- |
@@ -102,7 +102,7 @@
 | 分组 | 预设 | 类型 | 地址 | 接口路径 | 推荐模型 | 特殊配置 / 说明 |
 | --- | --- | --- | --- | --- | --- | --- |
 | 国内 | [火山方舟 Seedance](https://ark.volcengine.com/region:cn-beijing/docs/list-video-generation-tasks-api) | `doubao` | — | — | `doubao-seedance-2-5-260628`, `doubao-seedance-1-5-pro-251215` | 固定使用北京地域；时长和画幅在高级设置里调整。 |
-| 海外 | [xAI Grok Imagine](https://docs.x.ai/developers/model-capabilities/video/generation) | `openai` | 官方：`https://api.x.ai/v1` | `/videos/generations` | `grok-imagine-video-1.5`, `grok-imagine-video-1.5-lite` | **实验性**；返回 request_id 后轮询 /v1/videos/{id}，与 openOii 的异步任务流程一致。；xAI 的图生视频参数叫 image，openOii 发送的是 image_url：目前按文生视频使用。 |
+| 海外 | [xAI Grok Imagine](https://docs.x.ai/developers/model-capabilities/video/generation) | `openai` | 官方：`https://api.x.ai/v1` | `/videos/generations` | `grok-imagine-video-1.5`, `grok-imagine-video-1.5-lite` | **实验性**；返回 request_id 后轮询 /v1/videos/{id}，与 KomaSlate 的异步任务流程一致。；xAI 的图生视频参数叫 image，KomaSlate 发送的是 image_url：目前按文生视频使用。 |
 | 本地与自定义 | 自定义 · OpenAI 兼容 | `openai` | — | — | — | 只切换类型，保留已有地址和模型 |
 | 测试模式（小选项） | 测试模式（Fake） | `fake` | — | — | — | — |
 
@@ -192,12 +192,12 @@
 - **模型字段语义不同**：Azure 填部署名称；火山方舟可以填模型 ID 或接入点 ID（`ep-…`）。
 - **Claude 5.5**：引擎的原生 Anthropic 适配只认 4.x 型号，所以「Anthropic Claude」预设走官方 OpenAI 兼容层 `https://api.anthropic.com/v1`。原生 Messages 接口或中转站：选「自定义」，在「高级设置 → 接口协议」里选 Anthropic Claude（`ANTHROPIC_BASE_URL` + `ANTHROPIC_AUTH_TOKEN`）；老配置会原样显示在自定义里。
 - **ModelScope 异步出图**：引擎提交时带 `X-ModelScope-Async-Mode: true`，再轮询 `/v1/tasks/{id}`（`X-ModelScope-Task-Type: image_generation`），见 PR #106。
-- **Seedream**：openOii 固定请求 1024×1024，最低要求 2K 的 5.0 lite 不在推荐列表里。另外 Seedream 默认带水印。
+- **Seedream**：KomaSlate 固定请求 1024×1024，最低要求 2K 的 5.0 lite 不在推荐列表里。另外 Seedream 默认带水印。
 - **Seedance**：走方舟原生任务接口（`DOUBAO_*`）。时长目前按 5 或 10 秒提交（引擎 `normalizeVideoDuration`），画幅在高级设置里调。
 - **推理参数**：Kimi K3 用顶层 `reasoning_effort`（low / high / max），对应高级设置里的「推理强度」。引擎只接受 minimal / low / medium / high / xhigh，所以 `max` 暂时用不了。智谱的 `thinking.type` 目前没有对应的配置项。
 - **退役与迁移**：DeepSeek `deepseek-chat` / `deepseek-reasoner` 已于 2026-07-24 下线；腾讯混元旧地址 `api.hunyuan.cloud.tencent.com` 已于 2026-09-30 停用；硅基流动已迁到 `api.siliconflow.cn`；MiniMax M2.5 / M2.7 将于 2026-11-18 下线。
-- **千帆**：openOii 不发送 `appid` 头，需要用对全部应用都有权限的 API Key。
-- **本地服务**（Ollama、LM Studio）：密钥可以留空。`localhost` 指的是运行 openOii 后端的机器。
+- **千帆**：KomaSlate 不发送 `appid` 头，需要用对全部应用都有权限的 API Key。
+- **本地服务**（Ollama、LM Studio）：密钥可以留空。`localhost` 指的是运行 KomaSlate 后端的机器。
 
 ## 暂不提供预设的服务商
 
@@ -214,13 +214,13 @@
 | Amazon Bedrock（SigV4） | 只支持 Bedrock API Key（Bearer），不做 AWS 签名 |
 | Azure 旧版部署地址 | `/deployments/{name}?api-version=` 请用「自定义」手动填写 |
 | 智谱 z.ai 国际站 | 地址和模型没能在官方文档里核实 |
-| Seedream 5.0 lite | 最低 2K，openOii 固定请求 1024×1024 |
+| Seedream 5.0 lite | 最低 2K，KomaSlate 固定请求 1024×1024 |
 
 这些服务以后接入时需要在引擎里加专门的适配，不能只靠预设。
 
 ## 服务商 logo
 
-卡片上的 logo 取自 [Lobe Icons](https://github.com/lobehub/lobe-icons)（`@lobehub/icons-static-svg` 1.101.0，MIT License，Copyright (c) 2023 LobeHub），2026-10-30 下载，用 `frontend/scripts/build-provider-logos.py` 生成到 `frontend/public/provider-logos/`（共 33 个，约 39 KB，浏览器按需加载，不进 JS 包；其中 `library.svg` 是 openOii 自己画的曲库标，图形取自 Iconoir 的 music-double-note，MIT）。
+卡片上的 logo 取自 [Lobe Icons](https://github.com/lobehub/lobe-icons)（`@lobehub/icons-static-svg` 1.101.0，MIT License，Copyright (c) 2023 LobeHub），2026-10-30 下载，用 `frontend/scripts/build-provider-logos.py` 生成到 `frontend/public/provider-logos/`（共 33 个，约 39 KB，浏览器按需加载，不进 JS 包；其中 `library.svg` 是 KomaSlate 自己画的曲库标，图形取自 Iconoir 的 music-double-note，MIT）。
 
 - 有彩色变体（`*-color.svg`）的品牌直接用彩色版，只去掉 `<title>`、宽高和内联样式。
 - 只有单色标的 7 个品牌（OpenAI、xAI、Groq、Ollama、LM Studio、ElevenLabs、Suno）按 Lobe Icons 源码 `src/<Brand>/style.ts` 里的头像配色（`AVATAR_BACKGROUND` / `AVATAR_COLOR`）烘焙成整块品牌底色：OpenAI 黑底白标、xAI 和 Ollama 白底黑标、Groq `#F55036` 底白标、LM Studio `#6C78EF→#4F14BE` 渐变底白标、ElevenLabs 白底黑标、Suno 黑底白标。
@@ -228,7 +228,7 @@
 
 许可全文见 `frontend/public/provider-logos/LICENSE.txt`，汇总在仓库根目录 `NOTICE`。
 
-logo 是各公司的商标，这里只用来标明服务商，openOii 与它们没有关联，也未获其背书。
+logo 是各公司的商标，这里只用来标明服务商，KomaSlate 与它们没有关联，也未获其背书。
 
 | 预设 | logo 文件 | Lobe Icons 名称 |
 |---|---|---|

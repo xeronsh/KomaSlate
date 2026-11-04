@@ -1,5 +1,6 @@
 /** Workflow engine sidecar HTTP entry (loopback only). */
 import { randomUUID } from "node:crypto";
+import { existsSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { EngineDatabase } from "./db.js";
 import {
@@ -46,7 +47,7 @@ export function createEngineApp(dbPath: string) {
   const chat = new ChatAgents({
     db,
     llm,
-    api: backendFetch(process.env.OPENOII_BACKEND_URL ?? "http://127.0.0.1:18765"),
+    api: backendFetch(process.env.KOMASLATE_BACKEND_URL ?? process.env.OPENOII_BACKEND_URL ?? "http://127.0.0.1:18765"),
   });
 
   function runContext(runId: number): RunCreativeContext {
@@ -667,10 +668,14 @@ function readJson(req: IncomingMessage): Promise<Record<string, unknown>> {
 
 const isMain = process.argv[1] !== undefined && process.argv[1].endsWith("index.ts");
 if (isMain) {
-  const dbPath = process.env.ENGINE_DB_PATH ?? "data/openoii.db";
+  const defaultDb =
+    !existsSync("data/komaslate.db") && existsSync("data/openoii.db")
+      ? "data/openoii.db"
+      : "data/komaslate.db";
+  const dbPath = process.env.ENGINE_DB_PATH ?? defaultDb;
   const port = Number(process.env.ENGINE_PORT ?? 18766);
   const app = createEngineApp(dbPath);
   app.server.listen(port, "127.0.0.1", () => {
-    console.log(`openoii-engine listening on 127.0.0.1:${port} (db: ${dbPath})`);
+    console.log(`komaslate-engine listening on 127.0.0.1:${port} (db: ${dbPath})`);
   });
 }

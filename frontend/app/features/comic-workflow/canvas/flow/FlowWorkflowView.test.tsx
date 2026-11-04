@@ -248,7 +248,7 @@ describe("FlowWorkflowView", () => {
 		const { unmount } = renderView();
 		act(() => h.props.onNodesChange([{ type: "position", id: "frame:output", position: { x: 999, y: 7 }, dragging: false }]));
 		act(() => h.props.onNodeDragStop());
-		const saved = JSON.parse(localStorage.getItem(`openoii.flow.frames.${PID}`)!);
+		const saved = JSON.parse(localStorage.getItem(`komaslate.flow.frames.${PID}`)!);
 		expect(saved["frame:output"]).toEqual({ x: 999, y: 7 });
 		unmount();
 		renderView();
@@ -256,7 +256,7 @@ describe("FlowWorkflowView", () => {
 		vi.useFakeTimers();
 		try {
 			fireEvent.click(screen.getByText("reset"));
-			expect(localStorage.getItem(`openoii.flow.frames.${PID}`)).toBeNull();
+			expect(localStorage.getItem(`komaslate.flow.frames.${PID}`)).toBeNull();
 			const before = h.flow.setViewport.mock.calls.length;
 			act(() => vi.advanceTimersByTime(100));
 			expect(h.flow.setViewport.mock.calls.length).toBe(before + 1);
@@ -267,7 +267,7 @@ describe("FlowWorkflowView", () => {
 	});
 
 	it("ignores unreadable saved positions", () => {
-		localStorage.setItem(`openoii.flow.frames.${PID}`, "{oops");
+		localStorage.setItem(`komaslate.flow.frames.${PID}`, "{oops");
 		renderView();
 		expect(screen.getAllByTestId("frame").length).toBeGreaterThan(0);
 	});

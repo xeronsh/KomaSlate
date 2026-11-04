@@ -21,7 +21,7 @@ describe("provider model descriptors", () => {
   let file: string;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "openoii-model-"));
+    dir = mkdtempSync(join(tmpdir(), "komaslate-model-"));
     file = join(dir, "o.db");
     const raw = new SqliteDatabase(file);
     raw.exec(SCHEMA);

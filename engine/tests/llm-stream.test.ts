@@ -80,7 +80,7 @@ describe("LlmStreamSink", () => {
 
 describe("compactStreamEvents", () => {
   it("keeps the newest frame of the run and every error frame", () => {
-    const dir = mkdtempSync(join(tmpdir(), "openoii-compact-"));
+    const dir = mkdtempSync(join(tmpdir(), "komaslate-compact-"));
     try {
       const file = join(dir, "o.db");
       const raw = new SqliteDatabase(file);
@@ -117,7 +117,7 @@ describe("fake provider streaming", () => {
   });
 
   function fakeLlm(): TextLlmService {
-    dir = mkdtempSync(join(tmpdir(), "openoii-stream-"));
+    dir = mkdtempSync(join(tmpdir(), "komaslate-stream-"));
     const file = join(dir, "o.db");
     const raw = new SqliteDatabase(file);
     raw.exec(SCHEMA);

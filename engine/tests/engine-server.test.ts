@@ -27,7 +27,7 @@ describe("engine sidecar server", () => {
 
   beforeEach(async () => {
     process.env.TEXT_PROVIDER = "fake";
-    dir = mkdtempSync(join(tmpdir(), "openoii-server-"));
+    dir = mkdtempSync(join(tmpdir(), "komaslate-server-"));
     const dbFile = join(dir, "test.db");
     const raw = new SqliteDatabase(dbFile);
     raw.exec(SCHEMA);

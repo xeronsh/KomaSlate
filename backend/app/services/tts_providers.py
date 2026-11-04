@@ -135,7 +135,7 @@ async def _azure(client: httpx.AsyncClient, config: TTSConfig, text: str, voice:
             "Ocp-Apim-Subscription-Key": config.api_key,
             "Content-Type": "application/ssml+xml",
             "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
-            "User-Agent": "openOii",
+            "User-Agent": "KomaSlate",
         },
         content=ssml.encode("utf-8"),
     )
@@ -197,7 +197,7 @@ async def _doubao(client: httpx.AsyncClient, config: TTSConfig, text: str, voice
         f"{config.base_url}/tts/unidirectional",
         headers={"X-Api-Key": config.api_key, "X-Api-Resource-Id": config.model},
         json={
-            "user": {"uid": "openoii"},
+            "user": {"uid": "komaslate"},
             "req_params": {
                 "text": text,
                 "speaker": voice,

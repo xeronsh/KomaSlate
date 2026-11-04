@@ -17,7 +17,7 @@ describe("gateSignals / stream frame replace", () => {
   let fenced: SharedDb;
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "openoii-gate-"));
+    dir = mkdtempSync(join(tmpdir(), "komaslate-gate-"));
     const file = join(dir, "o.db");
     const raw = new SqliteDatabase(file);
     raw.exec(SCHEMA);

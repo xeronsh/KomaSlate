@@ -1,4 +1,4 @@
-# openOii Frontend Workbench
+# KomaSlate Frontend Workbench
 Ubiquitous language for the creator-facing workbench UI and its redesign program. Implementation detail does not belong here.
 
 ## Language

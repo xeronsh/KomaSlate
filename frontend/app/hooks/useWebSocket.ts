@@ -16,7 +16,7 @@ export { applyWsEvent } from "./applyWsEvent";
 const WS_BASE = getWsBase();
 const RECONNECT_DELAY = 3000;
 const MAX_RECONNECT_ATTEMPTS = 5;
-const WS_CURSOR_PREFIX = "openoii.ws.cursor.";
+const WS_CURSOR_PREFIX = "komaslate.ws.cursor.";
 
 type DurableWsEvent = WsEvent & { event_id?: number };
 
@@ -41,7 +41,7 @@ function cursorKey(projectId: number): string {
 
 export function readWsCursor(projectId: number): number | null {
 	if (typeof window === "undefined") return null;
-	const raw = window.sessionStorage.getItem(cursorKey(projectId));
+	const raw = window.sessionStorage.getItem(cursorKey(projectId)) ?? window.sessionStorage.getItem(`openoii.ws.cursor.${projectId}`);
 	if (raw === null) return null;
 	const value = Number(raw);
 	return Number.isSafeInteger(value) && value >= 0 ? value : null;

@@ -33,9 +33,9 @@ beforeEach(() => {
   vi.stubEnv("TTS_ENABLED", "false");
   vi.stubEnv("BGM_ENABLED", "false");
   vi.stubEnv("ENABLE_IMAGE_TO_IMAGE", "true");
-  dir = mkdtempSync(join(tmpdir(), "openoii-render-"));
+  dir = mkdtempSync(join(tmpdir(), "komaslate-render-"));
   vi.stubEnv("ENGINE_STATIC_DIR", join(dir, "static"));
-  dbFile = join(dir, "openoii.db");
+  dbFile = join(dir, "komaslate.db");
   const raw = new SqliteDatabase(dbFile);
   raw.exec(SCHEMA);
   installExecutionLeaseColumns(raw);

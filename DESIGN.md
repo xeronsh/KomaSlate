@@ -1,5 +1,5 @@
 ---
-name: openOii
+name: KomaSlate
 description: "AI 漫剧生成平台：故事创意 → 3 Agent 协作 → 可视化漫剧成片"
 colors:
   # light（:root）
@@ -38,7 +38,7 @@ colors:
   dark-error: "#FF8A80"
 typography:
   wordmark:
-    note: "openOii in Instrument Serif Italic, inlined as SVG outlines (open = ink, Oii = primary); no webfont load"
+    note: "KomaSlate in Instrument Serif Italic, inlined as SVG outlines (Koma = ink, Slate = primary); no webfont load"
   display:
     fontFamily: "openOii Display (Smiley Sans 得意黑 subset, CJK + Latin), sans fallback"
     note: "fixed headings only, text-lg (18px) and up, weight 400, no tracking"
@@ -89,7 +89,7 @@ components:
     rounded: "{rounded.md}"
 ---
 
-# Design System: openOii
+# Design System: KomaSlate
 
 ## 0. Design Contract (executable)
 
@@ -183,7 +183,7 @@ focus ring 不手写：全局 `:focus-visible` 已是 2px primary outline，别�
 
 **North star: a calm creation studio with a light comic accent.**
 
-openOii is a tool for making comic videos, so the work (the storyboard) gets the screen and the chrome stays quiet.
+KomaSlate is a tool for making comic videos, so the work (the storyboard) gets the screen and the chrome stays quiet.
 The workbench is a full-bleed React Flow canvas; the agent panel, the inspector and the PromptBar float over it.
 Warm grey paper and ink neutrals, one ultramarine (群青) brand hue, the system CJK font stack.
 The comic identity survives only as print-craft marks: crop marks on the selected panel, registration marks on
@@ -245,7 +245,7 @@ Executable checks: `themeContrast.test.ts` (both themes) and `designContract.tes
 
 - **One component:** `ui/SvgIcon` (`name`, `size`, `className`). It renders on a 24 grid with a 1.5 stroke, round caps and joins, and `currentColor`. Sizes stay on ICON_SCALE {8, 12, 14, 16, 20, 24, 32}; the contract test enforces both the scale and the ban on `@heroicons/*`.
 - **Generic glyphs:** Iconoir v7 (MIT, © Luca Burgio). The path data is copied into the registry, so there is no runtime dependency.
-- **Domain glyphs**, drawn for openOii:
+- **Domain glyphs**, drawn for KomaSlate:
   - `shot`: a viewfinder with crop corners;
   - `storyboard`: 2×2 panels with caption lines;
   - `render`: a film frame with sprocket holes and play;

@@ -1,11 +1,11 @@
 services:
   backend:
-    image: ghcr.io/xeronsh/openoii-backend:latest
+    image: ghcr.io/xeronsh/komaslate-backend:latest
     env_file:
       - ./backend/.env
     environment:
       # 单文件 SQLite（WAL），持久化在 backend_data 卷
-      DATABASE_URL: sqlite+aiosqlite:///./data/openoii.db
+      DATABASE_URL: sqlite+aiosqlite:///./data/komaslate.db
       # pi engine sidecar 与后端同容器（Dockerfile 里拷贝了 node + engine/）
       ENGINE_URL: http://127.0.0.1:18766
       # engine sidecar 所有权是进程内状态，当前实现默认单 worker 才安全
@@ -21,7 +21,7 @@ services:
     restart: unless-stopped
 
   frontend:
-    image: ghcr.io/xeronsh/openoii-frontend:latest
+    image: ghcr.io/xeronsh/komaslate-frontend:latest
     depends_on:
       - backend
     ports:

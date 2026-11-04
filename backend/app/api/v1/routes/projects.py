@@ -244,7 +244,7 @@ _UNSAFE_FILENAME = re.compile(r'[\\/:*?"<>|\x00-\x1f]+')
 def _download_name(title: str | None, project_id: int, suffix: str) -> str:
     """Name the saved file after the project instead of the storage UUID."""
     stem = _UNSAFE_FILENAME.sub(" ", title or "").strip(" .")[:60].strip()
-    return f"{stem or f'openoii-{project_id}'}{suffix or '.mp4'}"
+    return f"{stem or f'komaslate-{project_id}'}{suffix or '.mp4'}"
 
 
 @router.put("/{project_id}", response_model=ProjectRead)

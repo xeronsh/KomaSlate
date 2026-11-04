@@ -701,16 +701,16 @@ export class PipelineRunner {
         await withStageSpan(
           `stage ${stage}`,
           {
-            "openoii.run_id": request.runId,
-            "openoii.project_id": request.projectId,
-            "openoii.stage": stage,
-            "openoii.stage_attempt_id": attempt.stage_attempt_id,
-            "openoii.execution_attempt": attempt.execution_attempt,
+            "komaslate.run_id": request.runId,
+            "komaslate.project_id": request.projectId,
+            "komaslate.stage": stage,
+            "komaslate.stage_attempt_id": attempt.stage_attempt_id,
+            "komaslate.execution_attempt": attempt.execution_attempt,
           },
           async (span) => {
-            span.setAttribute("openoii.stage_attempt", attempt.attempt);
+            span.setAttribute("komaslate.stage_attempt", attempt.attempt);
             await this.runProduction(stage, ctx, request);
-            span.setAttribute("openoii.status", "succeeded");
+            span.setAttribute("komaslate.status", "succeeded");
           },
         );
       } finally {
@@ -1039,16 +1039,16 @@ export class PipelineRunner {
             await withStageSpan(
               `stage ${stage}`,
               {
-                "openoii.run_id": request.runId,
-                "openoii.project_id": request.projectId,
-                "openoii.stage": stage,
-                "openoii.stage_attempt_id": attempt.stage_attempt_id,
-                "openoii.execution_attempt": attempt.execution_attempt,
+                "komaslate.run_id": request.runId,
+                "komaslate.project_id": request.projectId,
+                "komaslate.stage": stage,
+                "komaslate.stage_attempt_id": attempt.stage_attempt_id,
+                "komaslate.execution_attempt": attempt.execution_attempt,
               },
               async (span) => {
-                span.setAttribute("openoii.stage_attempt", attempt.attempt);
+                span.setAttribute("komaslate.stage_attempt", attempt.attempt);
                 await this.runProduction(stage, ctx, request);
-                span.setAttribute("openoii.status", "succeeded");
+                span.setAttribute("komaslate.status", "succeeded");
               },
             );
           } finally {

@@ -54,7 +54,7 @@ describe("BackendWorker protocol", () => {
   const workers: BackendWorker[] = [];
 
   beforeEach(() => {
-    dir = mkdtempSync(join(tmpdir(), "openoii-worker-"));
+    dir = mkdtempSync(join(tmpdir(), "komaslate-worker-"));
     const cli = join(dir, "fake-python");
     writeFileSync(cli, FAKE_CLI);
     chmodSync(cli, 0o755);

@@ -91,9 +91,10 @@ const nodeTypes: NodeTypes = {
 
 type Positions = Record<string, { x: number; y: number }>;
 
-function readPositions(key: string): Positions {
+function readPositions(key: string, legacyKey?: string): Positions {
 	try {
-		return JSON.parse(localStorage.getItem(key) ?? "{}") as Positions;
+		const raw = localStorage.getItem(key) ?? (legacyKey ? localStorage.getItem(legacyKey) : null) ?? "{}";
+		return JSON.parse(raw) as Positions;
 	} catch {
 		return {};
 	}
@@ -143,9 +144,9 @@ function FlowInner({
 	const { zoom } = useViewport();
 	const queryClient = useQueryClient();
 	const theme = useThemeStore((s) => s.theme);
-	const storageKey = `openoii.flow.frames.${projectId}`;
+	const storageKey = `komaslate.flow.frames.${projectId}`;
 	const [framePositions, setFramePositions] = useState<Positions>(() =>
-		readPositions(storageKey),
+		readPositions(storageKey, `openoii.flow.frames.${projectId}`),
 	);
 	const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowFlowNode>([]);
 	const [tool, setTool] = useState<"select" | "hand">("select");

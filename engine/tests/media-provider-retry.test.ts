@@ -33,8 +33,8 @@ function json(status: number, body: unknown): Reply {
 
 beforeEach(async () => {
   // Default backoff base (5 s): the waits are recorded, not slept.
-  vi.stubEnv("OPENOII_PROVIDER_RETRY_MS", undefined);
-  dir = mkdtempSync(join(tmpdir(), "openoii-retry-"));
+  vi.stubEnv("KOMASLATE_PROVIDER_RETRY_MS", undefined);
+  dir = mkdtempSync(join(tmpdir(), "komaslate-retry-"));
   posts = 0;
   replies = [];
   mediaStatus = 200;

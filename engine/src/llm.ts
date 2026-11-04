@@ -97,7 +97,7 @@ export interface LlmStreamUpdate {
 /**
  * The fake provider is pi-ai's own faux provider, so fake runs go through the
  * same `piModels.stream()` call, event shapes and abort handling as real providers.
- * `OPENOII_FAKE_STREAM_MS` is the average delay per chunk (chunks are 1–3
+ * `KOMASLATE_FAKE_STREAM_MS` is the average delay per chunk (chunks are 1–3
  * pi-ai "tokens", i.e. 4–12 characters, so delays jitter with chunk size);
  * 0 streams without delay.
  */
@@ -105,7 +105,7 @@ let fauxRegistration: FauxProviderHandle | null = null;
 export const DEFAULT_FAKE_STREAM_MS = 30;
 
 export function fakeStreamMs(): number {
-  const raw = Number(process.env.OPENOII_FAKE_STREAM_MS ?? DEFAULT_FAKE_STREAM_MS);
+  const raw = Number(process.env.KOMASLATE_FAKE_STREAM_MS ?? process.env.OPENOII_FAKE_STREAM_MS ?? DEFAULT_FAKE_STREAM_MS);
   return Number.isFinite(raw) && raw > 0 ? raw : 0;
 }
 

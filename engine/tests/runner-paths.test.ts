@@ -30,9 +30,9 @@ beforeEach(() => {
   vi.stubEnv("TTS_ENABLED", "false");
   vi.stubEnv("BGM_ENABLED", "false");
   vi.stubEnv("CRITIQUE_ENABLED", "false");
-  dir = mkdtempSync(join(tmpdir(), "openoii-runner-"));
+  dir = mkdtempSync(join(tmpdir(), "komaslate-runner-"));
   vi.stubEnv("ENGINE_STATIC_DIR", join(dir, "static"));
-  dbFile = join(dir, "openoii.db");
+  dbFile = join(dir, "komaslate.db");
   const raw = new SqliteDatabase(dbFile);
   raw.exec(SCHEMA);
   installExecutionLeaseColumns(raw);

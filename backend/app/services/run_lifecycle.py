@@ -2,7 +2,7 @@
 
 设计意图（KISS + 单一路径）
 --------------------------
-只存在**一种**执行体：openOii Engine（ADR 0008）。编排 run 与局部 run
+只存在**一种**执行体：KomaSlate Engine（ADR 0008）。编排 run 与局部 run
 （单体定向重绘 / 单镜重合成 / 补齐空格）都只是「给引擎的指令 + 实体范围」，
 差别仅在于 stage 与 target ids：引擎自己决定该跑哪些 stage。
 

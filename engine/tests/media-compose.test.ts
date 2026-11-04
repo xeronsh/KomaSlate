@@ -47,7 +47,7 @@ function service(signal?: AbortSignal): MediaService {
 }
 
 beforeAll(() => {
-  dir = mkdtempSync(join(tmpdir(), "openoii-compose-"));
+  dir = mkdtempSync(join(tmpdir(), "komaslate-compose-"));
   const fx = join(dir, "fx");
   mkdirSync(fx);
   const clip = (name: string, color: string) =>

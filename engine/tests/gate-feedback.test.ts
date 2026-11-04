@@ -75,8 +75,8 @@ describe("request changes at a gate (fake providers, manual mode)", () => {
     process.env.TTS_ENABLED = "false";
     process.env.BGM_ENABLED = "false";
     process.env.CRITIQUE_ENABLED = "false";
-    dir = mkdtempSync(join(tmpdir(), "openoii-gate-feedback-"));
-    dbFile = join(dir, "openoii.db");
+    dir = mkdtempSync(join(tmpdir(), "komaslate-gate-feedback-"));
+    dbFile = join(dir, "komaslate.db");
     const raw = new SqliteDatabase(dbFile);
     raw.exec(SCHEMA);
     installExecutionLeaseColumns(raw);
