@@ -12,10 +12,11 @@ export const DISPLAY_FIELDS = [
 	"prompt",
 	"image_prompt",
 	"visual_notes",
+	"character_ids",
 ];
 
-/** 参与对比的字段：展示字段 + 图片 */
-export const COMPARE_FIELDS = [...DISPLAY_FIELDS, "image_url"];
+/** 参与对比的字段：展示字段 + 图片 + 视频 */
+export const COMPARE_FIELDS = [...DISPLAY_FIELDS, "image_url", "video_url"];
 
 export type Snapshot = Record<string, unknown>;
 export type FieldDiff = { field: string; before: unknown; after: unknown };

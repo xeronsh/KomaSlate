@@ -41,6 +41,8 @@ interface StudioControlsProps {
 	onOpenVersions?: () => void;
 	/** Trigger export (e.g. webtoon). */
 	onExport?: () => void;
+	/** 导出剪辑素材包（ZIP + FCPXML） */
+	onExportEditorial?: () => void;
 	exportBusy?: boolean;
 	/** 成片下载地址；完成后它是顶栏主按钮（CapCut / Runway 的「导出」位置） */
 	downloadUrl?: string | null;
@@ -76,6 +78,7 @@ export function StudioControls({
 	generateDisabled,
 	onOpenVersions,
 	onExport,
+	onExportEditorial,
 	exportBusy = false,
 	downloadUrl = null,
 	generatePending = false,
@@ -93,7 +96,7 @@ export function StudioControls({
 	const regenerateInMenu = Boolean(onRegenerate) && !idle;
 	const showMainGenerate = Boolean(onGenerate) && (generatePending || (canStart && !regenerateInMenu));
 	const hasTools = Boolean(
-		onOpenVersions || onExport || regenerateInMenu || onRestorePrevious || previousDownloadUrl,
+		onOpenVersions || onExport || onExportEditorial || regenerateInMenu || onRestorePrevious || previousDownloadUrl,
 	);
 	// 成片可用时：下载是主操作，重新生成退为次要
 	const finished = studioStatus.state === "ready" && Boolean(downloadUrl) && !isGenerating;
@@ -177,6 +180,16 @@ export function StudioControls({
 								aria-label="导出 Webtoon 长图"
 							>
 								{exportBusy ? "导出中…" : "导出 Webtoon"}
+							</MenuItem>
+						) : null}
+						{onExportEditorial ? (
+							<MenuItem
+								icon="download"
+								onClick={onExportEditorial}
+								disabled={exportBusy || isGenerating}
+								aria-label="导出剪辑素材包"
+							>
+								{exportBusy ? "导出中…" : "导出剪辑包 (ZIP + FCPXML)"}
 							</MenuItem>
 						) : null}
 					</MenuButton>

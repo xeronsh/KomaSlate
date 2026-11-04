@@ -413,7 +413,11 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 		setVersionOpen(true);
 	};
 
-	const handleExportWebtoon = async () => {
+	// 两种导出（Webtoon 长图 / 剪辑素材包）只差起始请求和文案，其余共用
+	const runExport = async (
+		trigger: () => Promise<{ export_id: string }>,
+		labels: { pending: string; done: string },
+	) => {
 		if (exporting) return;
 		setExporting(true);
 		// 「导出中」一直显示到有结果，再被「导出完成 / 导出失败」替换，两者不叠在一起
@@ -423,19 +427,19 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 			pending = null;
 		};
 		try {
-			const started = await exportApi.triggerWebtoon(projectId);
+			const started = await trigger();
 			const poll = async (exportId: string): Promise<void> => {
 				const response = await exportApi.getStatus(projectId, exportId);
 				if (response.status === "processing") {
 					await new Promise((r) => setTimeout(r, 2000));
 					return poll(exportId);
 				}
-				if (response.status === "completed" && response.download_url) {
+				if (response.status === "completed") {
 					const url = getStaticUrl(response.download_url);
 					clearPending();
 					toast.success({
 						title: "导出完成",
-						message: "Webtoon 长图已生成",
+						message: labels.done,
 						duration: 8000,
 						actions: url
 							? [{ label: "下载", onClick: () => window.open(url, "_blank"), variant: "primary" }]
@@ -446,7 +450,7 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 				clearPending();
 				toast.error({ title: "导出失败", message: "生成失败，请重试" });
 			};
-			pending = toast.info({ title: "导出中", message: "正在生成 Webtoon 长图", duration: 0 });
+			pending = toast.info({ title: "导出中", message: labels.pending, duration: 0 });
 			await poll(started.export_id);
 		} catch (error) {
 			clearPending();
@@ -459,6 +463,18 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 			setExporting(false);
 		}
 	};
+
+	const handleExportWebtoon = () =>
+		runExport(() => exportApi.triggerWebtoon(projectId), {
+			pending: "正在生成 Webtoon 长图",
+			done: "Webtoon 长图已生成",
+		});
+
+	const handleExportEditorial = () =>
+		runExport(() => exportApi.triggerEditorialPack(projectId), {
+			pending: "正在打包分镜素材、SRT 字幕与 FCPXML 时间线",
+			done: "剪辑素材包已生成（含 FCPXML / SRT）",
+		});
 
 	if (workspaceLoading) {
 		return (
@@ -558,6 +574,7 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 						previousDownloadUrl={previousDownloadUrl}
 						onOpenVersions={handleOpenVersions}
 						onExport={handleExportWebtoon}
+						onExportEditorial={handleExportEditorial}
 						exportBusy={exporting}
 						downloadUrl={project?.video_url ? getStaticUrl(`/api/v1/projects/${projectId}/final-video`) : null}
 					/>
