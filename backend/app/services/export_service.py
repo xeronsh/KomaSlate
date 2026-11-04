@@ -1,21 +1,27 @@
-"""漫画导出服务 — PDF 漫画册和竖屏 Webtoon 长图
+"""漫画导出服务 — PDF 漫画册、竖屏 Webtoon 长图与通用剪辑包
 
-使用 reportlab 生成 PDF，Pillow 拼接 Webtoon 长图。
+使用 reportlab 生成 PDF，Pillow 拼接 Webtoon 长图，zipfile 打包剪辑包。
 字体使用开源 Noto Sans CJK / Noto Sans SC。
 所有文件存储在本地 static/exports/ 目录。
 """
 from __future__ import annotations
 
+import asyncio
+import json
 import logging
+import re
 import textwrap
 import uuid
+import zipfile
 from io import BytesIO
+from pathlib import Path
 from typing import TYPE_CHECKING
+from xml.sax.saxutils import quoteattr
 
 import httpx
 from PIL import Image, ImageDraw, ImageFont
 
-from app.services.file_cleaner import STATIC_DIR
+from app.services.file_cleaner import STATIC_DIR, get_local_path
 from app.services.font_utils import get_pillow_font_path, get_reportlab_font_name
 
 if TYPE_CHECKING:
@@ -38,6 +44,46 @@ MARGIN_BOTTOM = 50
 # 内容区域
 CONTENT_WIDTH = A4_WIDTH - MARGIN_LEFT - MARGIN_RIGHT
 CONTENT_HEIGHT = A4_HEIGHT - MARGIN_TOP - MARGIN_BOTTOM
+
+# FCPXML 时间轴：24fps 下每帧 100/2400s，整数帧 ⇒ 有理时间零漂移
+EDITORIAL_FPS = 24
+_FCPXML_FRAME_TICKS = 100
+_FCPXML_TIMESCALE = 2400
+
+EDITORIAL_README = """分镜剪辑包导入说明
+====================
+
+时间线（DaVinci Resolve / Final Cut Pro / Premiere Pro）
+- DaVinci Resolve：文件 → 导入 → 时间线（Import → Timeline），选择 timeline.fcpxml。
+- Final Cut Pro：文件 → 导入 → XML，选择 timeline.fcpxml。
+- Premiere Pro：文件 → 导入，选择 timeline.fcpxml（未渲染镜头会保留占位空隙）。
+- 未渲染的镜头在时间线上是空隙（gap），渲染后重新导出即可自动补位。
+
+素材拼装（剪映 / CapCut / 其他 NLE）
+- shots/：编号关键帧（_frame）与视频片段（_clip），编号与分镜顺序一致。
+- audio/：逐镜 TTS 配音。
+- subtitles.srt：与时间线时间码一致的逐句中文字幕，直接拖入剪映「文本 → 导入字幕」。
+- manifest.json：逐镜元数据（时长、场景、对白、提示词、缺失素材清单）。
+"""
+
+
+def _fx_time(frames: int) -> str:
+    """整数帧 → FCPXML 有理时间（如 120 帧 → 12000/2400s）。"""
+    return f"{frames * _FCPXML_FRAME_TICKS}/{_FCPXML_TIMESCALE}s"
+
+
+def _srt_time(total_frames: int) -> str:
+    """整数帧 → SRT 时间戳 HH:MM:SS,mmm"""
+    ms = round(total_frames * 1000 / EDITORIAL_FPS)
+    hours, rem = divmod(ms, 3_600_000)
+    minutes, rem = divmod(rem, 60_000)
+    seconds, millis = divmod(rem, 1_000)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d},{millis:03d}"
+
+
+def _safe_file_stem(name: str) -> str:
+    """文件名安全化：保留 Unicode 字母/数字（含中文），其余压成下划线。"""
+    return re.sub(r"[^\w-]+", "_", name or "").strip("_") or "character"
 
 
 class ExportService:
@@ -63,7 +109,6 @@ class ExportService:
 
         # 本地文件路径
         if url.startswith("/static/"):
-            from app.services.file_cleaner import get_local_path
             local_path = get_local_path(url)
             if local_path and local_path.exists():
                 return local_path.read_bytes()
@@ -579,3 +624,240 @@ class ExportService:
             text_y += line_height
 
         return result
+
+    # ----------------------------------------------------------------
+    # 通用剪辑包导出（ZIP + SRT + FCPXML v1.9）
+    # ----------------------------------------------------------------
+    async def export_editorial_pack(
+        self,
+        project: Project,
+        shots: list[Shot],
+        characters: list[Character],
+    ) -> str:
+        """导出通用剪辑包：编号素材 + SRT 字幕 + manifest + FCPXML v1.9 时间线
+
+        Returns:
+            导出文件的本地 URL（如 /static/exports/editorial_1_ab12cd34ef56.zip）
+        """
+        if not shots:
+            raise ValueError("没有可导出的分镜，请先生成分镜内容")
+
+        EXPORTS_DIR.mkdir(parents=True, exist_ok=True)
+        filename = f"editorial_{project.id}_{uuid.uuid4().hex[:12]}.zip"
+        filepath = EXPORTS_DIR / filename
+
+        ordered = sorted(shots, key=lambda s: (s.order, s.id or 0))
+
+        # 文件 IO 与归档全部下放到线程，避免阻塞事件循环
+        await asyncio.to_thread(
+            self._write_editorial_zip, filepath, project, ordered, characters
+        )
+
+        logger.info(f"Editorial pack exported: {filepath}")
+        return f"/static/exports/{filename}"
+
+    def _write_editorial_zip(
+        self,
+        filepath: Path,
+        project: Project,
+        shots: list[Shot],
+        characters: list[Character],
+    ) -> None:
+        entries: dict[str, bytes] = {}
+        missing: list[dict] = []
+
+        def stage(
+            source_url: str | None,
+            entry_stem: str,
+            default_ext: str,
+            kind: str,
+            owner_id: int | None,
+        ) -> str | None:
+            """把 STATIC_DIR 内的本地文件收进归档；外部/缺失文件只记进 manifest。"""
+            if not source_url:
+                return None
+            # get_local_path 已 resolve 并校验在 STATIC_DIR 内，路径穿越无法逃逸
+            path = get_local_path(source_url)
+            if path is None:
+                missing.append(
+                    {"kind": kind, "id": owner_id, "source": source_url, "reason": "external_url"}
+                )
+                return None
+            if not path.is_file():
+                missing.append(
+                    {"kind": kind, "id": owner_id, "source": source_url, "reason": "missing_file"}
+                )
+                return None
+            name = f"{entry_stem}{path.suffix.lower() or default_ext}"
+            entries[name] = path.read_bytes()
+            return name
+
+        # ---- 角色图 ----
+        manifest_characters: list[dict] = []
+        for char in characters:
+            entry = stage(
+                char.image_url,
+                f"characters/{char.id}_{_safe_file_stem(char.name)}",
+                ".png",
+                "character_image",
+                char.id,
+            )
+            manifest_characters.append(
+                {
+                    "id": char.id,
+                    "name": char.name,
+                    "description": char.description,
+                    "visual_notes": char.visual_notes,
+                    "asset_path": entry,
+                    "image_url": char.image_url,
+                }
+            )
+
+        # ---- 逐镜素材 + 时间线 ----
+        resources: list[str] = [
+            '<format id="r1" name="FFVideoFormat1080p24" frameDuration="100/2400s" '
+            'width="1920" height="1080" colorSpace="1-1-1 (Rec. 709)"/>'
+        ]
+        spine: list[str] = []
+        srt_blocks: list[str] = []
+        manifest_shots: list[dict] = []
+        offset_frames = 0
+        next_ref = 2  # r1 已被 format 占用
+
+        def add_asset(entry: str, duration: str, has_video: int, has_audio: int) -> str:
+            nonlocal next_ref
+            ref = f"r{next_ref}"
+            next_ref += 1
+            resources.append(
+                f'<asset id="{ref}" name={quoteattr(Path(entry).name)} '
+                f'src={quoteattr("./" + entry)} start="0s" duration="{duration}" '
+                f'hasVideo="{has_video}" hasAudio="{has_audio}" format="r1"/>'
+            )
+            return ref
+
+        for idx, shot in enumerate(shots, start=1):
+            duration = float(shot.duration) if (shot.duration and shot.duration > 0) else 5.0
+            frames = max(1, round(duration * EDITORIAL_FPS))
+            start_frames = offset_frames
+            end_frames = start_frames + frames
+            offset_frames = end_frames
+
+            stem = f"shots/{idx:02d}_shot_{shot.id}"
+            frame_entry = stage(shot.image_url, f"{stem}_frame", ".png", "frame", shot.id)
+            clip_entry = stage(shot.video_url, f"{stem}_clip", ".mp4", "clip", shot.id)
+            tts_entry = stage(
+                shot.tts_url, f"audio/{idx:02d}_shot_{shot.id}_tts", ".mp3", "tts", shot.id
+            )
+
+            dur = _fx_time(frames)
+            clip_ref = add_asset(clip_entry, dur, 1, 0) if clip_entry else None
+            frame_ref = add_asset(frame_entry, "0s", 1, 0) if frame_entry else None
+            tts_ref = add_asset(tts_entry, dur, 0, 1) if tts_entry else None
+
+            offset = _fx_time(start_frames)
+            clip_name = quoteattr(f"shot {idx:02d}")
+            tts_child = (
+                f'<asset-clip name={quoteattr(Path(tts_entry).name)} ref="{tts_ref}" '
+                f'lane="-1" offset="0s" start="0s" duration="{dur}"/>'
+                if tts_ref and tts_entry
+                else ""
+            )
+            if clip_ref and clip_entry:
+                spine.append(
+                    f'<asset-clip name={clip_name} ref="{clip_ref}" offset="{offset}" '
+                    f'start="0s" duration="{dur}" format="r1">{tts_child}</asset-clip>'
+                )
+            elif frame_ref and frame_entry:
+                spine.append(
+                    f'<video name={clip_name} ref="{frame_ref}" offset="{offset}" '
+                    f'start="0s" duration="{dur}">{tts_child}</video>'
+                )
+            else:
+                # 未渲染镜头保留空隙，时间线时长不塌陷
+                spine.append(
+                    f'<gap name={clip_name} offset="{offset}" start="0s" duration="{dur}"/>'
+                )
+
+            if shot.dialogue and shot.dialogue.strip():
+                srt_blocks.append(
+                    f"{len(srt_blocks) + 1}\n"
+                    f"{_srt_time(start_frames)} --> {_srt_time(end_frames)}\n"
+                    f"{shot.dialogue.strip()}\n"
+                )
+
+            manifest_shots.append(
+                {
+                    "index": idx,
+                    "id": shot.id,
+                    "order": shot.order,
+                    "duration": duration,
+                    "start_sec": round(start_frames / EDITORIAL_FPS, 3),
+                    "end_sec": round(end_frames / EDITORIAL_FPS, 3),
+                    "scene": shot.scene,
+                    "action": shot.action,
+                    "dialogue": shot.dialogue,
+                    "camera": shot.camera,
+                    "lighting": shot.lighting,
+                    "expression": shot.expression,
+                    "motion_note": shot.motion_note,
+                    "prompt": shot.prompt,
+                    "image_prompt": shot.image_prompt,
+                    "seed": shot.seed,
+                    "character_ids": list(shot.character_ids or []),
+                    "frame_asset": frame_entry,
+                    "clip_asset": clip_entry,
+                    "tts_asset": tts_entry,
+                    "approved_at": shot.approved_at.isoformat() if shot.approved_at else None,
+                }
+            )
+
+        # ---- 时间线文档 ----
+        event_name = quoteattr(project.title or "无标题")
+        timeline = "\n".join(
+            [
+                '<?xml version="1.0" encoding="UTF-8"?>',
+                "<!DOCTYPE fcpxml>",
+                '<fcpxml version="1.9">',
+                "  <resources>",
+                *(f"    {line}" for line in resources),
+                "  </resources>",
+                "  <library>",
+                f'    <event name={event_name}>',
+                f'      <project name={event_name}>',
+                f'        <sequence format="r1" duration="{_fx_time(offset_frames)}" tcStart="0s" '
+                'tcFormat="NDF" audioLayout="stereo" audioRate="48k">',
+                "          <spine>",
+                *(f"            {line}" for line in spine),
+                "          </spine>",
+                "        </sequence>",
+                "      </project>",
+                "    </event>",
+                "  </library>",
+                "</fcpxml>",
+                "",
+            ]
+        )
+
+        manifest = {
+            "project": {
+                "id": project.id,
+                "title": project.title,
+                "style": project.style,
+                "summary": project.summary,
+                "visual_bible": project.visual_bible,
+            },
+            "characters": manifest_characters,
+            "shots": manifest_shots,
+            "missing_assets": missing,
+        }
+
+        entries["subtitles.srt"] = "\n".join(srt_blocks).encode("utf-8")
+        entries["manifest.json"] = json.dumps(
+            manifest, indent=2, ensure_ascii=False
+        ).encode("utf-8")
+        entries["timeline.fcpxml"] = timeline.encode("utf-8")
+        entries["README_IMPORT.txt"] = EDITORIAL_README.encode("utf-8")
+
+        with zipfile.ZipFile(filepath, "w", zipfile.ZIP_DEFLATED) as zf:
+            for name, data in entries.items():
+                zf.writestr(name, data)

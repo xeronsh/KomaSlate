@@ -134,6 +134,12 @@ async def _run_export_task(
                 include_dialogue=include_dialogue,
                 include_character_info=include_character_info,
             )
+        elif format == "editorial":
+            download_url = await _export_service.export_editorial_pack(
+                project=project,
+                shots=shots,
+                characters=characters,
+            )
         else:
             download_url = await _export_service.export_webtoon(
                 project=project,
@@ -265,6 +271,49 @@ async def export_webtoon(
             project_id=project_id,
             export_id=export_id,
             format="webtoon",
+            include_dialogue=True,
+            include_character_info=True,
+            ws=ws,
+        )
+    )
+
+    return export_resp
+
+
+@router.post(
+    "/{project_id}/export/editorial-pack",
+    response_model=ExportResponse,
+    status_code=status.HTTP_202_ACCEPTED,
+)
+async def export_editorial_pack(
+    project_id: int,
+    session: AsyncSession = SessionDep,
+    ws: ConnectionManager = WsManagerDep,
+):
+    """触发通用剪辑包导出（素材 + SRT + FCPXML v1.9）"""
+    await get_or_404(session, Project, project_id)
+
+    shot_res = await session.execute(
+        select(Shot.id).where(Shot.project_id == project_id).limit(1)
+    )
+    if shot_res.first() is None:
+        raise HTTPException(status_code=400, detail="没有可导出的分镜，请先生成分镜内容")
+
+    export_id = uuid.uuid4().hex[:12]
+    export_resp = ExportResponse(
+        export_id=export_id,
+        project_id=project_id,
+        format="editorial",
+        status="processing",
+    )
+    await _store_export_status(export_resp)
+
+    # 后台执行导出
+    asyncio.create_task(
+        _run_export_task(
+            project_id=project_id,
+            export_id=export_id,
+            format="editorial",
             include_dialogue=True,
             include_character_info=True,
             ws=ws,
