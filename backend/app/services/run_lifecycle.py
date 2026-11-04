@@ -59,6 +59,8 @@ class TargetedRunSpec:
     target_character_ids: Sequence[int] = field(default_factory=tuple)
     target_shot_ids: Sequence[int] = field(default_factory=tuple)
     force_regenerate: bool = False
+    #: Single-shot instruction from the user, forwarded to the engine verbatim.
+    user_feedback: str = ""
 
 
 @dataclass(frozen=True)
@@ -115,7 +117,7 @@ async def create_local_run(
                 "version": 1,
                 "stage": spec.stage,
                 "auto_mode": True,
-                "user_feedback": "",
+                "user_feedback": spec.user_feedback,
                 "target_character_ids": list(spec.target_character_ids),
                 "target_shot_ids": list(spec.target_shot_ids),
                 "force_regenerate": spec.force_regenerate,
@@ -142,6 +144,7 @@ async def create_local_run(
             target_character_ids=spec.target_character_ids or None,
             target_shot_ids=spec.target_shot_ids or None,
             force_regenerate=spec.force_regenerate,
+            user_feedback=spec.user_feedback,
         )
     except EngineUnavailableError as exc:
         raise HTTPException(
