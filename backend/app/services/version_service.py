@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from typing import Any, Iterable, Literal, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
 from app.exceptions import BusinessError, NotFoundError
 from app.models.artifact_version import ArtifactVersion
-from app.models.project import Character, Project, Shot
+from app.models.project import Character, Project, Shot, ShotCharacterBinding
 
 EntityType = Literal["character", "shot"]
 
@@ -85,6 +85,7 @@ ROLLBACK_FIELDS: dict[EntityType, tuple[str, ...]] = {
         "lighting",
         "dialogue",
         "sfx",
+        "character_ids",
     ),
 }
 
@@ -205,6 +206,7 @@ class VersionService:
             if entity is None:
                 raise NotFoundError("Character", entity_id)
             self._apply_snapshot(entity, target.snapshot, ROLLBACK_FIELDS["character"])
+            entity.revision = int(entity.revision or 0) + 1
             shots = await session.execute(select(Shot).where(Shot.project_id == entity.project_id))
             for shot in shots.scalars():
                 if entity_id not in shot.character_ids:
@@ -239,6 +241,12 @@ class VersionService:
         if entity is None:
             raise NotFoundError("Shot", entity_id)
         self._apply_snapshot(entity, target.snapshot, ROLLBACK_FIELDS["shot"])
+        entity.revision = int(entity.revision or 0) + 1
+        # The bindings table is the relational mirror of shot.character_ids;
+        # a rollback that skips it leaves the two disagreeing.
+        await self._sync_shot_bindings(
+            session, entity, target.snapshot.get("character_ids") or []
+        )
         project = await session.get(Project, entity.project_id)
         if project is not None:
             project.status = "superseded"
@@ -251,6 +259,48 @@ class VersionService:
             entity_id,
             shot_snapshot(entity),
             trigger="rollback",
+        )
+
+    async def _sync_shot_bindings(
+        self, session: AsyncSession, shot: Shot, snapshot_character_ids: Iterable[Any]
+    ) -> None:
+        """Keep shot.character_ids and shot_character_binding in sync after a rollback."""
+        candidate_ids: list[int] = []
+        for value in snapshot_character_ids:
+            try:
+                character_id = int(value)
+            except (TypeError, ValueError):
+                continue
+            if character_id > 0 and character_id not in candidate_ids:
+                candidate_ids.append(character_id)
+
+        valid_ids: list[int] = []
+        if candidate_ids:
+            character_id_col = cast(InstrumentedAttribute[int], cast(object, Character.id))
+            character_project_id_col = cast(
+                InstrumentedAttribute[int], cast(object, Character.project_id)
+            )
+            res = await session.execute(
+                select(character_id_col).where(
+                    character_project_id_col == shot.project_id,
+                    character_id_col.in_(candidate_ids),
+                )
+            )
+            existing_ids = {row for row in res.scalars().all() if row is not None}
+            valid_ids = [cid for cid in candidate_ids if cid in existing_ids]
+
+        shot.character_ids = valid_ids
+        shot_id = cast(int, cast(object, shot.id))
+        shot_id_col = cast(
+            InstrumentedAttribute[int], cast(object, ShotCharacterBinding.shot_id)
+        )
+        await session.execute(delete(ShotCharacterBinding).where(shot_id_col == shot_id))
+        await session.flush()
+        session.add_all(
+            [
+                ShotCharacterBinding(shot_id=shot_id, character_id=character_id)
+                for character_id in valid_ids
+            ]
         )
 
     async def _project_id_for_entity(

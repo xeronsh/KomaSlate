@@ -311,6 +311,7 @@ class RegenerateRequest(BaseModel):
     type: Literal["image", "video"]
     description: str | None = None
     image_url: str | None = None
+    feedback: str | None = Field(default=None, max_length=2000)
 
 
 class CancelRunResponse(BaseModel):

@@ -38,8 +38,7 @@ def _validate_shot_approval_ready(shot: Shot) -> None:
         missing.append("时长")
     if not shot.camera:
         missing.append("镜头")
-    if not shot.character_ids:
-        missing.append("出场角色")
+    # 空镜 / 转场没有出场角色，character_ids 为空不阻止批准。
 
     if missing:
         raise HTTPException(
@@ -218,6 +217,7 @@ async def regenerate_shot(
             stage=stage,
             target_shot_ids=(shot_id,),
             force_regenerate=True,
+            user_feedback=(payload.feedback or "").strip(),
         ),
     )
     return AgentRunRead.model_validate(result.run)
