@@ -4,7 +4,7 @@ test("homepage exposes the story bootstrap flow", async ({ page }) => {
 	await page.goto("/");
 
 	await expect(page).toHaveTitle(/KomaSlate/);
-	await expect(page.getByRole("heading", { name: "把一句想法，变成一部漫剧。" })).toBeVisible();
+	await expect(page.getByRole("heading", { name: "把一句想法，拍成可精修的分镜台本" })).toBeVisible();
 
 	const storyInput = page.getByLabel("输入你的故事创意");
 	const startButton = page.getByRole("button", { name: "开始创作" });

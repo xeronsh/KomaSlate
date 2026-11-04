@@ -87,7 +87,7 @@ export function UniversesPage() {
 				<PageHeader
 					eyebrow="作品库 · 宇宙"
 					title="故事宇宙"
-					description="把章节、角色和世界观放在同一条创作脉络里。"
+					description="把章节、角色和世界观放在同一条创作脉络里"
 					meta={isLoading ? "…" : `${universes.length} 个`}
 					actions={
 						<Button size="sm" onClick={() => setShowCreate(true)}>

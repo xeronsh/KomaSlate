@@ -75,7 +75,7 @@ describe("HomePage", () => {
 
 	it("starts with one story field and no workflow preset section", () => {
 		const { container } = renderHomePage();
-		expect(screen.getByRole("heading", { name: "把一句想法，拍成可精修的分镜台本。" })).toBeInTheDocument();
+		expect(screen.getByRole("heading", { name: "把一句想法，拍成可精修的分镜台本" })).toBeInTheDocument();
 		expect(screen.getByLabelText("输入你的故事创意")).toBeInTheDocument();
 		expect(container.querySelector('[data-shell="desk-section"]')).not.toBeNull();
 		expect(screen.queryByRole("heading", { name: "工作流" })).toBeNull();

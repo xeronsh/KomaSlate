@@ -174,7 +174,7 @@ export function ProjectsPage() {
 				<PageHeader
 					eyebrow="作品库 · 项目"
 					title="项目库"
-					description="继续制作中的故事，或从新想法开始一部漫剧。"
+					description="继续制作中的分镜工程，或从新想法开始拍摄"
 					// 数据归标题（和宇宙页的「N 个」同一处、同一样式），右侧只放动作
 					meta={visibleProjects.length > 0 ? `${totalCount} 个 · ${completedCount} 部成片` : undefined}
 					actions={

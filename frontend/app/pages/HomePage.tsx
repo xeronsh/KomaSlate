@@ -26,9 +26,9 @@ const DEFAULT_SKILL_ID = "story-anime";
 const DEFAULT_STYLE = "anime";
 
 const EXAMPLE_PROMPTS = [
-	"一个灯塔管理员发现了一张会发光的地图，地图上的岛屿每晚都会移动。",
-	"雨夜阁楼里，老修表匠在暖黄台灯下修复一枚停摆多年的铜怀表，桌角蜷着银白小猫。",
-	"末班地铁上，一只橘猫带着失忆的女孩寻找她丢失的名字。",
+	"一个灯塔管理员发现了一张会发光的地图，地图上的岛屿每晚都会移动",
+	"雨夜阁楼里，老修表匠在暖黄台灯下修复一枚停摆多年的铜怀表，桌角蜷着银白小猫",
+	"末班地铁上，一只橘猫带着失忆的女孩寻找她丢失的名字",
 ];
 
 export function HomePage() {
@@ -130,8 +130,8 @@ export function HomePage() {
 					<PageContent className="min-h-full gap-4 sm:py-5">
 						<PageHeader
 							eyebrow="导演场记台"
-							title="把一句想法，拍成可精修的分镜台本。"
-							description="本地优先的非破坏性分镜画布：单镜重拍、历史版本对比回退、直出成片或导出专业剪辑包。"
+							title="把一句想法，拍成可精修的分镜台本"
+							description="本地优先的非破坏性分镜画布：单镜重拍、历史版本对比回退、直出成片或导出专业剪辑包"
 							actionsAlign="title"
 							actions={
 							<div className="flex flex-wrap gap-1" aria-label="创作台工具">
