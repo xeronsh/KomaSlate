@@ -3,14 +3,14 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./frontend/public/brand/komaslate-wordmark-dark.svg" />
     <source media="(prefers-color-scheme: light)" srcset="./frontend/public/brand/komaslate-wordmark-light.svg" />
-    <img src="./frontend/public/brand/komaslate-wordmark-light.svg" width="320" alt="KomaSlate (formerly openOii)" />
+    <img src="./frontend/public/brand/komaslate-wordmark-light.svg" width="320" alt="KomaSlate" />
   </picture>
 
   <p><strong>本地优先、可编辑、非破坏性的开源 AI 分镜与短片工作台</strong></p>
-  <p><em>Local-first, editable, non-destructive AI storyboarding workspace · formerly <strong>openOii</strong></em></p>
+  <p><em>Local-first, editable, non-destructive AI storyboarding workspace</em></p>
 
   <p>
-    <a href="https://xeronsh.github.io/openOii/"><img src="https://img.shields.io/badge/Website-KomaSlate-2F4BC3?style=flat-square" alt="Website" /></a>
+    <a href="https://xeronsh.github.io/KomaSlate/"><img src="https://img.shields.io/badge/Website-KomaSlate-2F4BC3?style=flat-square" alt="Website" /></a>
     <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+" />
     <img src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI" />
     <img src="https://img.shields.io/badge/Node.js-22+-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22+" />
@@ -21,7 +21,7 @@
   </p>
 
   <p>
-    <a href="https://xeronsh.github.io/openOii/">🌐 在线落地页与单镜重拍演示</a> ·
+    <a href="https://xeronsh.github.io/KomaSlate/">🌐 在线落地页与单镜重拍演示</a> ·
     <a href="#为什么选择-komaslate">核心特性</a> ·
     <a href="#界面预览">界面预览</a> ·
     <a href="#架构">架构</a> ·
@@ -40,7 +40,7 @@
       </a>
     </td>
     <td width="42%" valign="middle">
-      <p>也在研究像 <strong>KomaSlate（原 openOii）</strong> 这样的分阶段可控 AI 工作流？</p>
+      <p>也在研究像 <strong>KomaSlate</strong> 这样的分阶段可控 AI 工作流？</p>
       <p>
         <a href="https://bloome.im/app?utm_medium=github&utm_source=Xeron2000-openOii-ivor-202607"><strong>Bloome</strong></a>
         让 Claude、ChatGPT、DeepSeek 等多个 AI 在同一对话里协作——互相质疑、交叉核对、一起把结果打磨到位
@@ -55,11 +55,11 @@
   </tr>
 </table>
 
-<sub>💼 面向 AI 视频/图像 API 网关与开发者工具开放包月合作展位（GitHub README 首屏 + 官网生态栏），欢迎通过 <a href="https://github.com/xeronsh/openOii/issues">GitHub Issue</a> 洽谈</sub>
+<sub>💼 面向 AI 视频/图像 API 网关与开发者工具开放包月合作展位（GitHub README 首屏 + 官网生态栏），欢迎通过 <a href="https://github.com/xeronsh/KomaSlate/issues">GitHub Issue</a> 洽谈</sub>
 
 ---
 
-**KomaSlate**（取自日语分镜格 *Koma* 与影视场记板 *Slate*，原名 **openOii**）是面向创作者与独立开发者的**本地优先、非破坏性开源 AI 分镜工作台**
+**KomaSlate**（取自日语分镜格 *Koma* 与影视场记板 *Slate*）是面向创作者与独立开发者的**本地优先、非破坏性开源 AI 分镜工作台**
 
 不同于消耗黑盒积分、改一处重跑全片的闭源云端工具，KomaSlate 将剧本拆解、角色定妆卡、九宫格分镜台本、视频切片与多版本栈沉淀在**本地单文件 SQLite 与 React Flow 画布**中：随时停在审批门锁住已满意镜头（`LOCKED`），仅对不满意的单镜补充导演批注或增删出场角色定向重拍，并排对比图像与视频版本后一键回退，最终直出配音字幕成片或导出标准 **FCPXML v1.9** 时间线资产包进入非编软件精剪
 

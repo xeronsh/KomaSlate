@@ -76,8 +76,8 @@
   };
 
   const DEPLOY_SNIPPETS = {
-    docker: `git clone https://github.com/xeronsh/openOii.git
-cd openOii
+    docker: `git clone https://github.com/xeronsh/KomaSlate.git
+cd KomaSlate
 cp backend/.env.example backend/.env
 docker compose up -d
 # 浏览器打开 http://localhost:3000 （API 网关 :18765）`,

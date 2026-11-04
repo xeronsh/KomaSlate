@@ -432,11 +432,6 @@ code, pre {
   gap: 10px;
 }
 
-.formerly-note {
-  font-family: var(--font-mono);
-  font-size: 11.5px;
-  color: var(--ink-subtle);
-}
 
 /* Hero Slate Frame */
 

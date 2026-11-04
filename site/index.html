@@ -4,12 +4,12 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>KomaSlate — 本地优先、非破坏性开源 AI 分镜工作台</title>
-  <meta name="description" content="KomaSlate（原 openOii）——面向桌面创作者的本地优先、非破坏性 AI 分镜工作台，锁住已批准镜头、单镜定向重拍、双栏版本对比回退，直出成片或导出 FCPXML v1.9 剪辑资产包">
+  <meta name="description" content="KomaSlate——面向桌面创作者的本地优先、非破坏性 AI 分镜工作台，锁住已批准镜头、单镜定向重拍、双栏版本对比回退，直出成片或导出 FCPXML v1.9 剪辑资产包">
 
   <meta property="og:type" content="website">
   <meta property="og:title" content="KomaSlate — 本地优先、非破坏性开源 AI 分镜工作台">
   <meta property="og:description" content="锁住已拍好的镜头，只重拍不满意的那一格——支持单镜重拍、版本栈 CAS 回退与 FCPXML v1.9 剪辑资产包导出">
-  <meta property="og:image" content="https://xeronsh.github.io/openOii/assets/screenshots/workbench.webp">
+  <meta property="og:image" content="https://xeronsh.github.io/KomaSlate/assets/screenshots/workbench.webp">
   <meta name="twitter:card" content="summary_large_image">
 
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
@@ -45,7 +45,7 @@
           <span class="slate-dot" aria-hidden="true"></span>
           <span id="theme-toggle-label">深色印版</span>
         </button>
-        <a href="https://github.com/xeronsh/openOii" target="_blank" rel="noopener noreferrer" class="btn-outline">
+        <a href="https://github.com/xeronsh/KomaSlate" target="_blank" rel="noopener noreferrer" class="btn-outline">
           <span>GitHub</span>
           <span class="mono" aria-hidden="true">↗</span>
         </a>
@@ -87,7 +87,6 @@
             <div class="hero-ctas">
               <a href="#retake-desk" class="btn-primary btn-lg">体验单镜重拍台 ↓</a>
               <a href="#deploy" class="btn-outline btn-lg">1 行命令本地启动</a>
-              <span class="formerly-note">formerly openOii</span>
             </div>
           </div>
         </div>
@@ -636,8 +635,8 @@
             </div>
             <button type="button" id="copy-deploy-btn" class="btn-outline">复制命令</button>
           </div>
-          <pre class="deploy-pre"><code id="deploy-code">git clone https://github.com/xeronsh/openOii.git
-cd openOii
+          <pre class="deploy-pre"><code id="deploy-code">git clone https://github.com/xeronsh/KomaSlate.git
+cd KomaSlate
 cp backend/.env.example backend/.env
 docker compose up -d
 # 浏览器打开 http://localhost:3000 （API 网关 :18765）</code></pre>
@@ -695,7 +694,7 @@ docker compose up -d
             </div>
             <div>
               <a
-                href="https://github.com/xeronsh/openOii/issues/new"
+                href="https://github.com/xeronsh/KomaSlate/issues/new"
                 target="_blank"
                 rel="noopener noreferrer"
                 class="btn-outline"
