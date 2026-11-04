@@ -448,7 +448,8 @@ export class SharedDb {
     this.assertExecutionFence();
     const entries = Object.entries(fields).filter(([k]) => k !== "id" && k !== "revision");
     if (entries.length === 0) return;
-    const sets = entries.map(([k]) => `${k} = ?`).join(", ");
+    // "order" is a SQLite keyword; unquoted it is a syntax error in a SET list.
+    const sets = entries.map(([k]) => `${k === "order" ? '"order"' : k} = ?`).join(", ");
     const info = this.db
       .prepare(
         `UPDATE ${entity} SET ${sets}, revision = revision + 1${extraSet}
@@ -973,7 +974,7 @@ export class SharedDb {
   ): void {
     const prepared = Object.fromEntries(
       Object.entries(fields)
-        .filter(([k]) => k !== "id" && k !== "order" && k !== "revision")
+        .filter(([k]) => k !== "id" && k !== "revision")
         .map(([k, v]) =>
           typeof v === "object" && v !== null
             ? [k, JSON.stringify(v)]

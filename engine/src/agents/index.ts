@@ -367,7 +367,12 @@ function planBasePayload(ctx: StageContext, task: "characters" | "shots"): Recor
     approved_characters: characters.map((c) => ({ id: c.id, name: c.name, description: c.description })),
     existing_state: {
       characters: characters.map((c) => ({ id: c.id, name: c.name, description: c.description })),
-      shots: shots.map((s) => ({ id: s.id, order: s.order, description: s.description })),
+      shots: shots.map((s) => ({
+        id: s.id,
+        order: s.order,
+        description: s.description,
+        approved: Boolean(s.approved_at && s.approval_version > 0),
+      })),
     },
     ...(ctx.userFeedback ? { user_feedback: ctx.userFeedback } : {}),
   };
@@ -502,34 +507,123 @@ async function applyShotPlan(ctx: StageContext, data: Record<string, unknown>): 
   ctx.emitter.commit("shot_updated", () => {
   const rawShots = Array.isArray(data.shots) ? data.shots : [];
   const characters = ctx.shared.charactersForProject(ctx.projectId);
+  const preserve = new Set<number>((data.preserve_ids as { shots?: number[] } | undefined)?.shots ?? []);
+  const existingShots = ctx.shared.shotsForProject(ctx.projectId);
+  const existingById = new Map(existingShots.map((s) => [s.id, s]));
+  // A human already approved this shot: a re-plan must not delete or overwrite it.
+  const forceRegenerate = (ctx as StageContext & { forceRegenerate?: boolean }).forceRegenerate === true;
+  const isFrozen = (s: ShotRow): boolean =>
+    !forceRegenerate && Boolean(s.approved_at && s.approval_version > 0);
 
-  // wipe-and-recreate shots (full mode parity with plan.py full re-plan)
-  for (const existing of ctx.shared.shotsForProject(ctx.projectId)) {
+  // Only ids the planner repeated from existing_state count; an id the LLM
+  // invents (or other-project row) is planned as a brand new shot.
+  const mentionedIds = new Set<number>();
+  for (const item of rawShots) {
+    if (typeof item !== "object" || item === null) continue;
+    const id = (item as PlanShot).id;
+    if (typeof id === "number" && existingById.has(id)) mentionedIds.add(id);
+  }
+
+  for (const existing of existingShots) {
+    if (mentionedIds.has(existing.id)) continue;
+    if (preserve.has(existing.id) || isFrozen(existing)) continue;
     ctx.shared.deleteShot(existing.id);
     ctx.emitter.emit("shot_deleted", { shot_id: existing.id });
   }
+  const surviving = existingShots.filter(
+    (existing) => !mentionedIds.has(existing.id) && (preserve.has(existing.id) || isFrozen(existing)),
+  );
 
-  rawShots.forEach((item, index) => {
-    if (typeof item !== "object" || item === null) return;
-    const s = item as PlanShot;
-    const characterIds = bindShotCharacters(s, characters);
-    const base = s.description ?? s.action ?? `分镜 ${index + 1}`;
-    // The end state rides in the description so it reaches image and video
-    // prompts and stays editable with the rest of the shot text.
+  const text = (value: unknown): string | null =>
+    typeof value === "string" && value.trim() ? value.trim() : null;
+  // The end state rides in the description so it reaches image and video
+  // prompts and stays editable with the rest of the shot text.
+  const plannedDescription = (s: PlanShot, order: number): string => {
+    const base = s.description ?? s.action ?? `分镜 ${order}`;
     const continuity = typeof s.continuity === "string" ? s.continuity.trim() : "";
-    const description = continuity ? `${base}\n画面状态：${continuity}` : base;
+    return continuity ? `${base}\n画面状态：${continuity}` : base;
+  };
+
+  const seenExistingIds = new Set<number>();
+  let nextOrder = 1;
+  for (const item of rawShots) {
+    if (typeof item !== "object" || item === null) continue;
+    const s = item as PlanShot;
+    const order = nextOrder++;
+    const characterIds = bindShotCharacters(s, characters);
+    const description = plannedDescription(s, order);
     // The planner writes a start-state keyframe prompt and a start-to-end
     // video prompt; dropping them drew every keyframe at the END state, so
     // each shot showed its own result (and the next beat) before it happened.
-    const text = (value: unknown): string | null =>
-      typeof value === "string" && value.trim() ? value.trim() : null;
-    const id = ctx.shared.insertShot(ctx.projectId, index + 1, {
+    const imagePrompt = text(s.image_prompt);
+    const videoPrompt = text(s.video_prompt);
+    const duration = typeof s.duration === "number" ? s.duration : null;
+    const existing =
+      typeof s.id === "number" && existingById.has(s.id) && !seenExistingIds.has(s.id)
+        ? existingById.get(s.id)!
+        : undefined;
+
+    if (!existing) {
+      const id = ctx.shared.insertShot(ctx.projectId, order, {
+        description,
+        character_ids: characterIds,
+        image_prompt: imagePrompt,
+        prompt: videoPrompt,
+      });
+      ctx.shared.updateShot(id, {
+        scene: s.scene ?? null,
+        action: s.action ?? null,
+        expression: s.expression ?? null,
+        camera: s.camera ?? null,
+        lighting: s.lighting ?? null,
+        dialogue: s.dialogue ?? null,
+        sfx: s.sfx ?? null,
+        motion_note: s.motion_note ?? null,
+        duration,
+      });
+      const row = ctx.shared.getLiveShot(id);
+      if (row) ctx.emitter.shotCreated(shotReadPayload(row));
+      continue;
+    }
+
+    seenExistingIds.add(existing.id);
+    if (isFrozen(existing)) {
+      // Approved content and media stay as they are; only the slot moves.
+      if (existing.order !== order) {
+        ctx.shared.updateShot(existing.id, { order });
+        const moved = ctx.shared.getLiveShot(existing.id);
+        if (moved) ctx.emitter.shotUpdated(shotReadPayload(moved));
+      }
+      continue;
+    }
+
+    const version = ctx.shared.createVersion(
+      ctx.projectId,
+      "shot",
+      existing.id,
+      existing,
+      ctx.runId,
+      "generation",
+    );
+    ctx.emitter.versionCreated("shot", existing.id, version, "generation");
+    // Re-planning the text invalidates downstream media, unchanged text keeps it.
+    const existingCharIds = parseJsonColumn(existing.character_ids, [] as number[]);
+    const visualChanged =
+      description !== existing.description ||
+      imagePrompt !== existing.image_prompt ||
+      JSON.stringify(characterIds) !== JSON.stringify(existingCharIds);
+    const videoChanged =
+      visualChanged ||
+      videoPrompt !== existing.prompt ||
+      (s.motion_note ?? null) !== existing.motion_note ||
+      duration !== existing.duration;
+    const dialogueChanged = (s.dialogue ?? null) !== existing.dialogue;
+    ctx.shared.updateShot(existing.id, {
+      order,
       description,
       character_ids: characterIds,
-      image_prompt: text(s.image_prompt),
-      prompt: text(s.video_prompt),
-    });
-    ctx.shared.updateShot(id, {
+      image_prompt: imagePrompt,
+      prompt: videoPrompt,
       scene: s.scene ?? null,
       action: s.action ?? null,
       expression: s.expression ?? null,
@@ -538,11 +632,28 @@ async function applyShotPlan(ctx: StageContext, data: Record<string, unknown>): 
       dialogue: s.dialogue ?? null,
       sfx: s.sfx ?? null,
       motion_note: s.motion_note ?? null,
-      duration: typeof s.duration === "number" ? s.duration : null,
+      duration,
+      ...(visualChanged ? { image_url: null } : {}),
+      ...(videoChanged ? { video_url: null } : {}),
+      ...(dialogueChanged ? { tts_url: null } : {}),
     });
-    const row = ctx.shared.getShot(id);
-    if (row) ctx.emitter.shotCreated(shotReadPayload(row));
-  });
+    // getShot returns this stage's frozen snapshot, which still holds the
+    // pre-edit text and media; only the live row reflects the write above.
+    const updated = ctx.shared.getLiveShot(existing.id);
+    if (updated) ctx.emitter.shotUpdated(shotReadPayload(updated));
+  }
+
+  // Preserved/frozen shots keep their relative order, shifted after the planned
+  // ones so `order` stays contiguous.
+  if (rawShots.length > 0) {
+    for (const shot of surviving) {
+      const order = nextOrder++;
+      if (shot.order === order) continue;
+      ctx.shared.updateShot(shot.id, { order });
+      const row = ctx.shared.getLiveShot(shot.id);
+      if (row) ctx.emitter.shotUpdated(shotReadPayload(row));
+    }
+  }
   return null;
   });
 }
