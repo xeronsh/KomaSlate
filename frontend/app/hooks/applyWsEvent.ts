@@ -528,7 +528,12 @@ export function applyWsEvent(
 
 		case "export_completed": {
 			const exportData = event.data as unknown as import("~/types").ExportCompletedEventData;
-			const formatLabel = exportData.format === "webtoon" ? "Webtoon 长图" : "导出文件";
+			const formatLabel =
+				exportData.format === "webtoon"
+					? "Webtoon 长图"
+					: exportData.format === "editorial"
+						? "剪辑素材包"
+						: "导出文件";
 			if (exportData.status === "failed") {
 				toast.error({
 					title: "导出失败",

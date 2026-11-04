@@ -32,6 +32,8 @@ export function GenerationSection({
 }) {
 	const queryClient = useQueryClient();
 	const [busy, setBusy] = useState<string | null>(null);
+	// 单镜微调指令：只作用于这一次重做，成功后清空
+	const [feedback, setFeedback] = useState("");
 	const writeDisabled = structureLocked || Boolean(busy);
 
 	if (multiShotIds.length > 1) {
@@ -115,7 +117,8 @@ export function GenerationSection({
 			if (node.kind === "character") {
 				await charactersApi.regenerate(entityId);
 			} else {
-				await shotsApi.regenerate(entityId, type);
+				await shotsApi.regenerate(entityId, type, feedback);
+				setFeedback("");
 			}
 			const cell =
 				node.kind === "shot" ? node.title : "当前角色";
@@ -215,6 +218,16 @@ export function GenerationSection({
 			/>
 			{node.kind === "shot" ? (
 				<>
+					<label className="block">
+						<span className="mb-1 block label text-ink-muted">单镜微调指令（可选）</span>
+						<input
+							className="input-doodle w-full px-2 py-1 text-sm"
+							value={feedback}
+							placeholder="如：改用仰拍、加强逆光"
+							disabled={writeDisabled}
+							onChange={(event) => setFeedback(event.target.value)}
+						/>
+					</label>
 					<ActionButton
 						icon="refresh-cw"
 						label={`重做首帧 · ${shotCellLabel}`}

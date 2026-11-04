@@ -25,6 +25,8 @@ const LABELS: Record<string, string> = {
 	name: "名称",
 	description: "描述",
 	image_url: "图片",
+	video_url: "视频",
+	character_ids: "出场角色 ID",
 	prompt: "视频提示词",
 	image_prompt: "图片提示词",
 	dialogue: "对白",
@@ -55,6 +57,7 @@ function versionLabel(version: ArtifactVersion): string {
 
 function VersionColumn({ title, snapshot, changed }: { title: string; snapshot?: Snapshot; changed: Set<string> }) {
 	const imageUrl = getStaticUrl(snapshot?.image_url as string | null | undefined);
+	const videoUrl = getStaticUrl(snapshot?.video_url as string | null | undefined);
 	return (
 		<section className="min-w-0 rounded-md border border-line bg-paper-200/60 p-2.5">
 			<h3 className="m-0 text-xs font-bold">{title}</h3>
@@ -69,6 +72,14 @@ function VersionColumn({ title, snapshot, changed }: { title: string; snapshot?:
 					</div>
 				)}
 			</div>
+			{videoUrl ? (
+				<video
+					src={videoUrl}
+					controls
+					preload="metadata"
+					className={`mt-1.5 aspect-video w-full rounded-sm border bg-paper-300 object-cover ${changed.has("video_url") ? "border-primary" : "border-line"}`}
+				/>
+			) : null}
 			<div className="mt-2 space-y-1.5">
 				{DISPLAY_FIELDS.map((field) => {
 					const value = snapshot?.[field];
@@ -94,6 +105,7 @@ function VersionColumn({ title, snapshot, changed }: { title: string; snapshot?:
 
 function diffText(field: string, value: unknown): string {
 	if (field === "image_url") return blank(value) ? "没有图" : "有图（见上方对比）";
+	if (field === "video_url") return blank(value) ? "没有视频" : "有视频（见上方对比）";
 	return valueToText(value);
 }
 

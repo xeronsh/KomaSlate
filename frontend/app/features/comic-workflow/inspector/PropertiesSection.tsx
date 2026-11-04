@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { charactersApi, projectsApi, shotsApi } from "~/services/api";
 import { upsertCharacterInCache, upsertShotInCache } from "~/query/applyServerEvent";
 import { projectQueryKeys } from "~/query/queryKeys";
@@ -305,7 +305,12 @@ function ShotDraftForm({ shot, disabled }: { shot: Shot; disabled: boolean }) {
 		prompt: shot.prompt ?? "",
 	};
 	const [draft, setDraft] = useState<ShotUpdatePayload>(original);
+	const [characterIds, setCharacterIds] = useState<number[]>(shot.character_ids ?? []);
 	const [saving, setSaving] = useState(false);
+	const { data: projectCharacters = [] } = useQuery({
+		queryKey: projectQueryKeys.characters(shot.project_id),
+		queryFn: () => projectsApi.getCharacters(shot.project_id),
+	});
 
 	useEffect(() => {
 		setDraft({
@@ -330,6 +335,17 @@ function ShotDraftForm({ shot, disabled }: { shot: Shot; disabled: boolean }) {
 		shot.prompt,
 	]);
 
+	useEffect(() => {
+		setCharacterIds(shot.character_ids ?? []);
+	}, [shot.id, shot.character_ids]);
+
+	const toggleCharacter = (characterId: number) =>
+		setCharacterIds((ids) =>
+			ids.includes(characterId)
+				? ids.filter((id) => id !== characterId)
+				: [...ids, characterId],
+		);
+
 	const handleSave = async (auto = false) => {
 		if (saving) return;
 		setSaving(true);
@@ -344,6 +360,7 @@ function ShotDraftForm({ shot, disabled }: { shot: Shot; disabled: boolean }) {
 				duration: draft.duration ?? null,
 				image_prompt: textOrNull(draft.image_prompt),
 				prompt: textOrNull(draft.prompt),
+				character_ids: characterIds,
 			});
 			upsertShotInCache(queryClient, shot.project_id, updated);
 			queryClient.invalidateQueries({ queryKey: ["shots", shot.project_id] });
@@ -355,10 +372,15 @@ function ShotDraftForm({ shot, disabled }: { shot: Shot; disabled: boolean }) {
 		}
 	};
 
+	// 顺序无关：只比「哪些角色出场」
+	const charactersDirty =
+		JSON.stringify([...characterIds].sort()) !==
+		JSON.stringify([...(shot.character_ids ?? [])].sort());
+
 	return (
 		<FormShell
 			disabled={disabled}
-			dirty={isDirty(draft, original)}
+			dirty={isDirty(draft, original) || charactersDirty}
 			onAutoSave={() => handleSave(true)}
 		>
 			<TextArea
@@ -403,6 +425,34 @@ function ShotDraftForm({ shot, disabled }: { shot: Shot; disabled: boolean }) {
 					}
 				/>
 			</div>
+			<section className="space-y-1.5 border-t border-line pt-3" aria-label="出场角色">
+				<h4 className="m-0 text-sm font-semibold">出场角色</h4>
+				{projectCharacters.length > 0 ? (
+					<div className="flex flex-wrap gap-1.5">
+						{projectCharacters.map((character) => {
+							const selected = characterIds.includes(character.id);
+							return (
+								<button
+									key={character.id}
+									type="button"
+									aria-pressed={selected}
+									className={`rounded-full border px-2 py-0.5 text-xs transition-colors duration-fast ${
+										selected
+											? "border-primary bg-primary text-primary-content"
+											: "border-line bg-surface text-ink hover:border-primary"
+									}`}
+									onClick={() => toggleCharacter(character.id)}
+								>
+									{character.name}
+								</button>
+							);
+						})}
+					</div>
+				) : null}
+				{characterIds.length === 0 ? (
+					<p className="m-0 text-xs text-ink-muted">未绑定角色（空镜 / 纯场景镜头）</p>
+				) : null}
+			</section>
 			<TextArea
 				label="首帧提示词"
 				value={draft.image_prompt ?? ""}

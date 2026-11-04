@@ -379,10 +379,14 @@ export const shotsApi = {
 		fetchApi<Shot>(`/api/v1/shots/${id}/approve`, {
 			method: "POST",
 		}),
-	regenerate: (id: number, type: "image" | "video") =>
+	/** `feedback`: 单镜定向微调指令（「改用仰拍」这种），随这次重做一起透传给引擎。 */
+	regenerate: (id: number, type: "image" | "video", feedback?: string) =>
 		fetchApi<import("~/types").AgentRun>(`/api/v1/shots/${id}/regenerate`, {
 			method: "POST",
-			body: JSON.stringify({ type }),
+			body: JSON.stringify({
+				type,
+				...(feedback?.trim() ? { feedback: feedback.trim() } : {}),
+			}),
 		}),
 	delete: (id: number) =>
 		fetchApi<void>(`/api/v1/shots/${id}`, { method: "DELETE" }),
@@ -585,6 +589,12 @@ export const configApi = {
 export const exportApi = {
 	triggerWebtoon: (projectId: number) =>
 		fetchApi<ExportResponse>(`/api/v1/projects/${projectId}/export/webtoon`, {
+			method: "POST",
+		}),
+
+	/** 剪辑素材包：编号图/视频/TTS + subtitles.srt + manifest.json + timeline.fcpxml 的 ZIP */
+	triggerEditorialPack: (projectId: number) =>
+		fetchApi<ExportResponse>(`/api/v1/projects/${projectId}/export/editorial-pack`, {
 			method: "POST",
 		}),
 
