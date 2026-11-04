@@ -22,13 +22,13 @@ const TAG_PILL = "inline-block max-w-full truncate rounded-full border px-1.5 py
 
 const SECTION_STYLE = {
 	brief: {
-		surface: "bg-primary/5",
+		surface: "bg-paper-200/45",
 	},
 	elements: {
-		surface: "bg-primary/5",
+		surface: "bg-paper-200/45",
 	},
 	shotline: {
-		surface: "bg-primary/5",
+		surface: "bg-surface/60",
 	},
 	output: {
 		surface: "bg-paper-200/45",
@@ -302,14 +302,14 @@ function CharacterCard({
 	const imageUrl = getStaticUrl(node.imageUrl);
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
-			<div className="relative aspect-[4/3] bg-paper-300">
+			<div className="relative aspect-[4/3] border-b border-line bg-paper-300">
 				{imageUrl ? (
 					<img
 						src={imageUrl}
 						alt={node.title}
 						draggable={false}
 						decoding="async"
-						loading="lazy"
+						loading="eager"
 						className={`${MEDIA} h-full w-full object-cover`}
 						{...imageReady}
 					/>
@@ -333,7 +333,7 @@ function CharacterCard({
 				<CharacterRefStrip node={node} />
 				<div className="mt-auto flex flex-wrap gap-1 pt-1.5">
 					{node.character.has_embedding ? (
-							<span className={`${TAG_PILL} border-primary/30 bg-primary text-primary-content`}>资产一致性</span>
+							<span className={`${TAG_PILL} border-primary/25 bg-primary/10 text-primary`}>资产一致性</span>
 					) : null}
 					{node.character.visual_notes ? (
 							<span className={`${TAG_PILL} border-line bg-paper-100/80 text-ink-muted`}>视觉笔记</span>
@@ -355,14 +355,14 @@ function ShotCard({ node }: { node: Extract<ComicWorkflowNode, { kind: "shot" }>
 
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
-			<div className="relative h-32 shrink-0 bg-paper-300">
+			<div className="relative h-32 shrink-0 border-b border-line bg-paper-300">
 				{imageUrl ? (
 					<img
 						src={imageUrl}
 						alt={node.title}
 						draggable={false}
 						decoding="async"
-						loading={isFirstShot ? "eager" : "lazy"}
+						loading="eager"
 						{...(isFirstShot
 							? ({ fetchpriority: "high" } as { fetchpriority: "high" })
 							: {})}
@@ -373,12 +373,17 @@ function ShotCard({ node }: { node: Extract<ComicWorkflowNode, { kind: "shot" }>
 					<EmptyMedia label="等待分镜图" busy={node.status === "generating"} />
 				)}
 				{/* 九宫格 cell index */}
-				<span className="absolute left-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-sm bg-ink px-1 font-mono text-xs font-bold text-paper-100">
+				<span className="absolute left-1.5 top-1.5 flex h-6 min-w-6 items-center justify-center rounded-sm bg-ink/90 px-1.5 font-mono text-xs font-bold text-paper-100">
 					{cell}
 				</span>
 				<span className="absolute bottom-1.5 left-1.5 inline-flex rounded-sm border border-line bg-paper-100/90 px-1.5 py-0.5 text-xs">
 					{node.shot.duration ? <span className="font-mono">{node.shot.duration}s</span> : "未定时长"}
 				</span>
+				{node.status === "approved" ? (
+					<span className="absolute bottom-1.5 right-1.5 rounded-sm bg-ink/80 px-1.5 py-0.5 font-mono text-xs uppercase text-paper-100">
+						LOCKED
+					</span>
+				) : null}
 				<div className="absolute right-2 top-2">
 					<MediaPreviewButton
 						src={previewUrl}
@@ -424,7 +429,7 @@ function ShotCard({ node }: { node: Extract<ComicWorkflowNode, { kind: "shot" }>
 				<div className="mt-auto flex flex-wrap gap-1 pt-1.5">
 					{node.characterNames.length > 0 ? (
 						<span
-							className={`${TAG_PILL} border-primary/30 bg-primary text-primary-content`}
+							className={`${TAG_PILL} border-primary/25 bg-primary/10 font-medium text-primary`}
 							title={node.characterNames.join("、")}
 						>
 							{node.characterNames.join("、")}
@@ -667,13 +672,16 @@ export function WorkflowFrameView({
 	return (
 		<section
 			aria-label={title}
-			className={`flex h-full w-full flex-col rounded-lg border border-line p-3 text-ink ${
+			className={`plate-ticks relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-line p-3 text-ink ${
 				draggable ? "cursor-grab active:cursor-grabbing" : "cursor-default"
 			} ${style.surface}`}
 		>
+			{section === "shotline" ? (
+				<div className="slate-stripes -mx-3 -mt-3 mb-2.5 h-1.5 border-b border-line" aria-hidden="true" />
+			) : null}
 			{/* 标号 + 标题一行：01–04 是管线顺序，作为印刷标号放在标题前，而不是标题上方的 eyebrow */}
 			<div className="flex min-w-0 items-baseline gap-2 border-b border-line pb-2">
-				<span className="shrink-0 rounded-sm border border-line-strong px-1 font-mono text-xs text-ink-muted">
+				<span className="shrink-0 rounded-sm border border-line-strong bg-paper-100/80 px-1.5 py-0.5 font-mono text-xs text-ink-muted">
 					{eyebrow}
 				</span>
 				<p className="display m-0 truncate text-lg font-bold leading-tight">{title}</p>

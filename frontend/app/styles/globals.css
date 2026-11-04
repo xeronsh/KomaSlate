@@ -392,6 +392,30 @@
       rgb(var(--color-paper-200));
   }
 
+  /* 导演场记板斜纹：纯 CSS 墨色斜切条，随明暗主题自适应 */
+  .slate-stripes {
+    background-image: repeating-linear-gradient(
+      -55deg,
+      rgb(var(--color-ink) / 0.16) 0 7px,
+      transparent 7px 14px
+    );
+  }
+
+  /* 印版四角标尺短线（用于画布分区框与工作台场记卡） */
+  .plate-ticks {
+    --tick: rgb(var(--color-ink) / 0.22);
+    background:
+      linear-gradient(var(--tick), var(--tick)) left 6px top 6px / 7px 1px,
+      linear-gradient(var(--tick), var(--tick)) left 6px top 6px / 1px 7px,
+      linear-gradient(var(--tick), var(--tick)) right 6px top 6px / 7px 1px,
+      linear-gradient(var(--tick), var(--tick)) right 6px top 6px / 1px 7px,
+      linear-gradient(var(--tick), var(--tick)) left 6px bottom 6px / 7px 1px,
+      linear-gradient(var(--tick), var(--tick)) left 6px bottom 6px / 1px 7px,
+      linear-gradient(var(--tick), var(--tick)) right 6px bottom 6px / 7px 1px,
+      linear-gradient(var(--tick), var(--tick)) right 6px bottom 6px / 1px 7px;
+    background-repeat: no-repeat;
+  }
+
   /* 分镜稿空格：四角 10px 角线（墨色 25%），代替居中大图标 */
   .corner-marks {
     --corner: rgb(var(--color-ink) / 0.25);

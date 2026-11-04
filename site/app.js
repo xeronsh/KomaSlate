@@ -1,259 +1,305 @@
-// ============================================================================
-// openOii Landing Page — Editorial Blueprint Interactive Controller
-// ============================================================================
-
 (() => {
-  const htmlEl = document.documentElement;
-  const themeBtn = document.getElementById("theme-toggle-btn");
-  const themeLabel = document.getElementById("theme-toggle-label");
-  const metaThemeColor = document.getElementById("meta-theme-color");
-
-  const SCREENSHOT_MAP = {
-    workbench: {
-      light: "./assets/screenshots/workbench.webp",
-      dark: "./assets/screenshots/workbench-dark.webp",
+  const SHOTS = {
+    s01: {
+      id: "S01",
+      title: "阁楼全景 · 雨夜停摆",
+      duration: "5s",
+      locked: true,
+      camera: "全景固定机位 · 暖黄台灯与冷蓝雨窗冷暖对撞",
+      cast: ["阿哲", "银白小猫"],
+      removedCast: [],
+      dialogue: "旁白：「雨夜里，时间停了很久。」",
+      statusText: "LOCKED · 单镜重拍 S03 期间字节级保持不动",
+      v2Img: "./assets/shots/r01.webp",
+      v2Label: "Approved Frame · 已锁定保护",
+      note: "已通过审批门锁定：修改下游或重拍兄弟镜头不会重画本镜。",
     },
-    home: {
-      light: "./assets/screenshots/home.webp",
-      dark: "./assets/screenshots/home-dark.webp",
+    s02: {
+      id: "S02",
+      title: "近景俯身 · 镊子试探机芯",
+      duration: "5s",
+      locked: true,
+      camera: "近景俯拍 · 桌面浅景深",
+      cast: ["阿哲", "银白小猫"],
+      removedCast: [],
+      dialogue: "旁白：「他一次次，细细检修着。」",
+      statusText: "LOCKED · 角色立绘参考与一致性向量已锚定",
+      v2Img: "./assets/shots/r02.webp",
+      v2Label: "Approved Frame · 已锁定保护",
+      note: "复用阿哲与银白小猫定妆立绘，衣纹与暖灯色温跨镜一致。",
     },
-    projects: {
-      light: "./assets/screenshots/projects.webp",
-      dark: "./assets/screenshots/projects.webp",
+    s03: {
+      id: "S03",
+      title: "放大镜微距 · 铜齿轮咬合（定向重拍）",
+      duration: "4s",
+      locked: false,
+      hasDiff: true,
+      camera: "微距特写 · 圆形黄铜放大镜边框构图",
+      cast: ["阿哲"],
+      removedCast: ["银白小猫"],
+      dialogue: "旁白：「最后一处，轻轻咬合。」",
+      statusText: "RETAKE v2 · 历史快照 v1 随时可双栏对比与 CAS 回退",
+      v1Img: "./assets/shots/r03-v1.webp",
+      v1Label: "Take v1 · 原始生成（小猫误入镜内比例穿帮）",
+      v2Img: "./assets/shots/r03-v2.webp",
+      v2Label: "Take v2 · 解绑小猫 + 暖琥珀光束重拍",
+      note: "操作记录：在检查器取消「银白小猫」出场标签，输入导演批注「暖琥珀台灯光束更集中地照在铜齿轮齿牙上，背景冷蓝雨窗焦外光斑更明显」后仅重绘 S03。",
     },
-    "settings-video-presets": {
-      light: "./assets/screenshots/settings-video-presets.webp",
-      dark: "./assets/screenshots/settings-video-presets.webp",
+    s04: {
+      id: "S04",
+      title: "怀表复苏 · 掌心齿轮轻转",
+      duration: "5s",
+      locked: true,
+      camera: "近景正面 · 暖光映照面部神情",
+      cast: ["阿哲"],
+      removedCast: [],
+      dialogue: "旁白：「滴答声，终于回来了。」",
+      statusText: "LOCKED · 视频与配音音轨完整保留",
+      v2Img: "./assets/shots/r04.webp",
+      v2Label: "Approved Frame · 已锁定保护",
+      note: "S03 重绘仅使总成片标记为需重合成，S04 视频切片无需重跑模型。",
+    },
+    s05: {
+      id: "S05",
+      title: "终幕定格 · 一人一猫凝望时光",
+      duration: "5s",
+      locked: true,
+      camera: "中景拉远 · 首尾呼应构图",
+      cast: ["阿哲", "银白小猫"],
+      removedCast: [],
+      dialogue: "旁白：「时间，又缓缓流动起来。」",
+      statusText: "LOCKED · 已就绪并写入 FCPXML 主磁道",
+      v2Img: "./assets/shots/r05.webp",
+      v2Label: "Approved Frame · 已锁定保护",
+      note: "可直接合成 MP4 成片，或连同分轨语音导出为 FCPXML v1.9 资产包。",
     },
   };
 
-  function applyTheme(theme) {
-    htmlEl.setAttribute("data-theme", theme);
-    if (metaThemeColor) {
-      metaThemeColor.setAttribute("content", theme === "dark" ? "#0B0C10" : "#F5F3EE");
-    }
-    if (themeLabel) {
-      themeLabel.textContent = theme === "dark" ? "浅色外观" : "深色外观";
-    }
-    document.querySelectorAll("[data-theme-img]").forEach((img) => {
-      const key = img.getAttribute("data-theme-img");
-      const entry = SCREENSHOT_MAP[key];
-      if (entry && entry[theme]) {
-        img.setAttribute("src", entry[theme]);
+  const DEPLOY_SNIPPETS = {
+    docker: `git clone https://github.com/xeronsh/openOii.git
+cd openOii
+cp backend/.env.example backend/.env
+docker compose up -d
+# 浏览器打开 http://localhost:3000 （API 网关 :18765）`,
+    local: `# 后端启动后首次生成会自动拉起同库 Engine Sidecar (:18766)
+cd backend && uv sync
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 18765
+
+# 新开终端启动画布前端 (:5173)
+cd frontend && pnpm install && pnpm dev`,
+  };
+
+  // --- Theme toggle & theme-reactive screenshots ---
+  const root = document.documentElement;
+  const themeBtn = document.getElementById("theme-toggle");
+  const themeLabel = document.getElementById("theme-toggle-label");
+
+  function syncThemeImages(theme) {
+    document.querySelectorAll("img[data-light-src][data-dark-src]").forEach((img) => {
+      const target = theme === "dark" ? img.dataset.darkSrc : img.dataset.lightSrc;
+      if (target && img.getAttribute("src") !== target) {
+        img.setAttribute("src", target);
       }
     });
-    try {
-      localStorage.setItem("openoii-theme", theme);
-    } catch (_) {}
   }
 
-  let savedTheme = "light";
-  try {
-    const stored = localStorage.getItem("openoii-theme");
-    if (stored === "dark" || stored === "light") savedTheme = stored;
-  } catch (_) {}
-  applyTheme(savedTheme);
+  function applyTheme(theme) {
+    root.dataset.theme = theme;
+    try {
+      localStorage.setItem("komaslate-site-theme", theme);
+    } catch (_) {}
+    if (themeLabel) {
+      themeLabel.textContent = theme === "dark" ? "暖纸原稿" : "深色印版";
+    }
+    syncThemeImages(theme);
+  }
+
+  const savedTheme = (() => {
+    try {
+      return localStorage.getItem("komaslate-site-theme");
+    } catch (_) {
+      return null;
+    }
+  })();
+  const initialTheme = savedTheme || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  applyTheme(initialTheme);
 
   if (themeBtn) {
     themeBtn.addEventListener("click", () => {
-      const next = htmlEl.getAttribute("data-theme") === "dark" ? "light" : "dark";
-      applyTheme(next);
+      applyTheme(root.dataset.theme === "dark" ? "light" : "dark");
     });
   }
 
-  // 2. Interactive Director's Storyboard Desk (S01–S06 + Live Inspector)
-  const SHOT_IDS = ["S01", "S02", "S03", "S04", "S05", "S06"];
-  const INITIAL_SHOTS = {
-    S01: {
-      title: "炎夏寻水 · 发现半瓶水",
-      img: "./assets/shots/s01.webp",
-      score: "8.5 达标",
-      pass: true,
-      prompt: "炎炎夏日干裂土地上，口渴的小乌鸦落在半瓶清水旁，水彩构图与角色造型达标",
-    },
-    S02: {
-      title: "瓶颈受阻 · 够不着水面",
-      img: "./assets/shots/s02.webp",
-      score: "6.5 待微调",
-      pass: false,
-      prompt: "质量审查提示：嘴未伸入瓶口且缺少够不着水的失落感，建议调整小乌鸦嘴部位置与神态后重新生成",
-    },
-    S03: {
-      title: "灵光一现 · 目光锁定石子",
-      img: "./assets/shots/s03.webp",
-      score: "8.8 达标",
-      pass: true,
-      prompt: "小乌鸦灵机一动，目光锁定陶瓶旁散落的小石子，画面焦点与神态自然",
-    },
-    S04: {
-      title: "衔石入瓶 · 石子落水",
-      img: "./assets/shots/s04.webp",
-      score: "8.6 达标",
-      pass: true,
-      prompt: "小乌鸦衔起第一颗石子投入细瓶口，水面泛起微澜，动作衔接顺畅",
-    },
-    S05: {
-      title: "锲而不舍 · 水位稳步上升",
-      img: "./assets/shots/s05.webp",
-      score: "8.7 达标",
-      pass: true,
-      prompt: "瓶底石子越积越多，瓶中清水随之稳步抬升，水彩笔触保持一致",
-    },
-    S06: {
-      title: "畅饮甘泉 · 智慧解渴",
-      img: "./assets/shots/s06.webp",
-      score: "9.2 达标",
-      pass: true,
-      prompt: "清水终于升至瓶口，小乌鸦低头畅饮甘泉，圆满收尾",
-    },
-  };
+  // --- Interactive #1: Contact Sheet & Take v1/v2 Inspector ---
+  let activeShotKey = "s03";
+  let activeTakeMode = "split"; // "split" | "v2" | "v1"
 
-  let shotState = JSON.parse(JSON.stringify(INITIAL_SHOTS));
-  let activeShotId = "S02";
+  const shotButtons = document.querySelectorAll("[data-shot-key]");
+  const takeButtons = document.querySelectorAll("[data-take-mode]");
+  const takeTabsWrap = document.getElementById("take-tabs");
+  const compareContainer = document.getElementById("compare-container");
+  const inspShotId = document.getElementById("insp-shot-id");
+  const inspStatus = document.getElementById("insp-status");
+  const inspTitle = document.getElementById("insp-title");
+  const inspCamera = document.getElementById("insp-camera");
+  const inspCast = document.getElementById("insp-cast");
+  const inspNote = document.getElementById("insp-note");
+  const inspDialogue = document.getElementById("insp-dialogue");
 
-  const inspId = document.getElementById("inspector-shot-id");
-  const inspBadge = document.getElementById("inspector-shot-badge");
-  const inspPreviewBox = document.getElementById("inspector-preview-box");
-  const inspImg = document.getElementById("inspector-shot-img");
-  const inspTitle = document.getElementById("inspector-shot-title");
-  const inspPrompt = document.getElementById("inspector-shot-prompt");
-  const dockApproveBtn = document.getElementById("dock-approve-btn");
-  const dockResetBtn = document.getElementById("dock-reset-btn");
+  function renderInspector() {
+    const shot = SHOTS[activeShotKey];
+    if (!shot || !compareContainer) return;
 
-  function renderStoryboard() {
-    const cur = shotState[activeShotId];
-    if (!cur) return;
-
-    document.querySelectorAll("[data-shot-id]").forEach((btn) => {
-      const id = btn.getAttribute("data-shot-id");
-      const info = shotState[id];
-      btn.setAttribute("aria-pressed", id === activeShotId ? "true" : "false");
-      const badge = btn.querySelector("[data-shot-badge]");
-      if (badge && info) {
-        badge.textContent = info.score;
-        badge.className =
-          "shot-badge " + (info.pass ? "shot-badge--pass" : "shot-badge--warn");
-      }
+    shotButtons.forEach((btn) => {
+      const selected = btn.dataset.shotKey === activeShotKey;
+      btn.classList.toggle("is-active", selected);
+      btn.setAttribute("aria-pressed", String(selected));
     });
 
-    if (inspId) inspId.textContent = `DIRECTOR INSPECTOR · ${activeShotId}`;
-    if (inspBadge) {
-      inspBadge.textContent = cur.score;
-      inspBadge.className =
-        "shot-badge " + (cur.pass ? "shot-badge--pass" : "shot-badge--warn");
+    if (inspShotId) inspShotId.textContent = `DIRECTOR SLATE · ${shot.id} (${shot.duration})`;
+    if (inspStatus) {
+      inspStatus.textContent = shot.locked ? "LOCKED" : "2 TAKES";
+      inspStatus.className = "micro-pill " + (shot.locked ? "success" : "primary");
     }
-    if (inspImg) inspImg.setAttribute("src", cur.img);
-    if (inspTitle) inspTitle.textContent = cur.title;
-    if (inspPrompt) inspPrompt.textContent = cur.prompt;
-    if (dockApproveBtn) {
-      dockApproveBtn.textContent = cur.pass
-        ? `已确认 ${activeShotId} ✓`
-        : `确认重绘 ${activeShotId}`;
-    }
-  }
+    if (inspTitle) inspTitle.textContent = shot.title;
+    if (inspCamera) inspCamera.textContent = shot.camera;
+    if (inspNote) inspNote.textContent = shot.note;
+    if (inspDialogue) inspDialogue.textContent = shot.dialogue;
 
-  document.querySelectorAll("[data-shot-id]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const id = btn.getAttribute("data-shot-id");
-      if (id && shotState[id]) {
-        activeShotId = id;
-        renderStoryboard();
-      }
-    });
-
-    btn.addEventListener("keydown", (e) => {
-      const idx = SHOT_IDS.indexOf(activeShotId);
-      if (idx === -1) return;
-      let nextIdx = -1;
-      if (e.key === "ArrowRight") nextIdx = (idx + 1) % SHOT_IDS.length;
-      if (e.key === "ArrowLeft") nextIdx = (idx - 1 + SHOT_IDS.length) % SHOT_IDS.length;
-      if (nextIdx !== -1) {
-        e.preventDefault();
-        activeShotId = SHOT_IDS[nextIdx];
-        renderStoryboard();
-        const nextBtn = document.querySelector(`[data-shot-id="${activeShotId}"]`);
-        if (nextBtn) nextBtn.focus();
-      }
-    });
-  });
-
-  if (dockApproveBtn) {
-    dockApproveBtn.addEventListener("click", () => {
-      const cur = shotState[activeShotId];
-      if (!cur) return;
-      if (inspPreviewBox) inspPreviewBox.classList.add("is-redrawing");
-      setTimeout(() => {
-        cur.pass = true;
-        cur.score = activeShotId === "S02" ? "9.1 已重绘" : "9.3 已重绘";
-        cur.prompt = `${activeShotId} 已按修改意见完成局部重绘并通过质量复检，其余 5 个已完成镜头保持不变`;
-        renderStoryboard();
-        if (inspPreviewBox) inspPreviewBox.classList.remove("is-redrawing");
-      }, 160);
-    });
-  }
-
-  if (dockResetBtn) {
-    dockResetBtn.addEventListener("click", () => {
-      shotState = JSON.parse(JSON.stringify(INITIAL_SHOTS));
-      activeShotId = "S02";
-      renderStoryboard();
-    });
-  }
-
-  // 3. Oversized Typographic Index Switcher (01–04)
-  const ACT_KEYS = ["home", "workbench", "projects", "settings-video-presets"];
-  const workflowStageImg = document.getElementById("workflow-stage-img");
-
-  document.querySelectorAll("[data-act]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const idx = Number(btn.getAttribute("data-act"));
-      const imgKey = ACT_KEYS[idx];
-      if (!imgKey) return;
-      document.querySelectorAll("[data-act]").forEach((b) => {
-        b.setAttribute("aria-selected", b === btn ? "true" : "false");
+    if (inspCast) {
+      inspCast.innerHTML = "";
+      shot.cast.forEach((name) => {
+        const span = document.createElement("span");
+        span.className = "cast-pill";
+        span.textContent = name;
+        inspCast.appendChild(span);
       });
-      if (workflowStageImg) {
-        workflowStageImg.classList.add("is-switching");
-        workflowStageImg.setAttribute("data-theme-img", imgKey);
-        const theme = htmlEl.getAttribute("data-theme") || "light";
-        const entry = SCREENSHOT_MAP[imgKey];
-        if (entry && entry[theme]) {
-          workflowStageImg.setAttribute("src", entry[theme]);
-        }
-        setTimeout(() => {
-          workflowStageImg.classList.remove("is-switching");
-        }, 120);
+      (shot.removedCast || []).forEach((name) => {
+        const span = document.createElement("span");
+        span.className = "cast-pill muted";
+        span.title = "已在重拍前移出本镜出场角色";
+        span.textContent = name + "（已解绑）";
+        inspCast.appendChild(span);
+      });
+    }
+
+    if (takeTabsWrap) {
+      takeTabsWrap.hidden = !shot.hasDiff;
+    }
+
+    takeButtons.forEach((btn) => {
+      const active = btn.dataset.takeMode === activeTakeMode;
+      btn.classList.toggle("is-active", active);
+      btn.setAttribute("aria-selected", String(active));
+    });
+
+    compareContainer.innerHTML = "";
+    if (shot.hasDiff && activeTakeMode === "split") {
+      compareContainer.className = "compare-split";
+      compareContainer.innerHTML = `
+        <figure class="take-frame" style="margin:0">
+          <img src="${shot.v1Img}" alt="${shot.id} Take v1" loading="eager" decoding="async">
+          <figcaption class="take-caption">
+            <span>Take v1 · 重拍前快照</span>
+            <span class="take-badge warn">比例穿帮</span>
+          </figcaption>
+        </figure>
+        <figure class="take-frame highlight" style="margin:0">
+          <img src="${shot.v2Img}" alt="${shot.id} Take v2" loading="eager" decoding="async">
+          <figcaption class="take-caption">
+            <span>Take v2 · 定向重拍后</span>
+            <span class="take-badge good">当前采用</span>
+          </figcaption>
+        </figure>
+      `;
+    } else {
+      compareContainer.className = "compare-split single-mode";
+      const showV1 = shot.hasDiff && activeTakeMode === "v1";
+      const src = showV1 ? shot.v1Img : shot.v2Img;
+      const label = showV1 ? shot.v1Label : shot.v2Label;
+      const badgeCls = showV1 ? "warn" : "good";
+      const badgeTxt = showV1 ? "历史快照 v1" : shot.locked ? "LOCKED" : "ACTIVE v2";
+      compareContainer.innerHTML = `
+        <figure class="take-frame highlight" style="margin:0">
+          <img src="${src}" alt="${shot.id}" loading="eager" decoding="async">
+          <figcaption class="take-caption">
+            <span>${label}</span>
+            <span class="take-badge ${badgeCls}">${badgeTxt}</span>
+          </figcaption>
+        </figure>
+      `;
+    }
+  }
+
+  shotButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeShotKey = btn.dataset.shotKey || "s03";
+      if (SHOTS[activeShotKey]?.hasDiff) {
+        activeTakeMode = "split";
+      }
+      renderInspector();
+    });
+  });
+
+  takeButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeTakeMode = btn.dataset.takeMode || "split";
+      renderInspector();
+    });
+  });
+
+  renderInspector();
+
+  // --- Interactive #2: FCPXML Track View vs XML Source ---
+  const nleTabs = document.querySelectorAll("[data-nle-view]");
+  const nleTracksPane = document.getElementById("nle-tracks-pane");
+  const nleXmlPane = document.getElementById("nle-xml-pane");
+
+  nleTabs.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const view = btn.dataset.nleView;
+      nleTabs.forEach((b) => {
+        const isAct = b === btn;
+        b.classList.toggle("is-active", isAct);
+        b.setAttribute("aria-selected", String(isAct));
+      });
+      if (nleTracksPane && nleXmlPane) {
+        nleTracksPane.hidden = view !== "tracks";
+        nleXmlPane.hidden = view !== "xml";
       }
     });
   });
 
-  // 4. Copy Docker Command
-  const copyBtn = document.getElementById("copy-cmd-btn");
-  const cmdEl = document.getElementById("quickstart-cmd");
-  if (copyBtn && cmdEl) {
-    copyBtn.addEventListener("click", async () => {
-      const text = cmdEl.textContent.trim();
-      try {
-        await navigator.clipboard.writeText(text);
-      } catch (_) {}
-      copyBtn.textContent = "已复制 ✓";
-      setTimeout(() => {
-        copyBtn.textContent = "复制命令";
-      }, 1800);
-    });
-  }
+  // --- Interactive #3: Deploy command switcher & copy ---
+  let activeDeploy = "docker";
+  const deployTabs = document.querySelectorAll("[data-deploy-tab]");
+  const deployCode = document.getElementById("deploy-code");
+  const copyBtn = document.getElementById("copy-deploy-btn");
 
-  // 5. Idle Preload Secondary Stage Images for Zero-Lag Switching
-  const idle = window.requestIdleCallback || ((cb) => setTimeout(cb, 1200));
-  idle(() => {
-    [
-      "./assets/screenshots/projects.webp",
-      "./assets/screenshots/settings-video-presets.webp",
-      "./assets/screenshots/workbench-dark.webp",
-      "./assets/screenshots/home-dark.webp",
-    ].forEach((url) => {
-      const img = new Image();
-      img.src = url;
+  deployTabs.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      activeDeploy = btn.dataset.deployTab || "docker";
+      deployTabs.forEach((b) => {
+        const isAct = b === btn;
+        b.classList.toggle("is-active", isAct);
+        b.setAttribute("aria-selected", String(isAct));
+      });
+      if (deployCode) {
+        deployCode.textContent = DEPLOY_SNIPPETS[activeDeploy] || DEPLOY_SNIPPETS.docker;
+      }
     });
   });
+
+  if (copyBtn && deployCode) {
+    copyBtn.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(deployCode.textContent || "");
+        const prev = copyBtn.textContent;
+        copyBtn.textContent = "已复制命令";
+        setTimeout(() => {
+          copyBtn.textContent = prev;
+        }, 1600);
+      } catch (_) {}
+    });
+  }
 })();

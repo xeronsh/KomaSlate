@@ -27,8 +27,8 @@ const DEFAULT_STYLE = "anime";
 
 const EXAMPLE_PROMPTS = [
 	"一个灯塔管理员发现了一张会发光的地图，地图上的岛屿每晚都会移动。",
+	"雨夜阁楼里，老修表匠在暖黄台灯下修复一枚停摆多年的铜怀表，桌角蜷着银白小猫。",
 	"末班地铁上，一只橘猫带着失忆的女孩寻找她丢失的名字。",
-	"雨夜的旧书店里，少年翻开一本会写下明天的日记。",
 ];
 
 export function HomePage() {
@@ -129,9 +129,9 @@ export function HomePage() {
 				<PageBody className="workbench-surface">
 					<PageContent className="min-h-full gap-4 sm:py-5">
 						<PageHeader
-							eyebrow="创作台"
-							title="把一句想法，变成一部漫剧。"
-							description="写下故事、选择创作模式，进入画布后 AI 按阶段生成。"
+							eyebrow="导演场记台"
+							title="把一句想法，拍成可精修的分镜台本。"
+							description="本地优先的非破坏性分镜画布：单镜重拍、历史版本对比回退、直出成片或导出专业剪辑包。"
 							actionsAlign="title"
 							actions={
 							<div className="flex flex-wrap gap-1" aria-label="创作台工具">
@@ -145,13 +145,29 @@ export function HomePage() {
 							}
 						/>
 
-						{/* 列宽由 PageContent 一层决定：这里不再叠第二道宽度约束 */}
+						{/* 场记板主工作区：顶部打板斜纹 + 印版四角标尺 */}
 						<div className="flex w-full flex-col gap-5" data-shell="create-desk">
+							<div className="plate-ticks overflow-hidden rounded-lg border border-line bg-surface shadow-panel">
+								<div className="flex flex-col border-b border-line bg-paper-200/60">
+									<div className="slate-stripes h-2 border-b border-line" aria-hidden="true" />
+									<div className="flex flex-wrap items-center justify-between gap-2 px-3 py-1.5 sm:px-4">
+										<div className="flex items-center gap-2">
+											<span className="font-mono text-xs font-bold uppercase text-ink">SLATE 01</span>
+											<span className="text-ink-subtle" aria-hidden="true">/</span>
+											<span className="font-mono text-xs uppercase text-ink-muted">NON-DESTRUCTIVE WORKBENCH</span>
+										</div>
+										<div className="hidden items-center gap-2 sm:flex">
+											<span className="rounded-sm border border-line bg-paper-100 px-1.5 py-0.5 font-mono text-xs uppercase text-ink-muted">LOCAL SQLITE</span>
+											<span className="rounded-sm border border-line bg-paper-100 px-1.5 py-0.5 font-mono text-xs uppercase text-ink-muted">BYOK</span>
+											<span className="rounded-sm border border-primary/25 bg-primary/10 px-1.5 py-0.5 font-mono text-xs uppercase text-primary">FCPXML 1.9</span>
+										</div>
+									</div>
+								</div>
 							<DeskSection
 								icon={<SvgIcon name="pencil" size={16} />}
 								title="故事创意"
 								meta={story.length + "/5000"}
-								className="min-h-80 rounded-lg border border-line bg-surface p-3 sm:min-h-96 sm:p-4"
+								className="min-h-80 p-3 sm:min-h-96 sm:p-4"
 							>
 								<div className="flex min-h-0 flex-1 flex-col">
 									<textarea
@@ -169,17 +185,23 @@ export function HomePage() {
 										spellCheck
 									/>
 									{!story ? (
-										<div className="mt-2 flex flex-col gap-1.5" aria-label="示例提示">
-											<span className="text-xs text-ink-muted">试试这些开头：</span>
-											{EXAMPLE_PROMPTS.map((prompt) => (
-												<PlainButton
-													key={prompt}
-													className="press touch-target-dense rounded-md border border-line px-3 py-2 text-left text-sm text-ink-muted hover:border-primary hover:text-ink"
-													onClick={() => setStory(prompt)}
-												>
-													{prompt}
-												</PlainButton>
-											))}
+										<div className="mt-2.5 flex flex-col gap-1.5" aria-label="示例提示">
+											<span className="text-xs text-ink-muted">试试这些试拍脚本：</span>
+											<div className="grid gap-1.5 sm:grid-cols-3">
+												{EXAMPLE_PROMPTS.map((prompt, index) => (
+													<div key={prompt} className="flex flex-col gap-1 rounded-md border border-line bg-paper-100/60 p-2 transition-colors duration-fast hover:border-primary/50">
+														<span className="font-mono text-xs font-bold uppercase text-primary">
+															{String(index + 1).padStart(2, "0")}
+														</span>
+														<PlainButton
+															className="press touch-target-dense flex-1 rounded-sm px-1 py-0.5 text-left text-xs leading-relaxed text-ink-muted hover:text-ink"
+															onClick={() => setStory(prompt)}
+														>
+															{prompt}
+														</PlainButton>
+													</div>
+												))}
+											</div>
 										</div>
 									) : null}
 									{story.length > 4500 ? <p className="m-0 mt-1 text-xs font-bold text-warning-fg">还可输入 {5000 - story.length} 字</p> : null}
@@ -229,6 +251,7 @@ export function HomePage() {
 								{selectedUniverse ? <p className="m-0 text-xs text-ink-muted">将加入「{selectedUniverse.name}」宇宙 · 第 {chapterNumber} 章</p> : null}
 								{createMutation.error ? <p className="m-0 border-l-2 border-error bg-error/10 px-3 py-2 text-xs text-error-fg" role="alert">{createMutation.error.message || "创建项目失败，请重试。"}</p> : null}
 							</DeskSection>
+							</div>
 							{projectsLoaded ? <HowItWorks defaultOpen={projects.length === 0} /> : null}
 							{recentProjects.length > 0 ? (
 								<section aria-labelledby="recent-projects" className="flex flex-col gap-2">

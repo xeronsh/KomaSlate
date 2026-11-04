@@ -309,7 +309,7 @@ function splitSubject(title: string): [string, string] | null {
 function warningSummary(items: ActivityEntry[]): string {
 	const parts = items.map((e) => splitSubject(e.title));
 	if (parts.every((p) => p !== null)) {
-		const subjects = (parts as [string, string][]).map(([s]) => s).join("、");
+		const subjects = [...new Set((parts as [string, string][]).map(([s]) => s))].join("、");
 		const rest = (parts as [string, string][]).map(([, r]) => r);
 		if (rest.every((r) => r === rest[0])) return `${subjects} ${rest[0]}`;
 		return `${subjects}：${items.length} 条提醒`;
