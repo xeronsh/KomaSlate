@@ -446,7 +446,7 @@ async def test_approve_shot_missing_duration(async_client, test_session):
 
 @pytest.mark.asyncio
 async def test_validate_shot_character_ids_empty_list(async_client, test_session):
-    """Empty character_ids → validation passes but approval rejects missing chars."""
+    """Empty character_ids (scenery/prop shot) → validation and approval both pass."""
     project = await create_project(test_session)
     shot = await create_shot(
         test_session,
@@ -465,7 +465,8 @@ async def test_validate_shot_character_ids_empty_list(async_client, test_session
     await test_session.refresh(shot)
 
     res = await async_client.post(f"/api/v1/shots/{shot.id}/approve")
-    assert res.status_code == 400
+    assert res.status_code == 200
+    assert res.json()["approval_state"] == "approved"
 
 
 @pytest.mark.asyncio

@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("homepage exposes the story bootstrap flow", async ({ page }) => {
 	await page.goto("/");
 
-	await expect(page).toHaveTitle(/openOii/);
+	await expect(page).toHaveTitle(/KomaSlate/);
 	await expect(page.getByRole("heading", { name: "把一句想法，变成一部漫剧。" })).toBeVisible();
 
 	const storyInput = page.getByLabel("输入你的故事创意");

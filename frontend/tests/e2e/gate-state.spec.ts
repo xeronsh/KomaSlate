@@ -477,18 +477,18 @@ test("running: the activity panel shows step and total elapsed, a 约 estimate, 
 	server.current = control("waiting_for_approval", { awaiting_gate: gate });
 	await push(page, { type: "run_awaiting_confirm", data: gate });
 	await expect.poll(async () => (await notifications(page)).sent).toEqual([
-		{ title: "openOii · 闸门测试", body: "角色形象 · 待确认" },
+		{ title: "KomaSlate · 闸门测试", body: "角色形象 · 待确认" },
 	]);
-	await expect(page).toHaveTitle(/^【待确认】.*闸门测试 - openOii$/);
+	await expect(page).toHaveTitle(/^【待确认】.*闸门测试 - KomaSlate$/);
 	// confirmed elsewhere: the gate badge goes, the run carries on
 	server.current = control("running", { recovery_summary: runningSummary });
 	await push(page, { type: "run_confirmed", data: { run_id: RUN, project_id: 7, current_stage: "compose_videos" } });
-	await expect(page).toHaveTitle(/^(?!【).*闸门测试 - openOii$/);
+	await expect(page).toHaveTitle(/^(?!【).*闸门测试 - KomaSlate$/);
 
 	server.current = null;
 	await push(page, { type: "run_completed", data: { run_id: RUN, project_id: 7, message: "完成" } });
 	await expect.poll(async () => (await notifications(page)).sent.length).toBe(2);
-	expect((await notifications(page)).sent[1]).toEqual({ title: "openOii · 闸门测试", body: "生成完成，成片可以查看了" });
+	expect((await notifications(page)).sent[1]).toEqual({ title: "KomaSlate · 闸门测试", body: "生成完成，成片可以查看了" });
 	await expect(page).toHaveTitle(/^【已完成】/);
 	await page.evaluate(() => {
 		Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" });

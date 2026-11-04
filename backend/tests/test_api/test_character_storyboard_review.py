@@ -117,7 +117,7 @@ async def test_shot_approval_rejects_incomplete_intent(async_client, test_sessio
 
     res = await async_client.post(f"/api/v1/shots/{shot.id}/approve")
     assert res.status_code == 400
-    assert res.json()["error"]["message"] == "批准镜头前请先补全：镜头、出场角色"
+    assert res.json()["error"]["message"] == "批准镜头前请先补全：镜头"
 
 
 @pytest.mark.asyncio

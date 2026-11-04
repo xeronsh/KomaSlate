@@ -118,7 +118,7 @@ async def test_shot_approval_lists_missing_fields_in_chinese(async_client, test_
     res = await async_client.post(f"/api/v1/shots/{shot.id}/approve")
 
     assert res.status_code == 400
-    assert res.json()["error"]["message"] == "批准镜头前请先补全：镜头、出场角色"
+    assert res.json()["error"]["message"] == "批准镜头前请先补全：镜头"
 
 
 # -- editing a description invalidates the old visual review (#150) --

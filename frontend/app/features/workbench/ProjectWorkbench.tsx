@@ -401,7 +401,7 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 	useEffect(() => {
 		if (projectTitle === undefined) return;
 		const previous = document.title;
-		document.title = withTitleBadge(`${studioStatusText(studioStatus)} · ${projectTitle || "漫剧工作台"} - openOii`, badge);
+		document.title = withTitleBadge(`${studioStatusText(studioStatus)} · ${projectTitle || "分镜工作台"} - KomaSlate`, badge);
 		return () => {
 			document.title = previous;
 		};

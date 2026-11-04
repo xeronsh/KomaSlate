@@ -10,6 +10,7 @@ import {
   parseJsonColumn,
   SharedDb,
   characterReadPayload,
+  shotApprovalState,
   shotReadPayload,
   type CharacterRow,
   type ShotRow,
@@ -372,7 +373,7 @@ function planBasePayload(ctx: StageContext, task: "characters" | "shots"): Recor
         id: s.id,
         order: s.order,
         description: s.description,
-        approved: Boolean(s.approved_at && s.approval_version > 0),
+        approved: shotApprovalState(s) === "approved",
       })),
     },
     ...(ctx.userFeedback ? { user_feedback: ctx.userFeedback } : {}),
@@ -514,7 +515,7 @@ async function applyShotPlan(ctx: StageContext, data: Record<string, unknown>): 
   // A human already approved this shot: a re-plan must not delete or overwrite it.
   const forceRegenerate = ctx.forceRegenerate === true;
   const isFrozen = (s: ShotRow): boolean =>
-    !forceRegenerate && Boolean(s.approved_at && s.approval_version > 0);
+    !forceRegenerate && shotApprovalState(s) === "approved";
 
   // Only ids the planner repeated from existing_state count; an id the LLM
   // invents (or other-project row) is planned as a brand new shot.

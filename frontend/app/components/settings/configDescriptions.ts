@@ -68,7 +68,7 @@ export function getConfigDescription(key: string): string {
 		// 豆包视频
 		DOUBAO_API_KEY: "豆包 API 密钥（火山引擎 ARK_API_KEY）",
 		DOUBAO_VIDEO_MODEL: "Seedance 模型 ID，如 doubao-seedance-2-5-260628",
-		DOUBAO_VIDEO_DURATION: "豆包视频时长（秒）：openOii 目前按 5 或 10 秒提交",
+		DOUBAO_VIDEO_DURATION: "豆包视频时长（秒）：KomaSlate 目前按 5 或 10 秒提交",
 		DOUBAO_VIDEO_RATIO: "画幅比例：16:9 / 4:3 / 1:1 / 3:4 / 9:16 / 21:9 / adaptive（自适应）",
 		VIDEO_IMAGE_MODE:
 			"图生视频模式：first_frame（仅首帧）/ reference（拼接参考图）",

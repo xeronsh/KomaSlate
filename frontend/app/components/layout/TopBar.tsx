@@ -213,9 +213,9 @@ export function TopBar({ projectId, center }: TopBarProps) {
 				<Link
 					to="/"
 					className="touch-target-dense inline-flex items-center gap-1.5 rounded-md px-1.5 text-base font-bold tracking-tight text-ink"
-					aria-label="openOii 首页"
+					aria-label="KomaSlate 首页"
 				>
-					<Wordmark className="h-6 w-auto" />
+					<Wordmark className="h-5 w-auto" />
 				</Link>
 
 				{projectId ? (

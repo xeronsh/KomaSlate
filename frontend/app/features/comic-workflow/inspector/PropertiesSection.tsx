@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { PlainButton } from "~/components/ui/PlainButton";
 import { charactersApi, projectsApi, shotsApi } from "~/services/api";
 import { upsertCharacterInCache, upsertShotInCache } from "~/query/applyServerEvent";
 import { projectQueryKeys } from "~/query/queryKeys";
@@ -432,19 +433,19 @@ function ShotDraftForm({ shot, disabled }: { shot: Shot; disabled: boolean }) {
 						{projectCharacters.map((character) => {
 							const selected = characterIds.includes(character.id);
 							return (
-								<button
+								<PlainButton
 									key={character.id}
-									type="button"
 									aria-pressed={selected}
-									className={`rounded-full border px-2 py-0.5 text-xs transition-colors duration-fast ${
+									disabled={disabled}
+									className={`rounded-full border px-2 py-0.5 text-xs transition-colors duration-fast disabled:opacity-50 ${
 										selected
-											? "border-primary bg-primary text-primary-content"
+											? "border-primary bg-primary text-primary-content hover:bg-primary-hover active:bg-primary-pressed"
 											: "border-line bg-surface text-ink hover:border-primary"
 									}`}
 									onClick={() => toggleCharacter(character.id)}
 								>
 									{character.name}
-								</button>
+								</PlainButton>
 							);
 						})}
 					</div>

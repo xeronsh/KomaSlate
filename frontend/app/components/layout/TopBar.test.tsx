@@ -83,7 +83,7 @@ describe("TopBar", () => {
 	it("exposes global nav on home chrome", () => {
 		render(<TopBar />);
 
-		expect(screen.getByRole("link", { name: "openOii 首页" })).toBeInTheDocument();
+		expect(screen.getByRole("link", { name: "KomaSlate 首页" })).toBeInTheDocument();
 		// nav labels appear in both desktop+mobile; ensure present
 		expect(screen.getAllByRole("link", { name: /创作/ }).length).toBeGreaterThan(0);
 		expect(screen.getAllByRole("link", { name: /项目/ }).length).toBeGreaterThan(0);

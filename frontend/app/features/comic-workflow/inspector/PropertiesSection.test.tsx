@@ -225,6 +225,7 @@ describe("PropertiesSection · shot", () => {
 		await waitFor(() => expect(toast.success).toHaveBeenCalledWith({ title: "镜头", message: "已保存" }));
 		expect(api.shotsApi.update).toHaveBeenCalledWith(31, {
 			expected_revision: 7,
+			character_ids: [],
 			description: "雨中奔跑",
 			scene: "街口",
 			action: null,

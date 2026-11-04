@@ -33,7 +33,7 @@ describe("run notifications", () => {
 		FakeNotification.sent = [];
 		FakeNotification.requestPermission.mockClear();
 		vi.stubGlobal("Notification", FakeNotification);
-		document.title = "openOii";
+		document.title = "KomaSlate";
 		setHidden(false);
 	});
 	afterEach(() => {
@@ -58,8 +58,8 @@ describe("run notifications", () => {
 		expect(isRunNotifyEnabled(1)).toBe(true);
 		notifyRunEvent({ projectId: 1, kind: "completed", body: "成片已生成" });
 		expect(FakeNotification.sent).toEqual([
-			{ title: "openOii · 灯塔与猫", body: "分镜画面 · 待确认" },
-			{ title: "openOii", body: "成片已生成" },
+			{ title: "KomaSlate · 灯塔与猫", body: "分镜画面 · 待确认" },
+			{ title: "KomaSlate", body: "成片已生成" },
 		]);
 		expect(isRunNotifyEnabled(1)).toBe(false);
 		notifyRunEvent({ projectId: 1, kind: "failed", body: "x" });
@@ -82,13 +82,13 @@ describe("run notifications", () => {
 		setHidden(true);
 		notifyRunEvent({ projectId: 3, kind: "gate", body: "x" });
 		expect(titleBadge()).toBe("待确认");
-		expect(withTitleBadge("待确认 · 故事大纲 · 灯塔与猫 - openOii")).toBe("【待确认】待确认 · 故事大纲 · 灯塔与猫 - openOii");
+		expect(withTitleBadge("待确认 · 故事大纲 · 灯塔与猫 - KomaSlate")).toBe("【待确认】待确认 · 故事大纲 · 灯塔与猫 - KomaSlate");
 		notifyRunEvent({ projectId: 3, kind: "completed", body: "x" });
 		expect(titleBadge()).toBe("已完成");
 		setHidden(false);
 		document.dispatchEvent(new Event("visibilitychange"));
 		expect(titleBadge()).toBeNull();
-		expect(withTitleBadge("openOii")).toBe("openOii");
+		expect(withTitleBadge("KomaSlate")).toBe("KomaSlate");
 	});
 
 	it("drops the 待确认 badge once the gate is confirmed but keeps 已完成 / 失败", () => {

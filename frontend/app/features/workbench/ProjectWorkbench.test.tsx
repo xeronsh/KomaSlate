@@ -213,7 +213,7 @@ describe("ProjectWorkbench states", () => {
 		expect(screen.getByRole("heading", { name: "雨夜" })).toBeInTheDocument();
 		expect(screen.getByTestId("keyboard-layer")).toBeInTheDocument();
 		expect(await screen.findByTestId("canvas")).toBeInTheDocument();
-		expect(document.title).toContain("雨夜 - openOii");
+		expect(document.title).toContain("雨夜 - KomaSlate");
 		expect(screen.getByTestId("inspector").dataset.brief).toBe("brief");
 	});
 

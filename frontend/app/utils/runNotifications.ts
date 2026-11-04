@@ -93,7 +93,7 @@ export function subscribeTitleBadge(listener: () => void): () => void {
 	};
 }
 
-/** 拼标题：「【待确认】待确认 · 故事大纲 · 灯塔与猫 - openOii」 */
+/** 拼标题：「【待确认】待确认 · 故事大纲 · 灯塔与猫 - KomaSlate」 */
 export function withTitleBadge(title: string, current: string | null = badge): string {
 	return current ? `【${current}】${title}` : title;
 }
@@ -132,9 +132,9 @@ export function notifyRunEvent(event: RunNotifyEvent): void {
 	}
 	if (notificationAvailability() !== "granted") return;
 	try {
-		const notification = new Notification(event.projectTitle ? `openOii · ${event.projectTitle}` : "openOii", {
+		const notification = new Notification(event.projectTitle ? `KomaSlate · ${event.projectTitle}` : "KomaSlate", {
 			body: event.body,
-			tag: `openoii-run-${event.projectId}`,
+			tag: `komaslate-run-${event.projectId}`,
 		});
 		notification.onclick = () => {
 			window.focus();

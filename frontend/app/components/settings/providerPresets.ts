@@ -245,7 +245,7 @@ const TEXT_PRESETS: ProviderPreset[] = [
 		keyUrl: "https://console.bce.baidu.com/iam/#/iam/apikey/list",
 		docsUrl: "https://cloud.baidu.com/doc/qianfan/s/Hmh4suq26",
 		sources: ["https://cloud.baidu.com/doc/qianfan/s/Hmh4suq26"],
-		notes: ["openOii 不发送 appid 请求头：请使用对全部应用有权限的 API Key。"],
+		notes: ["KomaSlate 不发送 appid 请求头：请使用对全部应用有权限的 API Key。"],
 	},
 	{
 		id: "hunyuan",
@@ -513,7 +513,7 @@ const TEXT_PRESETS: ProviderPreset[] = [
 		keyOptional: true,
 		docsUrl: "https://docs.ollama.com/api/openai-compatibility",
 		sources: ["https://docs.ollama.com/api/openai-compatibility"],
-		notes: ["localhost 指运行 openOii 后端的机器；本地地址需先保存再测试连接。"],
+		notes: ["localhost 指运行 KomaSlate 后端的机器；本地地址需先保存再测试连接。"],
 	},
 	{
 		id: "lmstudio",
@@ -533,7 +533,7 @@ const TEXT_PRESETS: ProviderPreset[] = [
 		keyOptional: true,
 		docsUrl: "https://lmstudio.ai/docs/developer/openai-compat",
 		sources: ["https://lmstudio.ai/docs/developer/openai-compat"],
-		notes: ["localhost 指运行 openOii 后端的机器；本地地址需先保存再测试连接。"],
+		notes: ["localhost 指运行 KomaSlate 后端的机器；本地地址需先保存再测试连接。"],
 	},
 	{
 		id: "custom-openai",
@@ -587,8 +587,8 @@ const IMAGE_PRESETS: ProviderPreset[] = [
 		docsUrl: "https://ark.volcengine.com/region:cn-beijing/docs/image-generation-api",
 		sources: ["https://ark.volcengine.com/region:cn-beijing/docs/image-generation-api"],
 		notes: [
-			"openOii 固定请求 1024×1024：5.0 lite 最低 2K，不在推荐列表里。",
-			"Seedream 默认加水印，openOii 目前不传 watermark 参数。",
+			"KomaSlate 固定请求 1024×1024：5.0 lite 最低 2K，不在推荐列表里。",
+			"Seedream 默认加水印，KomaSlate 目前不传 watermark 参数。",
 		],
 	},
 	{
@@ -723,8 +723,8 @@ const VIDEO_PRESETS: ProviderPreset[] = [
 		],
 		experimental: true,
 		notes: [
-			"返回 request_id 后轮询 /v1/videos/{id}，与 openOii 的异步任务流程一致。",
-			"xAI 的图生视频参数叫 image，openOii 发送的是 image_url：目前按文生视频使用。",
+			"返回 request_id 后轮询 /v1/videos/{id}，与 KomaSlate 的异步任务流程一致。",
+			"xAI 的图生视频参数叫 image，KomaSlate 发送的是 image_url：目前按文生视频使用。",
 		],
 	},
 	{

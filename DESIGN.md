@@ -203,7 +203,7 @@ and heavy comic everywhere (offset shadows, halftone and display type on every s
 
 One brand hue (ultramarine, 群青) on calm warm-grey neutrals. Light and dark themes; the first visit follows `prefers-color-scheme`, the toggle persists (`data-theme="light" | "dark"`).
 
-- **Primary** `#2F4BC3` (dark `#96ACFE`): primary actions, selection, focus ring, links, the `Oii` of the wordmark and the favicon. Also legal as text on every surface (≥ 6:1 light, ≥ 7:1 dark).
+- **Primary** `#2F4BC3` (dark `#96ACFE`): primary actions, selection, focus ring, links, the `Slate` of the wordmark and the favicon. Also legal as text on every surface (≥ 6:1 light, ≥ 7:1 dark).
 - **Primary ramp**: `primary-hover` `#243BB2` / `primary-pressed` `#1B2C9D` (dark `#A6BCFF` / `#8499E9`, lighter on dark). Filled primary controls use `hover:bg-primary-hover active:bg-primary-pressed`, not alpha. `primary-content` stays ≥ 4.5:1 on all three; `themeContrast.test.ts` checks it.
 - Ultramarine was chosen to stay clear of the teal `info` and storyboard accents and of the `error` red. The CMYK `--cmyk-magenta` plate on the final-video card is a print-registration accent, not the brand.
 - **Neutrals**: `paper-100` page bg, `paper-200` sunken panes, `paper-300` sunken-on-sunken fills, `line` (ink 12%) hairline borders and dividers, `line-strong` (ink 22%) dashed drop zones, `surface` raised cards/dialogs, `border-strong` input/control borders (≥ 3:1).
@@ -237,7 +237,7 @@ Executable checks: `themeContrast.test.ts` (both themes) and `designContract.tes
   - `.label-caps` is 12px mono 500, uppercase, `--tracking-label` 0.14em, for section labels such as BRIEF or `universe / 3`.
 - **Line-height:** `--leading-normal` 1.6 for CJK body text; `--leading-snug` 1.35 and `--leading-tight` 1.15 for headings and chrome.
 - **Numerals:** the whole app uses `tabular-nums` so progress, durations and counts don't jitter.
-- **Wordmark** (`components/layout/Wordmark.tsx`): `open` in ink and `Oii` in `primary`, set in **Instrument Serif Italic** (SIL OFL 1.1, notice in `public/fonts/OFL-InstrumentSerif.txt`). Plain type, no marks or offsets. The glyphs are inlined as SVG outlines, so no font file loads; n→O is opened by 10/1000 em and O→i closed by 15/1000 em. In the top bar it is `h-6` (24px tall, x-height ≈ 12px) so the thin italic holds its own next to the 12px nav. Static copies: `public/brand/openoii-wordmark-{light,dark}.svg`. `public/favicon.svg` is an italic `Oi` monogram in `primary` on a paper tile with a 0.45px same-colour stroke for weight at 16px, and it follows `prefers-color-scheme`.
+- **Wordmark** (`components/layout/Wordmark.tsx`): `Koma` in ink and `Slate` in `primary`, set in **Instrument Serif Italic** (SIL OFL 1.1, notice in `public/fonts/OFL-InstrumentSerif.txt`). Plain type, no marks or offsets. The glyphs are inlined as SVG outlines, so no font file loads; K→o is closed by 25/1000 em, a→S opened by 10/1000 em, and t→e closed by 8/1000 em. Static copies: `public/brand/komaslate-wordmark-{light,dark}.svg`. `public/favicon.svg` is an italic `Ks` monogram in `primary` on a paper tile with a 0.35px same-colour stroke for weight at 16px, and it follows `prefers-color-scheme`.
 - Chinese text has no letter-spacing and no italics. `text-autospace` adds the CJK/Latin gap where the browser supports it.
 - **Browser surfaces:** a selection tinted with `primary`, a `primary` caret, thin ink scrollbars, `color-scheme` and a `theme-color` meta that follow the theme. See `docs/research/craft-direction.md`.
 

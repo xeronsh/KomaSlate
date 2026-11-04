@@ -120,7 +120,12 @@ export function GenerationSection({
 			if (node.kind === "character") {
 				await charactersApi.regenerate(entityId);
 			} else {
-				await shotsApi.regenerate(entityId, type, feedback);
+				const trimmed = feedback.trim();
+				if (trimmed) {
+					await shotsApi.regenerate(entityId, type, trimmed);
+				} else {
+					await shotsApi.regenerate(entityId, type);
+				}
 				setFeedback("");
 			}
 			const cell =

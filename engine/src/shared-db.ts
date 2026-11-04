@@ -204,6 +204,31 @@ export function characterReadPayload(c: CharacterRow): Record<string, unknown> {
   };
 }
 
+export function shotApprovalState(s: ShotRow): "draft" | "approved" | "superseded" {
+  if (s.approval_version <= 0 || s.approved_at === null) return "draft";
+  const chars = parseJsonColumn(s.character_ids, [] as number[]);
+  const approvedChars = parseJsonColumn(s.approved_character_ids, [] as number[]);
+  const sameChars =
+    chars.length === approvedChars.length && chars.every((id, idx) => id === approvedChars[idx]);
+  if (
+    s.description === s.approved_description &&
+    s.prompt === s.approved_prompt &&
+    s.image_prompt === s.approved_image_prompt &&
+    s.duration === s.approved_duration &&
+    s.camera === s.approved_camera &&
+    s.motion_note === s.approved_motion_note &&
+    s.scene === s.approved_scene &&
+    s.action === s.approved_action &&
+    s.expression === s.approved_expression &&
+    s.lighting === s.approved_lighting &&
+    s.dialogue === s.approved_dialogue &&
+    s.sfx === s.approved_sfx &&
+    sameChars
+  )
+    return "approved";
+  return "superseded";
+}
+
 export function shotReadPayload(s: ShotRow): Record<string, unknown> {
   return {
     id: s.id,
@@ -230,10 +255,7 @@ export function shotReadPayload(s: ShotRow): Record<string, unknown> {
     review_note: s.review_note ?? null,
     seed: s.seed,
     character_ids: parseJsonColumn(s.character_ids, [] as number[]),
-    approval_state:
-      s.approval_version <= 0 || s.approved_at === null
-        ? "draft"
-        : "superseded",
+    approval_state: shotApprovalState(s),
     approval_version: s.approval_version,
     approved_at: s.approved_at,
     approved_description: s.approved_description,
