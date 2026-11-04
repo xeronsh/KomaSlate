@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { canvasEvents } from "~/components/canvas/canvasEvents";
 import { assetsApi, charactersApi, getStaticUrl, shotsApi, universesApi, versionsApi } from "~/services/api";
@@ -34,6 +34,9 @@ export function GenerationSection({
 	const [busy, setBusy] = useState<string | null>(null);
 	// 单镜微调指令：只作用于这一次重做，成功后清空
 	const [feedback, setFeedback] = useState("");
+	useEffect(() => {
+		setFeedback("");
+	}, [projectId, node.kind, node.entityId]);
 	const writeDisabled = structureLocked || Boolean(busy);
 
 	if (multiShotIds.length > 1) {

@@ -64,6 +64,7 @@ export interface StageContext {
   targetCharacterIds?: number[];
   targetShotIds?: number[];
   forceCharacterRedraw?: boolean;
+  forceRegenerate?: boolean;
   completedTargets: Set<string>;
   checkpointTarget: (kind: "character_image" | "shot_image" | "shot_video", id: number) => void;
   /**
@@ -511,7 +512,7 @@ async function applyShotPlan(ctx: StageContext, data: Record<string, unknown>): 
   const existingShots = ctx.shared.shotsForProject(ctx.projectId);
   const existingById = new Map(existingShots.map((s) => [s.id, s]));
   // A human already approved this shot: a re-plan must not delete or overwrite it.
-  const forceRegenerate = (ctx as StageContext & { forceRegenerate?: boolean }).forceRegenerate === true;
+  const forceRegenerate = ctx.forceRegenerate === true;
   const isFrozen = (s: ShotRow): boolean =>
     !forceRegenerate && Boolean(s.approved_at && s.approval_version > 0);
 
@@ -633,6 +634,7 @@ async function applyShotPlan(ctx: StageContext, data: Record<string, unknown>): 
       sfx: s.sfx ?? null,
       motion_note: s.motion_note ?? null,
       duration,
+      // Neighbor media is kept intact so a 1-shot edit never wipes adjacent paid renders.
       ...(visualChanged ? { image_url: null } : {}),
       ...(videoChanged ? { video_url: null } : {}),
       ...(dialogueChanged ? { tts_url: null } : {}),

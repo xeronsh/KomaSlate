@@ -15,6 +15,7 @@ from app.schemas.version import (
     VersionDiff,
     VersionListRead,
 )
+from app.services.revision import commit_versioned
 from app.services.version_service import EntityType, VersionService
 from app.ws.manager import ConnectionManager
 
@@ -64,7 +65,7 @@ async def rollback_version(
     new_version = await version_service.rollback(
         session, payload.entity_type, payload.entity_id, payload.target_version
     )
-    await session.commit()
+    await commit_versioned(session, new_version, entity=payload.entity_type)
     await session.refresh(new_version)
 
     if payload.entity_type == "character":

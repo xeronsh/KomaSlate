@@ -521,6 +521,7 @@ export class PipelineRunner {
       targetCharacterIds: request.targetCharacterIds,
       targetShotIds: request.targetShotIds,
       forceCharacterRedraw: request.startStage === undefined,
+      forceRegenerate: request.forceRegenerate,
       completedTargets: new Set(
         this.db.checkpointStages(request.runId).filter((stage) => stage.startsWith("target:")),
       ),
@@ -973,6 +974,7 @@ export class PipelineRunner {
       signal: this.abortController.signal,
       targetCharacterIds: scoped.targetCharacterIds,
       targetShotIds: scoped.targetShotIds,
+      forceRegenerate: request.forceRegenerate,
       completedTargets: new Set(
         this.db.checkpointStages(request.runId).filter((checkpoint) => checkpoint.startsWith("target:")),
       ),

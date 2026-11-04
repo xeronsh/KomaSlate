@@ -5,6 +5,7 @@ from typing import Any, Iterable, Literal, cast
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.exceptions import BusinessError, NotFoundError
 from app.models.artifact_version import ArtifactVersion
@@ -206,7 +207,9 @@ class VersionService:
             if entity is None:
                 raise NotFoundError("Character", entity_id)
             self._apply_snapshot(entity, target.snapshot, ROLLBACK_FIELDS["character"])
-            entity.revision = int(entity.revision or 0) + 1
+            # version_id_col increments revision atomically via WHERE revision = <old>;
+            # a manual bump would skip that CAS and hide concurrent writes.
+            flag_modified(entity, "description")
             shots = await session.execute(select(Shot).where(Shot.project_id == entity.project_id))
             for shot in shots.scalars():
                 if entity_id not in shot.character_ids:
@@ -241,7 +244,7 @@ class VersionService:
         if entity is None:
             raise NotFoundError("Shot", entity_id)
         self._apply_snapshot(entity, target.snapshot, ROLLBACK_FIELDS["shot"])
-        entity.revision = int(entity.revision or 0) + 1
+        flag_modified(entity, "description")
         # The bindings table is the relational mirror of shot.character_ids;
         # a rollback that skips it leaves the two disagreeing.
         await self._sync_shot_bindings(

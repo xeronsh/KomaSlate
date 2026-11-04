@@ -729,9 +729,10 @@ class ExportService:
             ref = f"r{next_ref}"
             next_ref += 1
             resources.append(
-                f'<asset id="{ref}" name={quoteattr(Path(entry).name)} '
-                f'src={quoteattr("./" + entry)} start="0s" duration="{duration}" '
-                f'hasVideo="{has_video}" hasAudio="{has_audio}" format="r1"/>'
+                f'<asset id="{ref}" name={quoteattr(Path(entry).name)} start="0s" '
+                f'duration="{duration}" hasVideo="{has_video}" hasAudio="{has_audio}" '
+                f'format="r1"><media-rep kind="original-media" '
+                f'src={quoteattr("./" + entry)}/></asset>'
             )
             return ref
 
@@ -751,7 +752,7 @@ class ExportService:
 
             dur = _fx_time(frames)
             clip_ref = add_asset(clip_entry, dur, 1, 0) if clip_entry else None
-            frame_ref = add_asset(frame_entry, "0s", 1, 0) if frame_entry else None
+            frame_ref = add_asset(frame_entry, dur, 1, 0) if frame_entry else None
             tts_ref = add_asset(tts_entry, dur, 0, 1) if tts_entry else None
 
             offset = _fx_time(start_frames)
@@ -775,7 +776,10 @@ class ExportService:
             else:
                 # 未渲染镜头保留空隙，时间线时长不塌陷
                 spine.append(
-                    f'<gap name={clip_name} offset="{offset}" start="0s" duration="{dur}"/>'
+                    f'<gap name={clip_name} offset="{offset}" start="0s" duration="{dur}">'
+                    f"{tts_child}</gap>"
+                    if tts_child
+                    else f'<gap name={clip_name} offset="{offset}" start="0s" duration="{dur}"/>'
                 )
 
             if shot.dialogue and shot.dialogue.strip():
