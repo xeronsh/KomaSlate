@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Select } from "~/components/ui/Select";
+import { SvgIcon } from "~/components/ui/SvgIcon";
 import type { Universe } from "~/types";
 import { STYLE_CATEGORIES, styleLabel } from "./styleCategories";
 import { Button } from "../../components/ui/Button";
@@ -36,9 +37,12 @@ export function CreationSettings({ value, onChange, universes, disabled }: Creat
 	const selectedUniverseName = universes.find((u) => u.id === value.universeId)?.name;
 
 	return (
-		<details className="border-t border-line pt-2">
-			<summary className="touch-target-dense flex cursor-pointer flex-wrap items-center justify-between gap-2 py-2 text-xs font-bold">
-				<span>画面设置（可选）· 风格、宇宙、参考图、镜头与角色</span>
+		<details className="border-t border-line pt-2" data-shell="creation-settings">
+			<summary className="touch-target-dense flex cursor-pointer flex-wrap items-center justify-between gap-2 py-2 text-xs font-semibold text-ink">
+				<span className="inline-flex items-center gap-1.5">
+					<SvgIcon name="sliders" size={14} className="text-ink-muted" />
+					<span>画面设置（可选）</span>
+				</span>
 				<span className="flex flex-wrap items-center gap-1.5 font-normal text-ink-muted" aria-label="当前画面设置摘要">
 					<span className="rounded-full border border-line bg-paper-100 px-2 py-0.5 text-xs font-medium text-ink">
 						{styleLabel(value.style) ?? value.style}
@@ -62,10 +66,15 @@ export function CreationSettings({ value, onChange, universes, disabled }: Creat
 							参考图 <span className="font-mono">{value.referenceFiles.length}</span>
 						</span>
 					) : null}
+					<SvgIcon
+						name="chevron-down"
+						size={14}
+						className="creation-settings-chevron text-ink-muted transition-transform duration-fast"
+					/>
 				</span>
 			</summary>
 			<div className="grid gap-3 pt-2 sm:grid-cols-2">
-				<label className="block text-xs font-bold">
+				<label className="block label text-ink">
 					画面风格
 					<Select
 						containerClassName="mt-1"
@@ -82,7 +91,7 @@ export function CreationSettings({ value, onChange, universes, disabled }: Creat
 						))}
 					</Select>
 				</label>
-				<label className="block text-xs font-bold">
+				<label className="block label text-ink">
 					IP 宇宙
 					<Select
 						containerClassName="mt-1"
@@ -96,7 +105,7 @@ export function CreationSettings({ value, onChange, universes, disabled }: Creat
 						))}
 					</Select>
 				</label>
-				<label className="block text-xs font-bold">
+				<label className="block label text-ink">
 					镜头数
 					<input
 						type="number"
@@ -105,16 +114,16 @@ export function CreationSettings({ value, onChange, universes, disabled }: Creat
 						value={value.shotCount ?? ""}
 						placeholder="自动"
 						onChange={(event) => set({ shotCount: event.target.value ? Number(event.target.value) : undefined })}
-						className="input-doodle touch-target-dense mt-1 h-9 w-full bg-paper-100 text-sm"
+						className="input-doodle touch-target-dense mt-1 h-9 w-full bg-paper-100 px-2.5 text-sm font-normal tabular-nums"
 						disabled={disabled}
 					/>
 				</label>
-				<label className="block text-xs font-bold">
+				<label className="block label text-ink">
 					角色提示（每行一个）
 					<textarea
 						value={value.characterHints}
 						onChange={(event) => set({ characterHints: event.target.value })}
-						className="input-doodle mt-1 min-h-9 w-full resize-y bg-paper-100 p-2 text-sm"
+						className="input-doodle mt-1 min-h-9 w-full resize-y bg-paper-100 p-2 text-sm font-normal"
 						rows={2}
 						placeholder="例如：灯塔管理员，沉默寡言"
 						disabled={disabled}
@@ -122,7 +131,7 @@ export function CreationSettings({ value, onChange, universes, disabled }: Creat
 				</label>
 				<section className="space-y-1.5 sm:col-span-2" aria-labelledby="creation-reference-heading">
 					<div className="flex items-center justify-between">
-						<h3 id="creation-reference-heading" className="m-0 text-xs font-bold">参考图</h3>
+						<h3 id="creation-reference-heading" className="m-0 label text-ink">参考图</h3>
 						<span className="font-mono text-xs tabular-nums text-ink-muted">
 							{value.referenceFiles.length}/{MAX_REFERENCE_IMAGES}
 						</span>

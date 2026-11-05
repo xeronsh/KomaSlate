@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "~/components/ui/Button";
+import { ConfirmModal } from "~/components/ui/ConfirmModal";
 import { Dialog } from "~/components/ui/Dialog";
 import { Select } from "~/components/ui/Select";
 import { SvgIcon } from "~/components/ui/SvgIcon";
@@ -59,15 +60,15 @@ function VersionColumn({ title, snapshot, changed }: { title: string; snapshot?:
 	const imageUrl = getStaticUrl(snapshot?.image_url as string | null | undefined);
 	const videoUrl = getStaticUrl(snapshot?.video_url as string | null | undefined);
 	return (
-		<section className="min-w-0 rounded-md border border-line bg-paper-200/60 p-2.5">
-			<h3 className="m-0 text-xs font-bold">{title}</h3>
+		<section className="min-w-0 rounded-md border border-line bg-paper-200/60 p-3">
+			<h3 className="m-0 border-b border-line pb-1.5 text-xs font-bold text-ink">{title}</h3>
 			<div
-				className={`mt-1.5 aspect-video overflow-hidden rounded-sm border bg-paper-300 ${changed.has("image_url") ? "border-primary" : "border-line"}`}
+				className={`mt-2 aspect-video overflow-hidden rounded-sm border bg-paper-200 ${changed.has("image_url") ? "border-primary" : "border-line"}`}
 			>
 				{imageUrl ? (
 					<img src={imageUrl} alt={title} className="h-full w-full object-cover" loading="lazy" decoding="async" />
 				) : (
-					<div className="flex h-full items-center justify-center text-xs text-ink-muted">
+					<div className="media-blank flex h-full items-center justify-center text-xs text-ink-muted">
 						这一版还没有图
 					</div>
 				)}
@@ -80,7 +81,7 @@ function VersionColumn({ title, snapshot, changed }: { title: string; snapshot?:
 					className={`mt-1.5 aspect-video w-full rounded-sm border bg-paper-300 object-cover ${changed.has("video_url") ? "border-primary" : "border-line"}`}
 				/>
 			) : null}
-			<div className="mt-2 space-y-1.5">
+			<div className="mt-2.5 divide-y divide-line">
 				{DISPLAY_FIELDS.map((field) => {
 					const value = snapshot?.[field];
 					if (blank(value)) return null;
@@ -88,13 +89,13 @@ function VersionColumn({ title, snapshot, changed }: { title: string; snapshot?:
 					return (
 						<div
 							key={field}
-							className={`text-xs ${isChanged ? "-mx-1 rounded-sm bg-primary/10 px-1" : ""}`}
+							className={`py-1.5 text-xs ${isChanged ? "-mx-1 rounded-sm bg-primary/10 px-1" : ""}`}
 						>
 							<div className="font-semibold text-ink-muted">
 								{LABELS[field] || field}
 								{isChanged && <span className="ml-1 text-primary">· 有变化</span>}
 							</div>
-							<div className="whitespace-pre-wrap break-words">{valueToText(value)}</div>
+							<div className="mt-0.5 whitespace-pre-wrap break-words text-ink">{valueToText(value)}</div>
 						</div>
 					);
 				})}
@@ -111,16 +112,16 @@ function diffText(field: string, value: unknown): string {
 
 function DiffRow({ diff }: { diff: FieldDiff }) {
 	return (
-		<li className="rounded-sm border border-line bg-paper-100 p-2 text-xs">
-			<div className="mb-1 font-semibold">{LABELS[diff.field] || diff.field}</div>
+		<li className="rounded-sm border border-line bg-paper-100 p-2.5 text-xs">
+			<div className="mb-1.5 font-semibold text-ink">{LABELS[diff.field] || diff.field}</div>
 			<div className="grid gap-2 md:grid-cols-2">
-				<div className="rounded-sm bg-error/10 p-2">
-					<div className="mb-1 text-error-fg">旧</div>
-					<pre className="whitespace-pre-wrap break-words font-sans">{diffText(diff.field, diff.before)}</pre>
+				<div className="rounded-sm border border-error/20 bg-error/10 p-2">
+					<div className="mb-1 font-semibold text-error-fg">旧</div>
+					<pre className="m-0 whitespace-pre-wrap break-words font-sans text-ink">{diffText(diff.field, diff.before)}</pre>
 				</div>
-				<div className="rounded-sm bg-success/10 p-2">
-					<div className="mb-1 text-success-fg">新</div>
-					<pre className="whitespace-pre-wrap break-words font-sans">{diffText(diff.field, diff.after)}</pre>
+				<div className="rounded-sm border border-success/20 bg-success/10 p-2">
+					<div className="mb-1 font-semibold text-success-fg">新</div>
+					<pre className="m-0 whitespace-pre-wrap break-words font-sans text-ink">{diffText(diff.field, diff.after)}</pre>
 				</div>
 			</div>
 		</li>
@@ -136,6 +137,7 @@ export function VersionCompareDrawer({
 }: VersionCompareDrawerProps) {
 	const [entityType, setEntityType] = useState<VersionEntityType>(initialEntityType);
 	const [entityId, setEntityId] = useState<number | null>(initialEntityId);
+	const [rollbackTarget, setRollbackTarget] = useState<number | null>(null);
 	const queryClient = useQueryClient();
 	const { data: characters = [] } = useQuery({
 		queryKey: projectQueryKeys.characters(projectId),
@@ -154,6 +156,7 @@ export function VersionCompareDrawer({
 		setEntityId(initialEntityId ?? null);
 		setLeftVersion(null);
 		setRightVersion(null);
+		setRollbackTarget(null);
 	}, [initialEntityId, initialEntityType, open]);
 
 	const characterEntities = entityType === "character" ? characters : [];
@@ -193,6 +196,7 @@ export function VersionCompareDrawer({
 		mutationFn: (targetVersion: number) =>
 			versionsApi.rollback(entityType, selectedEntityId ?? 0, targetVersion),
 		onSuccess: (result) => {
+			setRollbackTarget(null);
 			toast.success({ title: "版本回滚", message: result.message });
 			queryClient.invalidateQueries({ queryKey: ["versions"] });
 			queryClient.invalidateQueries({ queryKey: projectQueryKeys.project(projectId) });
@@ -211,129 +215,156 @@ export function VersionCompareDrawer({
 	};
 
 	return (
-		<Dialog
-			open={open}
-			onClose={onClose}
-			variant="sheet-right"
-			labelledBy="version-compare-title"
-			className="w-full max-w-5xl"
-		>
-			<div className="sticky top-0 z-panel flex items-center gap-2 border-b border-line bg-paper-100 px-3 py-2">
-				<SvgIcon name="clock-3" size={16} />
-				<h2 id="version-compare-title" className="display m-0 text-lg font-bold">版本对比</h2>
-				<IconButton
-					className="ml-auto rounded-full"
-					onClick={onClose}
-					aria-label="关闭版本对比"
-					title="关闭版本对比"
-				>
-					<SvgIcon name="x" size={14} />
-				</IconButton>
-			</div>
-
-			<div className="space-y-3 p-3">
-				<div className="grid gap-2 md:grid-cols-4">
-					<Select
-						density="compact"
-						aria-label="比较对象类型"
-						value={entityType}
-						onChange={(e) => handleEntityTypeChange(e.currentTarget.value as VersionEntityType)}
+		<>
+			<Dialog
+				open={open}
+				onClose={onClose}
+				variant="sheet-right"
+				labelledBy="version-compare-title"
+				className="w-full max-w-5xl"
+			>
+				<div className="sticky top-0 z-panel flex items-center gap-2 border-b border-line bg-surface px-4 py-2.5">
+					<SvgIcon name="clock-3" size={16} className="text-primary" />
+					<h2 id="version-compare-title" className="display m-0 text-lg font-bold">版本对比</h2>
+					<IconButton
+						className="ml-auto rounded-full"
+						onClick={onClose}
+						aria-label="关闭版本对比"
+						title="关闭版本对比"
 					>
-						<option value="character">角色</option>
-						<option value="shot">分镜</option>
-					</Select>
-					<Select
-						density="compact"
-						containerClassName="md:col-span-3"
-						aria-label="选择要比较的实体"
-						value={selectedEntityId ?? ""}
-						onChange={(e) => setEntityId(Number(e.currentTarget.value))}
-					>
-						{entityType === "character"
-							? characterEntities.map((entity) => (
-								<option key={entity.id} value={entity.id}>{entity.name}</option>
-							))
-							: shotEntities.map((entity) => (
-								<option key={entity.id} value={entity.id}>{`镜头 ${entity.order}`}</option>
-							))}
-					</Select>
+						<SvgIcon name="x" size={14} />
+					</IconButton>
 				</div>
 
-				{versionsQuery.isLoading && <div className="text-xs text-ink-muted">加载版本中…</div>}
-				{!versionsQuery.isLoading && versions.length === 0 && (
-					<div className="rounded-md border border-line p-4 text-xs text-ink-muted">
-						暂无版本快照。生成或重新生成后会自动记录。
+				<div className="space-y-3 p-4">
+					<div className="grid gap-2 md:grid-cols-4">
+						<Select
+							density="compact"
+							aria-label="比较对象类型"
+							value={entityType}
+							onChange={(e) => handleEntityTypeChange(e.currentTarget.value as VersionEntityType)}
+						>
+							<option value="character">角色</option>
+							<option value="shot">分镜</option>
+						</Select>
+						<Select
+							density="compact"
+							containerClassName="md:col-span-3"
+							aria-label="选择要比较的实体"
+							value={selectedEntityId ?? ""}
+							onChange={(e) => setEntityId(Number(e.currentTarget.value))}
+						>
+							{entityType === "character"
+								? characterEntities.map((entity) => (
+									<option key={entity.id} value={entity.id}>{entity.name}</option>
+								))
+								: shotEntities.map((entity) => (
+									<option key={entity.id} value={entity.id}>{`镜头 ${entity.order}`}</option>
+								))}
+						</Select>
 					</div>
-				)}
 
-				{nothingToCompare && (
-					<div className="rounded-md border border-line bg-paper-200/40 p-3 text-xs text-ink-muted" role="note">
-						只有一个版本：历史快照和当前内容相同，重新生成或修改后才有可对比的内容。
-					</div>
-				)}
-
-				{versions.length > 0 && !nothingToCompare && (
-					<>
-						<div className="grid gap-2 md:grid-cols-2">
-							<Select
-								density="compact"
-								aria-label="旧版本"
-								value={effectiveLeft ?? ""}
-								onChange={(e) => setLeftVersion(Number(e.currentTarget.value))}
-							>
-								{versions.map((version) => (
-									<option key={version.id} value={version.version}>{versionLabel(version)}</option>
-								))}
-							</Select>
-							<Select
-								density="compact"
-								aria-label="新版本"
-								value={effectiveRight}
-								onChange={(e) => setRightVersion(Number(e.currentTarget.value))}
-							>
-								<option value={CURRENT}>当前</option>
-								{versions.map((version) => (
-									<option key={version.id} value={version.version}>{versionLabel(version)}</option>
-								))}
-							</Select>
+					{versionsQuery.isLoading && (
+						<div className="grid gap-3 lg:grid-cols-2" role="status" aria-busy="true" aria-label="加载版本中">
+							<div className="rounded-md border border-line bg-paper-200/60 p-3">
+								<div className="skeleton-line h-4 w-24" />
+								<div className="skeleton-line mt-2 aspect-video w-full" />
+							</div>
+							<div className="rounded-md border border-line bg-paper-200/60 p-3">
+								<div className="skeleton-line h-4 w-24" />
+								<div className="skeleton-line mt-2 aspect-video w-full" />
+							</div>
 						</div>
-
-						<div className="grid gap-3 lg:grid-cols-2">
-							<VersionColumn title={`旧 · ${sideLabel(effectiveLeft)}`} snapshot={leftSnapshot} changed={changed} />
-							<VersionColumn title={`新 · ${sideLabel(effectiveRight)}`} snapshot={rightSnapshot} changed={changed} />
+					)}
+					{!versionsQuery.isLoading && versions.length === 0 && (
+						<div className="corner-marks rounded-md border border-dashed border-line bg-paper-100/60 p-6 text-center text-xs text-ink-muted">
+							暂无版本快照。生成或重新生成后会自动记录。
 						</div>
+					)}
 
-						<section className="rounded-md border border-line bg-paper-200/40 p-2.5">
-							<h3 className="mb-1.5 text-xs font-bold">差异</h3>
-							{diffs.length === 0 && (
-								<div className="text-xs text-ink-muted">这两边内容相同，换一个版本看看。</div>
-							)}
-							<ul className="space-y-1.5">
-								{diffs.map((diff) => (
-									<DiffRow key={diff.field} diff={diff} />
-								))}
-							</ul>
-						</section>
-
-						<div className="flex justify-end">
-							<Button
-								variant="secondary"
-								size="sm"
-								loading={rollbackMutation.isPending}
-								disabled={!effectiveLeft || rollbackMutation.isPending}
-								onClick={() => {
-									if (!effectiveLeft) return;
-									if (window.confirm(`回滚到版本 v${effectiveLeft}？后续版本不会删除。`)) {
-										rollbackMutation.mutate(effectiveLeft);
-									}
-								}}
-							>
-								回滚到左侧版本
-							</Button>
+					{nothingToCompare && (
+						<div className="rounded-md border border-line bg-paper-200/40 p-3 text-xs text-ink-muted" role="note">
+							只有一个版本：历史快照和当前内容相同，重新生成或修改后才有可对比的内容。
 						</div>
-					</>
-				)}
-			</div>
-		</Dialog>
+					)}
+
+					{versions.length > 0 && !nothingToCompare && (
+						<>
+							<div className="grid gap-2 md:grid-cols-2">
+								<Select
+									density="compact"
+									aria-label="旧版本"
+									value={effectiveLeft ?? ""}
+									onChange={(e) => setLeftVersion(Number(e.currentTarget.value))}
+								>
+									{versions.map((version) => (
+										<option key={version.id} value={version.version}>{versionLabel(version)}</option>
+									))}
+								</Select>
+								<Select
+									density="compact"
+									aria-label="新版本"
+									value={effectiveRight}
+									onChange={(e) => setRightVersion(Number(e.currentTarget.value))}
+								>
+									<option value={CURRENT}>当前</option>
+									{versions.map((version) => (
+										<option key={version.id} value={version.version}>{versionLabel(version)}</option>
+									))}
+								</Select>
+							</div>
+
+							<div className="grid gap-3 lg:grid-cols-2">
+								<VersionColumn title={`旧 · ${sideLabel(effectiveLeft)}`} snapshot={leftSnapshot} changed={changed} />
+								<VersionColumn title={`新 · ${sideLabel(effectiveRight)}`} snapshot={rightSnapshot} changed={changed} />
+							</div>
+
+							<section className="rounded-md border border-line bg-paper-200/40 p-3">
+								<h3 className="m-0 mb-2 border-b border-line pb-1.5 text-xs font-bold text-ink">差异</h3>
+								{diffs.length === 0 && (
+									<div className="text-xs text-ink-muted">这两边内容相同，换一个版本看看。</div>
+								)}
+								<ul className="m-0 list-none space-y-2 p-0">
+									{diffs.map((diff) => (
+										<DiffRow key={diff.field} diff={diff} />
+									))}
+								</ul>
+							</section>
+
+							<div className="flex justify-end border-t border-line pt-3">
+								<Button
+									variant="secondary"
+									size="sm"
+									loading={rollbackMutation.isPending}
+									disabled={!effectiveLeft || rollbackMutation.isPending}
+									onClick={() => {
+										if (!effectiveLeft) return;
+										setRollbackTarget(effectiveLeft);
+									}}
+								>
+									回滚到左侧版本
+								</Button>
+							</div>
+						</>
+					)}
+				</div>
+			</Dialog>
+
+			<ConfirmModal
+				isOpen={rollbackTarget !== null}
+				onClose={() => setRollbackTarget(null)}
+				onConfirm={() => {
+					if (rollbackTarget !== null) {
+						rollbackMutation.mutate(rollbackTarget);
+					}
+				}}
+				title="回滚版本"
+				message={`确定要回滚到版本 v${rollbackTarget ?? ""} 吗？后续版本快照不会被删除。`}
+				confirmText="确认回滚"
+				cancelText="取消"
+				variant="warning"
+				isLoading={rollbackMutation.isPending}
+			/>
+		</>
 	);
 }

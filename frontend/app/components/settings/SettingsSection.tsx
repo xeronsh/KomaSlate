@@ -167,7 +167,7 @@ function ProviderBody({
 							<SvgIcon name={groupIcon} size={14} />
 							{typeof group.title === "function" ? group.title(provider) : group.title}
 						</h4>
-						<div className={`space-y-2 border-l-2 pl-2.5 ${common ? "border-line" : "border-primary/30"}`}>
+						<div className="space-y-2 border-l border-line pl-3">
 							{groupItems.map((item) => field(item, group.hint?.(item.key.toLowerCase(), provider)))}
 							{group.note ? <p className="m-0 px-1 text-xs text-ink-muted">{group.note}</p> : null}
 						</div>

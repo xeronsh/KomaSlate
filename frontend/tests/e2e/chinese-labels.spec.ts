@@ -71,8 +71,8 @@ test("universe detail speaks Chinese and keeps 导入到 on one line", async ({ 
 	await page.setViewportSize({ width: 1440, height: 900 });
 	await mockUniverse(page);
 	await page.goto("/universes/1");
-	await expect(page.getByText("宇宙详情", { exact: true })).toBeVisible();
-	await expect(page.getByText("共享角色", { exact: true })).toBeVisible();
+	await expect(page.getByRole("heading", { name: "灯塔宇宙" })).toBeVisible();
+	await expect(page.getByText("共享角色库", { exact: true })).toBeVisible();
 	await expect(page.getByText(/universe detail/i)).toHaveCount(0);
 	await expect(page.getByText(/^cast$/i)).toHaveCount(0);
 
@@ -87,15 +87,15 @@ test("universe detail speaks Chinese and keeps 导入到 on one line", async ({ 
 	expect(await englishEyebrows(page)).toEqual([]);
 });
 
-for (const [path, eyebrow] of [
-	["/", "创作台"],
-	["/projects", "作品库 · 项目"],
-	["/universes", "作品库 · 宇宙"],
+for (const [path, heading] of [
+	["/", "把一句想法，拍成可精修的分镜台本"],
+	["/projects", "项目库"],
+	["/universes", "故事宇宙"],
 ] as const) {
-	test(`page header eyebrow on ${path} is Chinese`, async ({ page }) => {
+	test(`page header on ${path} is Chinese with no uppercase English tags`, async ({ page }) => {
 		await mockUniverse(page);
 		await page.goto(path);
-		await expect(page.locator('[data-shell="page-header"] p').first()).toHaveText(eyebrow);
+		await expect(page.locator('[data-shell="page-header"] h1').first()).toHaveText(heading);
 		expect(await englishEyebrows(page)).toEqual([]);
 	});
 }

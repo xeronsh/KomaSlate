@@ -45,9 +45,6 @@ export function SharedCharacterCard({
 					</div>
 				)}
 				<div className="min-w-0 flex-1">
-					<p className="m-0 label text-ink-muted">
-						共享角色
-					</p>
 					<h3 className="m-0 truncate text-sm font-bold">
 						{character.name}
 					</h3>
@@ -84,7 +81,7 @@ export function SharedCharacterCard({
 				<Button
 					size="sm"
 					variant="secondary"
-					className="mt-2 w-full !h-7 !min-h-7 text-xs"
+					className="mt-2 w-full !h-7 text-xs"
 					onClick={() => onImport(character)}
 				>
 					导入章节

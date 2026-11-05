@@ -76,26 +76,26 @@ export function WorkflowInspector({
 	if (!selectedNode) return null;
 
 	return (
-		<div className="flex h-full min-h-0 flex-col bg-paper-100" data-shell="inspector">
-			<div className="border-b border-line px-2 py-1.5">
+		<div className="flex h-full min-h-0 flex-col bg-surface" data-shell="inspector">
+			<div className="border-b border-line bg-paper-100/70 px-3 py-2">
 				<p className="m-0 label text-ink-muted">{KIND_LABELS[selectedNode.kind]}</p>
-				<h2 className="m-0 truncate text-sm font-bold" title={selectedNode.title}>
+				<h2 className="m-0 truncate text-sm font-bold text-ink" title={selectedNode.title}>
 					{selectedNode.title}
 				</h2>
 				{/* 概览不再重复副标题（如分镜场景），这里两行内说完，全文在 title 里 */}
-				<p className="m-0 line-clamp-2 text-xs text-ink-muted" title={selectedNode.subtitle}>
+				<p className="m-0 mt-0.5 line-clamp-2 text-xs text-ink-muted" title={selectedNode.subtitle}>
 					{selectedNode.subtitle}
 				</p>
 			</div>
 
-			<div className="flex gap-0.5 border-b border-line p-0.5">
+			<div className="flex gap-1 border-b border-line px-2 py-1">
 				{(Object.keys(TAB_LABELS) as InspectorTab[]).map((tab) => (
 					<PlainButton
 						key={tab}
-						className={`touch-target-dense flex-1 rounded-sm text-xs font-semibold transition-colors duration-fast ${
+						className={`touch-target-dense flex-1 rounded-md text-xs font-semibold transition-colors duration-fast ${
 							activeTab === tab
-								? "bg-primary text-primary-content"
-								: "text-ink-muted hover:bg-paper-200"
+								? "bg-primary/10 text-primary"
+								: "text-ink-muted hover:bg-paper-200/70 hover:text-ink"
 						}`}
 						onClick={() => setActiveTab(tab)}
 					>
@@ -104,7 +104,7 @@ export function WorkflowInspector({
 				))}
 			</div>
 
-			<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
+			<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2.5">
 				{activeTab === "selection" ? (
 					<SelectionSection node={selectedNode} />
 				) : null}

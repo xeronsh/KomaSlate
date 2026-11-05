@@ -34,11 +34,10 @@ const renderCard = (universe: Universe) =>
 	);
 
 describe("UniverseCard", () => {
-	it("无封面时显示宇宙编号和更新时间，不渲染旧装饰标签", () => {
+	it("无封面时显示更新时间，不渲染旧装饰标签或编号徽标", () => {
 		renderCard(buildUniverse());
 
-		expect(screen.getByText("#1")).toHaveClass("font-mono");
-		expect(screen.getByText("#1").parentElement).toHaveTextContent("宇宙 #1");
+		expect(screen.queryByText(/宇宙\s*#1/)).toBeNull();
 		expect(screen.queryByText(/universe/i)).toBeNull();
 		expect(screen.queryByText(/ip cosmos/i)).toBeNull();
 		expect(screen.getByText(mixed(/^更新 /))).toBeInTheDocument();

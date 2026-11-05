@@ -186,9 +186,7 @@ export function ProjectsPage() {
 			<PageBody className="workbench-surface">
 				<PageContent className="gap-4 sm:gap-5 sm:py-5">
 				<PageHeader
-					eyebrow="作品库 · 项目"
 					title="项目库"
-					description="继续制作中的分镜工程，或从新想法开始拍摄"
 					// 数据归标题（和宇宙页的「N 个」同一处、同一样式），右侧只放动作
 					meta={visibleProjects.length > 0 ? `${totalCount} 个 · ${completedCount} 部成片` : undefined}
 					actions={
@@ -222,12 +220,12 @@ export function ProjectsPage() {
 								checked={allSelected}
 								onChange={(event) => handleToggleSelectAll(event.target.checked)}
 								disabled={visibleProjects.length === 0}
-								className="checkbox checkbox-sm"
+								className="checkbox-doodle"
 							/>
 							<span>全选</span>
 						</label>
 						<div className="flex flex-wrap items-center gap-1.5">
-							<span className="border border-line bg-paper-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-ink-muted">
+							<span className="rounded-full border border-line bg-paper-100 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-ink-muted">
 								{selectedCount > 0
 									? `已选 ${selectedCount}`
 									: "未选择"}
@@ -284,7 +282,7 @@ export function ProjectsPage() {
 												aria-pressed={active}
 												onClick={() => setStatusFilter(key)}
 												className={
-													"press touch-target-dense h-7 min-h-7 rounded-full border px-2.5 text-xs transition-colors duration-fast " +
+													"press touch-target-dense h-7 rounded-full border px-2.5 text-xs transition-colors duration-fast " +
 													(active
 														? "border-primary bg-primary text-primary-content font-bold"
 														: "border-line bg-surface text-ink-muted hover:border-line-strong hover:text-ink")
@@ -321,7 +319,7 @@ export function ProjectsPage() {
 								</div>
 							) : (
 								<>
-									<div className="divide-y divide-ink/10">
+									<div className="divide-y divide-line">
 										{filteredProjects.map((project) => (
 											<ProjectRow
 												key={project.id}
@@ -410,7 +408,7 @@ function ProjectRow({
 					aria-label={`选择项目 ${project.title}`}
 					checked={selected}
 					onChange={(event) => onSelectedChange(event.target.checked)}
-					className="checkbox checkbox-sm"
+					className="checkbox-doodle"
 				/>
 			</label>
 			) : null}
@@ -486,7 +484,7 @@ function LoadingState() {
 					<span>更新</span>
 					<span className="text-right">操作</span>
 				</div>
-				<div className="divide-y divide-ink/10">
+				<div className="divide-y divide-line">
 					{SKELETON_ROWS.map((width, row) => (
 						<div key={row} className={ROW_CLASS + "grid-cols-[minmax(0,1fr)_auto] " + ROW_COLS}>
 							<div className="min-w-0 py-0.5 pr-2">

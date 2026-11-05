@@ -85,9 +85,7 @@ export function UniversesPage() {
 			<PageBody className="workbench-surface">
 				<PageContent className="gap-4 sm:gap-5 sm:py-5">
 				<PageHeader
-					eyebrow="作品库 · 宇宙"
 					title="故事宇宙"
-					description="把章节、角色和世界观放在同一条创作脉络里"
 					meta={isLoading ? "…" : `${universes.length} 个`}
 					actions={
 						<Button size="sm" onClick={() => setShowCreate(true)}>
@@ -103,11 +101,28 @@ export function UniversesPage() {
 					icon={<SvgIcon name="globe" size={16} />}
 				>
 					{isLoading && (
-						<div className="flex items-center justify-center py-8">
-							<span
-								className="spinner-doodle h-5 w-5 text-primary"
-								aria-label="加载中"
-							/>
+						<div
+							className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3"
+							role="status"
+							aria-busy="true"
+							aria-label="加载中"
+						>
+							{[0, 1, 2].map((idx) => (
+								<div
+									key={idx}
+									className="card-doodle p-3 sm:p-4"
+									aria-hidden="true"
+								>
+									<div className="skeleton-line -mx-1 -mt-1 mb-3 h-24 border border-line" />
+									<div className="skeleton-line h-3 w-24" />
+									<div className="skeleton-line mt-2 h-4 w-2/3" />
+									<div className="skeleton-line mt-2 h-3 w-full" />
+									<div className="mt-3 flex gap-1.5">
+										<span className="skeleton-line h-5 w-16 rounded-full" />
+										<span className="skeleton-line h-5 w-16 rounded-full" />
+									</div>
+								</div>
+							))}
 						</div>
 					)}
 
@@ -165,6 +180,21 @@ export function UniversesPage() {
 					isOpen={showCreate}
 					onClose={() => setShowCreate(false)}
 					title="创建 IP 宇宙"
+					actions={
+						<>
+							<Button variant="ghost" size="sm" onClick={() => setShowCreate(false)}>
+								取消
+							</Button>
+							<Button
+								size="sm"
+								onClick={handleCreate}
+								loading={createMutation.isPending}
+								disabled={!createForm.name.trim()}
+							>
+								创建
+							</Button>
+						</>
+					}
 				>
 					<div className="space-y-4">
 						<Input
@@ -178,7 +208,7 @@ export function UniversesPage() {
 						/>
 
 						<div>
-							<label htmlFor="universe-description" className="block text-xs font-bold">
+							<label htmlFor="universe-description" className="block label text-ink">
 								简介
 							</label>
 							<textarea
@@ -194,7 +224,7 @@ export function UniversesPage() {
 						</div>
 
 						<div>
-							<label htmlFor="universe-world-setting" className="block text-xs font-bold">
+							<label htmlFor="universe-world-setting" className="block label text-ink">
 								世界观设定
 							</label>
 							<textarea
@@ -210,7 +240,7 @@ export function UniversesPage() {
 						</div>
 
 						<div>
-							<label htmlFor="universe-style-rules" className="block text-xs font-bold">
+							<label htmlFor="universe-style-rules" className="block label text-ink">
 								统一风格规则
 							</label>
 							<textarea
@@ -223,19 +253,6 @@ export function UniversesPage() {
 									setCreateForm({ ...createForm, style_rules: e.target.value })
 								}
 							/>
-						</div>
-
-						<div className="flex justify-end gap-2 pt-2">
-							<Button variant="ghost" onClick={() => setShowCreate(false)}>
-								取消
-							</Button>
-							<Button
-								onClick={handleCreate}
-								loading={createMutation.isPending}
-								disabled={!createForm.name.trim()}
-							>
-								创建
-							</Button>
 						</div>
 					</div>
 				</Modal>

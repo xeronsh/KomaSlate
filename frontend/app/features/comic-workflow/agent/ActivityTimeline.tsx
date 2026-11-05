@@ -44,9 +44,9 @@ const EntryRow = memo(function EntryRow({ entry, live }: { entry: ActivityEntry;
 	if (entry.kind === "run" || entry.kind === "handoff") {
 		return (
 			<li className="flex items-center gap-2 py-1 text-xs text-ink-muted" data-activity={entry.kind}>
-				<span className="h-px flex-1 bg-ink/10" aria-hidden="true" />
+				<span className="h-px flex-1 bg-line" aria-hidden="true" />
 				{entry.title}
-				<span className="h-px flex-1 bg-ink/10" aria-hidden="true" />
+				<span className="h-px flex-1 bg-line" aria-hidden="true" />
 			</li>
 		);
 	}

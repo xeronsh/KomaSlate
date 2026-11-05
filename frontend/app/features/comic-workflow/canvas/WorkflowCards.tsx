@@ -379,11 +379,6 @@ function ShotCard({ node }: { node: Extract<ComicWorkflowNode, { kind: "shot" }>
 				<span className="absolute bottom-1.5 left-1.5 inline-flex rounded-sm border border-line bg-paper-100/90 px-1.5 py-0.5 text-xs">
 					{node.shot.duration ? <span className="font-mono">{node.shot.duration}s</span> : "未定时长"}
 				</span>
-				{node.status === "approved" ? (
-					<span className="absolute bottom-1.5 right-1.5 rounded-sm bg-ink/80 px-1.5 py-0.5 font-mono text-xs uppercase text-paper-100">
-						LOCKED
-					</span>
-				) : null}
 				<div className="absolute right-2 top-2">
 					<MediaPreviewButton
 						src={previewUrl}
@@ -672,13 +667,10 @@ export function WorkflowFrameView({
 	return (
 		<section
 			aria-label={title}
-			className={`plate-ticks relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-line p-3 text-ink ${
+			className={`flex h-full w-full flex-col rounded-lg border border-line p-3 text-ink ${
 				draggable ? "cursor-grab active:cursor-grabbing" : "cursor-default"
 			} ${style.surface}`}
 		>
-			{section === "shotline" ? (
-				<div className="slate-stripes -mx-3 -mt-3 mb-2.5 h-1.5 border-b border-line" aria-hidden="true" />
-			) : null}
 			{/* 标号 + 标题一行：01–04 是管线顺序，作为印刷标号放在标题前，而不是标题上方的 eyebrow */}
 			<div className="flex min-w-0 items-baseline gap-2 border-b border-line pb-2">
 				<span className="shrink-0 rounded-sm border border-line-strong bg-paper-100/80 px-1.5 py-0.5 font-mono text-xs text-ink-muted">

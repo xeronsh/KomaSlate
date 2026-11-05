@@ -215,7 +215,7 @@ export function StudioControls({
 								disabled={exportBusy || isGenerating}
 								aria-label="导出剪辑素材包"
 							>
-								{exportBusy ? "导出中…" : "导出剪辑包 (ZIP + FCPXML)"}
+								{exportBusy ? "导出中…" : "导出剪辑素材包"}
 							</MenuItem>
 						) : null}
 					</MenuButton>

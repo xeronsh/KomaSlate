@@ -1,4 +1,5 @@
 import { useId, useRef } from "react";
+import { Button } from "./Button";
 import { Dialog } from "./Dialog";
 import { SvgIcon } from "~/components/ui/SvgIcon";
 
@@ -31,18 +32,18 @@ export function ConfirmModal({
   const variantStyles = {
     danger: {
       icon: "text-error-fg",
-      iconBg: "bg-error/10",
-      button: "bg-error text-error-content",
+      iconBg: "bg-error/10 border-error/25",
+      button: "bg-error text-error-content border-error hover:bg-error/90",
     },
     warning: {
       icon: "text-warning-fg",
-      iconBg: "bg-warning/10",
-      button: "bg-warning text-warning-content",
+      iconBg: "bg-warning/10 border-warning/25",
+      button: "bg-warning text-warning-content border-warning hover:bg-warning/90",
     },
     info: {
       icon: "text-info-fg",
-      iconBg: "bg-info/10",
-      button: "bg-info text-info-content",
+      iconBg: "bg-info/10 border-info/25",
+      button: "bg-info text-info-content border-info hover:bg-info/90",
     },
   };
 
@@ -55,39 +56,39 @@ export function ConfirmModal({
       dismissible={!isLoading}
       labelledBy={titleId}
       initialFocusRef={cancelRef}
-      className="w-full max-w-md p-4"
+      className="w-full max-w-md p-4 sm:p-5"
     >
       <div className="flex items-start gap-3">
         <div
-          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${styles.iconBg}`}
+          className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full border ${styles.iconBg}`}
         >
-          <SvgIcon name="triangle-alert" size={20} className={`${styles.icon}`} />
+          <SvgIcon name="triangle-alert" size={20} className={styles.icon} />
         </div>
 
         <div className="min-w-0 flex-1">
           <h3
             id={titleId}
-            className="m-0 text-md font-bold"
+            className="m-0 text-md font-semibold text-ink"
           >
             {title}
           </h3>
-          <p className="m-0 mt-1 text-sm text-ink-muted">{message}</p>
+          <p className="m-0 mt-1 text-sm leading-relaxed text-ink-muted">{message}</p>
         </div>
       </div>
 
-      <div className="dialog-actions">
-        <button
+      <div className="dialog-actions border-t border-line pt-3">
+        <Button
           ref={cancelRef}
-          type="button"
-          className="btn-doodle bg-transparent border-transparent shadow-none hover:bg-paper-200 h-9 min-h-9 border border-line-strong px-3 text-sm"
+          variant="secondary"
+          size="sm"
           onClick={onClose}
           disabled={isLoading}
         >
           {cancelText}
-        </button>
+        </Button>
         <button
           type="button"
-          className={`btn-doodle ${styles.button} h-9 min-h-9 border border-line-strong px-3 text-sm`}
+          className={`btn-doodle btn-tactile ${styles.button} h-8 touch-target-dense justify-center px-2.5 text-xs disabled:opacity-50`}
           onClick={onConfirm}
           disabled={isLoading}
         >

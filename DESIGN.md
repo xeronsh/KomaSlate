@@ -6,16 +6,16 @@ colors:
   primary: "#2F4BC3"
   primary-hover: "#243BB2"
   primary-pressed: "#1B2C9D"
-  primary-content: "#FFFFFF"
-  neutral: "#1C1C22"
-  neutral-content: "#ECECF1"
-  surface: "#FFFFFF"
-  paper-100: "#F7F7F4"
-  paper-200: "#EFEEE9"
-  paper-300: "#DEDDD6"
-  border-strong: "#8A8A94"
-  ink: "#1C1C22"
-  ink-muted: "#5B5B66"
+  primary-content: "#FDFCF9"
+  neutral: "#141413"
+  neutral-content: "#F7F5F0"
+  surface: "#FDFCF9"
+  paper-100: "#F7F5F0"
+  paper-200: "#EFECE4"
+  paper-300: "#E0DCD2"
+  border-strong: "#76736B"
+  ink: "#141413"
+  ink-muted: "#5C5A54"
   info: "#0B6E7F"
   success: "#1B6F45"
   warning: "#8A5200"
@@ -181,16 +181,31 @@ focus ring 不手写：全局 `:focus-visible` 已是 2px primary outline，别�
 
 ## 1. Overview
 
-**North star: a calm creation studio with a light comic accent.**
+**North star: a calm creation studio with a light comic accent (Anthropic Warm Editorial × KomaSlate Studio).**
 
 KomaSlate is a tool for making comic videos, so the work (the storyboard) gets the screen and the chrome stays quiet.
 The workbench is a full-bleed React Flow canvas; the agent panel, the inspector and the PromptBar float over it.
-Warm grey paper and ink neutrals, one ultramarine (群青) brand hue, the system CJK font stack.
+Warm parchment paper and charcoal ink neutrals (`#F7F5F0` → `#FDFCF9`, ink `#141413`), one invariant ultramarine (群青 `#2F4BC3` / dark `#96ACFE`) brand hue, and the system CJK font stack paired with Schibsted Grotesk.
 The comic identity survives only as print-craft marks: crop marks on the selected panel, registration marks on
 the final-video card and its completion moment, halftone while waiting, and corner marks on empty slots.
 
 It rejects three looks: cold grey SaaS (Jira), the generic AI generator (white card grids and purple gradients),
-and heavy comic everywhere (offset shadows, halftone and display type on every surface).
+and heavy comic everywhere (offset shadows, yellow wavy cartoon underlines, halftone and display type on every surface).
+
+### First Principles & Tacit Knowledge Constraints (第一性原理与默会知识)
+
+1. **Perceptual Warmth & Zero Pure Extremes (纸感色温与零纯黑白)**:
+   - Pure `#FFFFFF` and `#000000` create harsh halation under long editing sessions. Every surface is a physical paper or ink-plate layer: `paper-100` (`#F7F5F0` warm parchment canvas), `paper-200` (`#EFECE4` sunken well / table header), `paper-300` (`#E0DCD2` well border / pressed surface), and `surface` (`#FDFCF9` warm ivory sheet), paired with warm charcoal `ink` (`#141413`).
+   - **Brand Hue Invariance (品牌色不变)**: `--color-primary` stays fixed at ultramarine `#2F4BC3` (light) / `#96ACFE` (dark). Warmth comes from the paper/ink neutrals, never from mutating the brand hue.
+2. **Hairline Architecture Over Box-in-Box Clutter (发丝线秩序优于盒子套盒子)**:
+   - When grouping sibling items inside a card, drawer, or inspector, separate them with a 1px hairline rule (`border-line` / `divide-line`) or a single tonal step (`bg-paper-100` on `bg-surface`), rather than nesting bordered boxes inside bordered boxes.
+   - Shadows (`shadow-panel`, `shadow-dialog`) are strictly reserved for layers that physically float over the canvas or viewport. Flat cards carry a 1px hairline border and subtle inset top highlight.
+3. **Tacit Micro-Physics & Asymmetric Timing (默会触感物理与非对称时序)**:
+   - *Press vs. Release*: Mechanical press feedback must feel instantaneous (`--duration-press: 120ms`, scaling `.btn-doodle` to `0.97` and `.press` cards/chips to `0.98`, while collapsing `.btn-tactile`'s top highlight into an inset shadow); release settles on `--duration-fast: 150ms` / `--duration-normal: 200ms` with `--ease-standard: cubic-bezier(0.22, 1, 0.36, 1)`.
+   - *Contained Rows Never Scale*: Items bounded by a parent list or menu (`MenuItem`, table rows, drawer rows) never scale on `:active` (which causes edge gaps); they respond with a quiet ink wash (`active:bg-ink/10`).
+4. **Optical Alignment & Quiet Chrome (视觉对齐与安静控制面)**:
+   - *Quiet until relevant*: Row-level destructive or secondary actions sit at `text-ink-muted` or reveal on hover/`focus-visible`, turning semantic `error-fg` / `primary` only when engaged.
+   - *Unified Panel Ergonomics*: Floating workbench panels (`AgentPanel`, `WorkflowInspector`) and drawers (`HistoryDrawer`, `AssetDrawer`, `VersionCompareDrawer`) use consistent header geometry, hairline tab strips, flex viewport containment (`min-h-0 flex-1` instead of brittle `100vh - Npx` calcs), and `.checkbox-doodle` form controls.
 
 **Key characteristics:**
 - Full-bleed canvas, floating panels that collapse to pills (§0 layout).
@@ -201,16 +216,16 @@ and heavy comic everywhere (offset shadows, halftone and display type on every s
 
 ## 2. Colors
 
-One brand hue (ultramarine, 群青) on calm warm-grey neutrals. Light and dark themes; the first visit follows `prefers-color-scheme`, the toggle persists (`data-theme="light" | "dark"`).
+One brand hue (ultramarine, 群青) on calm warm-parchment neutrals. Light and dark themes; the first visit follows `prefers-color-scheme`, the toggle persists (`data-theme="light" | "dark"`).
 
 - **Primary** `#2F4BC3` (dark `#96ACFE`): primary actions, selection, focus ring, links, the `Slate` of the wordmark and the favicon. Also legal as text on every surface (≥ 6:1 light, ≥ 7:1 dark).
-- **Primary ramp**: `primary-hover` `#243BB2` / `primary-pressed` `#1B2C9D` (dark `#A6BCFF` / `#8499E9`, lighter on dark). Filled primary controls use `hover:bg-primary-hover active:bg-primary-pressed`, not alpha. `primary-content` stays ≥ 4.5:1 on all three; `themeContrast.test.ts` checks it.
+- **Primary ramp**: `primary-hover` `#243BB2` / `primary-pressed` `#1B2C9D` (dark `#A6BCFF` / `#8499E9`, lighter on dark). Filled primary controls use `hover:bg-primary-hover active:bg-primary-pressed`, not alpha. `primary-content` (`#FDFCF9` light / `#0F1018` dark) stays ≥ 4.5:1 on all three; `themeContrast.test.ts` checks it.
 - Ultramarine was chosen to stay clear of the teal `info` and storyboard accents and of the `error` red. The CMYK `--cmyk-magenta` plate on the final-video card is a print-registration accent, not the brand.
-- **Neutrals**: `paper-100` page bg, `paper-200` sunken panes, `paper-300` sunken-on-sunken fills, `line` (ink 12%) hairline borders and dividers, `line-strong` (ink 22%) dashed drop zones, `surface` raised cards/dialogs, `border-strong` input/control borders (≥ 3:1).
-- **Text**: `ink` (≥ 7:1), `ink-muted` (hex, ≥ 4.5:1 on every surface), `ink-subtle` (alpha, ≥ 3:1, placeholders/meta only).
+- **Neutrals**: `paper-100` (`#F7F5F0` warm parchment page bg), `paper-200` (`#EFECE4` sunken panes), `paper-300` (`#E0DCD2` sunken-on-sunken fills & card borders), `line` (ink 12%) hairline borders and dividers, `line-strong` (ink 22%) dashed drop zones, `surface` (`#FDFCF9` warm ivory raised cards/dialogs), `border-strong` (`#76736B` input/control borders, ≥ 3:1).
+- **Text**: `ink` (`#141413`, ≥ 7:1), `ink-muted` (`#5C5A54`, ≥ 4.5:1 on every surface), `ink-subtle` (`rgb(var(--color-ink) / 0.55)` light, `0.45` dark, ≥ 3:1, placeholders/meta only).
 - **Status**: `info` / `success` / `warning` / `error`. Text uses `text-{k}-fg`; tinted backgrounds use `bg-{k}-bg` (alpha from `--status-bg-alpha`); filled badges use `bg-{k} text-{k}-content`.
 - **Card states** (`canvas/nodeStatus.tsx`, one source for canvas cards and the inspector): 生成中 `info` · 待确认 `primary` · 审查中 neutral (`paper-200` + `ink`) · 需重合成 `warning` · 失败/阻塞 `error` · 完成/可用 `success`, each tinted with `bg-{k}-bg` (待确认 uses `primary/10`). Colour is never the only cue: every state has its own shape (pulsing dot, `approve-gate`, `eye`, `refresh-cw`, `warning-circle`, `check`). Under colour-blind simulation (Machado 2009), 需重合成 vs 失败 (red-green) and 生成中 vs 完成 (blue-yellow) move close in hue, and the shape carries the difference. `stateColors.test.ts` checks badge text ≥ 4.5:1 on its tint over `surface` and `paper-100` in both themes, ΔE ≥ 20 between states for typical vision, and that any pair closer than ΔE 12 under protan/deutan/tritan simulation has different shapes. The sheet renders at `/dev/state-colors` (dev builds only).
-- **Removed**: `secondary`, `accent`, `primary-ink`, `text-2xs`. The contract test fails if they come back.
+- **Removed**: `secondary`, `accent`, `primary-ink`, `text-2xs`, `.underline-sketch`. The contract test fails if they come back.
 
 ### Scales
 

@@ -53,31 +53,31 @@
 
 @layer base {
   :root {
-    /* —— Studio palette（spec §7.2）：群青主色 + 暖中性 ——
+    /* —— Studio palette（spec §7.2）：群青主色 + Anthropic 暖羊皮纸中性色 ——
      * 通道值写成 "r g b"，供 Tailwind 的 /alpha 修饰使用。
-     * paper-100 = bg（页面/画布底），paper-200 = sunken（输入框、分区底），
-     * paper-300 = border（分隔线），surface = 浮层面板与卡片。 */
-    --color-primary: 47 75 195; /* #2F4BC3 群青 */
+     * paper-100 = bg（暖羊皮纸画布底），paper-200 = sunken（凹槽/表头/输入框底），
+     * paper-300 = border（凹槽边与卡片边），surface = 象牙白抬升面板与卡片（杜绝纯 #fff）。 */
+    --color-primary: 47 75 195; /* #2F4BC3 群青（品牌主色不变） */
     --color-primary-hover: 36 59 178; /* #243BB2 */
     --color-primary-pressed: 27 44 157; /* #1B2C9D */
-    --color-primary-content: 255 255 255;
-    --color-neutral: 28 28 34;
-    --color-neutral-content: 236 236 241;
-    --color-surface: 255 255 255;
-    --color-paper-100: 247 247 244; /* #F7F7F4 bg */
-    --color-paper-200: 239 238 233; /* #EFEEE9 sunken */
-    --color-paper-300: 222 221 214; /* #DEDDD6 border */
-    --color-border-strong: 138 138 148; /* #8A8A94 控件轮廓，WCAG 1.4.11 */
-    --color-ink: 28 28 34; /* #1C1C22 */
+    --color-primary-content: 253 252 249; /* #FDFCF9 暖象牙白 */
+    --color-neutral: 20 20 19; /* #141413 暖炭黑 */
+    --color-neutral-content: 247 245 240;
+    --color-surface: 253 252 249; /* #FDFCF9 暖象牙白面板 */
+    --color-paper-100: 247 245 240; /* #F7F5F0 暖羊皮纸画布底 */
+    --color-paper-200: 239 236 228; /* #EFECE4 凹陷区底 */
+    --color-paper-300: 224 220 210; /* #E0DCD2 纸面分隔与卡片边 */
+    --color-border-strong: 118 115 107; /* #76736B 暖灰控件轮廓，WCAG 1.4.11 ≥3:1 */
+    --color-ink: 20 20 19; /* #141413 暖炭墨色 */
     /* 状态色 = 状态文字色（*-fg）；饱和填充只用于状态点、细描边和实心徽标 */
     --color-info: 11 110 127; /* #0B6E7F */
-    --color-info-content: 255 255 255;
+    --color-info-content: 253 252 249;
     --color-success: 27 111 69; /* #1B6F45 */
-    --color-success-content: 255 255 255;
+    --color-success-content: 253 252 249;
     --color-warning: 138 82 0; /* #8A5200 */
-    --color-warning-content: 255 255 255;
+    --color-warning-content: 253 252 249;
     --color-error: 180 35 24; /* #B42318 */
-    --color-error-content: 255 255 255;
+    --color-error-content: 253 252 249;
     --status-bg-alpha: 0.1;
 
     /* —— Brand plates (CMYK registration, theme-aware) —— */
@@ -95,7 +95,7 @@
     /* —— Text contrast tokens (theme-aware) ——
      * muted: 次要文字与 placeholder，在 bg / sunken 上 ≥4.5:1
      * subtle: 纯装饰标签，≥3:1 */
-    --ink-muted: #5b5b66;
+    --ink-muted: #5c5a54;
     --ink-subtle: rgb(var(--color-ink) / 0.55);
     --ink-faint: rgb(var(--color-ink) / 0.25); /* 仅装饰性图形（空状态图标），不承载文字 */
     --line: rgb(var(--color-ink) / 0.12); /* 容器/分隔线 hairline，随底色自适应 */

@@ -77,9 +77,9 @@
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="./doc/screenshots/home.webp" alt="KomaSlate 导演场记台首页" />
+      <img src="./doc/screenshots/home.webp" alt="KomaSlate 首页" />
       <br />
-      <sub><strong>导演场记台 · 输入故事创意，自由切换逐步确认与自动确认</strong></sub>
+      <sub><strong>创作台首页 · 输入故事创意，自由切换逐步确认与自动确认</strong></sub>
     </td>
     <td align="center" width="50%">
       <img src="./doc/screenshots/projects.webp" alt="KomaSlate 项目库" />
@@ -91,14 +91,14 @@
     <td align="center" colspan="2">
       <img src="./doc/screenshots/workbench.webp" alt="KomaSlate 分镜工作台" />
       <br />
-      <sub><strong>分镜画布工作台 · 活动时间线、LOCKED 锁镜分镜卡与出场角色/版本检查器</strong></sub>
+      <sub><strong>分镜画布工作台 · 活动时间线、分镜卡片与出场角色/版本检查器</strong></sub>
     </td>
   </tr>
   <tr>
     <td align="center" width="50%">
-      <img src="./doc/screenshots/export-menu.webp" alt="导出剪辑资产包与下载成片" />
+      <img src="./doc/screenshots/export-menu.webp" alt="导出剪辑素材包与下载成片" />
       <br />
-      <sub><strong>开放交付菜单 · 下载成片、导出剪辑包（ZIP + FCPXML v1.9）与 Webtoon</strong></sub>
+      <sub><strong>交付菜单 · 下载成片、导出剪辑素材包与 Webtoon 长图</strong></sub>
     </td>
     <td align="center" width="50%">
       <img src="./doc/screenshots/production-options.webp" alt="成片选项：配音、字幕、背景音乐" width="320" />
@@ -110,7 +110,7 @@
     <td align="center" colspan="2">
       <img src="./doc/screenshots/settings-video-presets.webp" alt="设置：视频服务商预设" />
       <br />
-      <sub><strong>BYOK 模型配置 · 内置主流文本、图像、视频、视觉审查与配音预设及连通性检测</strong></sub>
+      <sub><strong>模型服务商配置 · 内置主流文本、图像、视频、视觉审查与配音预设及连通性检测</strong></sub>
     </td>
   </tr>
   <tr>
@@ -122,7 +122,7 @@
     <td align="center" width="50%">
       <img src="./doc/screenshots/home-dark.webp" alt="深色印版首页" />
       <br />
-      <sub><strong>深色印版主题 · 导演场记台</strong></sub>
+      <sub><strong>深色印版主题 · 创作台首页</strong></sub>
     </td>
   </tr>
 </table>

@@ -59,6 +59,8 @@ const BANNED: Array<[RegExp, string]> = [
 	[/\bborder-3\b/, "边框 1px；2px 只用于选中、tab 下划线、左侧强调条"],
 	[/\bfocus:outline-none\b/, "不许去掉焦点环（:focus-visible 全局 2px primary）"],
 	[/animate-spin rounded-full border/, "转圈用 spinner-doodle"],
+	[/\bunderline-sketch\b/, "黄色波浪线已退役：卡片标题用 border-b border-line 细线分隔"],
+	[/\bcheckbox-(?:xs|sm|md|lg)\b/, "DaisyUI 复选框类已退役：统一使用 .checkbox-doodle"],
 ];
 
 /**

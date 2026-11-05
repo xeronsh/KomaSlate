@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" role="img" aria-label="KomaSlate">
   <!-- Instrument Serif Italic outlines, SIL OFL 1.1 (see /fonts/OFL-InstrumentSerif.txt) -->
   <style>
-    rect { fill: #F7F7F4; }
+    rect { fill: #F7F5F0; }
     path { fill: #2F4BC3; stroke: #2F4BC3; stroke-width: 0.35; stroke-linejoin: round; }
     @media (prefers-color-scheme: dark) {
       rect { fill: #0F1018; }

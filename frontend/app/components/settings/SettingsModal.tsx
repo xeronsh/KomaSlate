@@ -229,7 +229,6 @@ export function SettingsModal() {
 					>
 						<SvgIcon name="settings" size={20} className="text-primary" />
 						<span>系统设置</span>
-						<span className="hidden text-xs font-normal text-ink-muted sm:inline">模型 · 存储 · 运行</span>
 					</h3>
 					<IconButton
 						onClick={handleCancel}
@@ -264,8 +263,8 @@ export function SettingsModal() {
 						className="flex min-h-0 flex-1 flex-col"
 					>
 						<div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-							<nav className="shrink-0 border-b border-line bg-paper-200/45 p-2 lg:w-56 lg:border-b-0 lg:border-r" aria-label="设置分类">
-							<div role="tablist" aria-label="设置分类" onKeyDown={handleTabKeyDown} className="flex gap-1.5 overflow-x-auto lg:flex-col">
+							<nav className="shrink-0 border-b border-line bg-paper-100/80 p-2.5 lg:w-56 lg:border-b-0 lg:border-r" aria-label="设置分类">
+							<div role="tablist" aria-label="设置分类" onKeyDown={handleTabKeyDown} className="flex gap-1 overflow-x-auto lg:flex-col">
 								{sections.map((section) => {
 									const cfg = TAB_CONFIG[section.key];
 									const isActive = activeTab === section.key;
@@ -281,28 +280,24 @@ export function SettingsModal() {
 											aria-controls="settings-panel"
 											tabIndex={isActive ? 0 : -1}
 											onClick={() => handleTabChange(section.key)}
-											className={`
-                        touch-target-dense flex shrink-0 items-center justify-between gap-2 border px-2.5
-                        text-xs font-semibold lg:w-full
-												border border-line-strong transition-colors duration-fast
-                        ${
-													isActive
-														? "bg-primary text-primary-content"
-														: "bg-paper-200 hover:bg-paper-300"
-												}
-                      `}
+											className={`touch-target-dense flex shrink-0 items-center justify-between gap-2 rounded-md border px-2.5 py-1.5 text-xs font-semibold transition-colors duration-fast lg:w-full ${
+												isActive
+													? "border-primary bg-primary text-primary-content"
+													: "border-transparent text-ink-muted hover:bg-paper-200 hover:text-ink"
+											}`}
 										>
-											{cfg ? <SvgIcon name={cfg.icon} size={16} /> : null}
-											<span>{cfg?.title || section.title}</span>
+											<span className="flex items-center gap-2">
+												{cfg ? <SvgIcon name={cfg.icon} size={16} /> : null}
+												<span>{cfg?.title || section.title}</span>
+											</span>
 											<span
-												className={`
-                        rounded-sm px-1 py-0.5 text-xs tabular-nums
-                        ${isActive ? "bg-primary-content/20" : "bg-paper-300"}
-                      `}
+												className={`rounded-full px-1.5 py-0.5 font-mono text-xs tabular-nums ${
+													isActive ? "bg-primary-content/20 text-primary-content" : "bg-paper-200 text-ink-muted"
+												}`}
 											>
 												{section.items.length}
 											</span>
-									</PlainButton>
+										</PlainButton>
 									);
 								})}
 							</div>

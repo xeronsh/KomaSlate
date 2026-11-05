@@ -11,6 +11,7 @@
   <meta property="og:description" content="锁住已拍好的镜头，只重拍不满意的那一格——支持单镜重拍、版本栈 CAS 回退与 FCPXML v1.9 剪辑资产包导出">
   <meta property="og:image" content="https://xeronsh.github.io/KomaSlate/assets/screenshots/workbench.webp">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#f7f5f0">
 
   <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml">
   <link rel="preload" href="./assets/fonts/schibsted-grotesk-var.woff2" as="font" type="font/woff2" crossorigin>
@@ -29,21 +30,18 @@
           <path d="M2.4 75.3Q1 75.3 1 74.3Q1 73.2 3 72.9L5 72.6Q7.2 72.3 8 71.5Q8.9 70.8 9.3 68.7L22.9 9.9Q23.4 7.8 22.9 7.1Q22.4 6.4 20.4 6L18.4 5.6Q17.1 5.3 17.1 4.5Q17.1 3.3 18.9 3.3H36.8Q38.3 3.3 38.3 4.4Q38.3 5.5 36.7 5.7L34.1 6Q31.9 6.2 31.1 7Q30.3 7.9 29.8 10L23.5 37.2Q23.3 38 23.8 38.3Q24.2 38.6 24.8 37.9L47.5 11.8Q51.8 6.7 48.2 6L46.3 5.6Q44.9 5.3 44.9 4.4Q44.9 3.3 46.5 3.3H63.6Q65 3.3 65 4.3Q65 5.5 63.4 5.6L61.4 5.8Q58.3 6.1 56 7.6Q53.7 9.1 50.3 13L34.6 30.9Q33.4 32.5 33.9 34.1L44.6 69.4Q45.1 71 45.8 71.7Q46.4 72.4 47.5 72.6L49.6 73Q50.8 73.3 50.8 74.1Q50.8 75.3 49.1 75.3H32.4Q31 75.3 31 74.3Q31 73.2 32.6 73L34.4 72.8Q38.3 72.3 37.1 67.9L29 40Q28.8 39.2 28.2 39.1Q27.6 39 27.1 39.6L23.3 43.9Q22.3 45 21.7 46.2Q21.1 47.4 20.7 48.9L16.2 68.6Q15.8 70.7 16.2 71.5Q16.7 72.3 18.7 72.6L21.1 73Q22.2 73.1 22.2 74.1Q22.2 75.3 20.4 75.3ZM67.4 76.2Q61.2 76.2 57.6 71Q54 65.9 54 57.1Q54 50.6 56.1 44.6Q58.2 38.6 61.6 33.9Q65.1 29.2 69.3 26.4Q73.6 23.7 77.9 23.7Q84.1 23.7 87.7 28.8Q91.3 33.9 91.3 42.8Q91.3 49.3 89.2 55.3Q87.1 61.3 83.7 66Q80.2 70.7 76 73.5Q71.7 76.2 67.4 76.2ZM67.2 73.8Q70.4 73.8 73.5 70.7Q76.5 67.6 79 62.5Q81.5 57.4 83 51.1Q84.5 44.9 84.5 38.6Q84.5 26.1 78 26.1Q74.9 26.1 71.8 29.1Q68.7 32.2 66.2 37.3Q63.8 42.4 62.3 48.6Q60.8 54.9 60.8 61.2Q60.8 73.8 67.2 73.8ZM152.5 76.2Q148.9 76.2 147.1 73.2Q145.3 70.2 146.9 63.9L154.6 34.9Q155.7 31 155 29.5Q154.2 28 152.8 28Q150.8 28 148.2 30.7Q145.6 33.5 142.8 38.2Q139.9 42.9 137.2 48.9Q134.5 54.9 132.2 61.4Q129.9 67.9 128.4 74.2Q128.1 75.3 127 75.3H123.1Q121.7 75.3 122 74L131.2 34.9Q132.1 31 131.5 29.5Q130.8 28 129.4 28Q127.5 28 124.9 30.7Q122.3 33.5 119.5 38.2Q116.7 42.9 114 48.9Q111.3 54.9 109 61.4Q106.7 67.9 105.3 74.2Q105 75.3 103.9 75.3H99.8Q98.4 75.3 98.7 74L108.2 34.1Q108.7 31.9 108.3 30.6Q108 29.4 106.5 29.4Q104.7 29.4 102.6 32Q100.4 34.7 97.7 42.1Q97.3 43.4 96.3 43.4Q94.8 43.4 95.5 41.6Q97.7 34.7 100.2 30.8Q102.6 26.9 105.1 25.3Q107.6 23.7 109.7 23.7Q113 23.7 114.4 26.1Q115.8 28.6 114.5 34.2L112 45Q111.9 45.7 112.3 45.8Q112.7 45.9 113 45.3Q118.8 33.3 123.5 28.5Q128.2 23.7 132.1 23.7Q135.8 23.7 137.4 26.7Q138.9 29.7 137.5 35.9L135.4 45Q135.3 45.7 135.7 45.8Q136.1 45.9 136.4 45.3Q140.2 37.2 143.6 32.4Q146.9 27.7 149.9 25.7Q152.9 23.7 155.5 23.7Q159.2 23.7 160.9 26.7Q162.6 29.7 160.9 35.9L153.3 64.9Q152.6 67.7 153.2 69.1Q153.8 70.5 155.4 70.5Q157.4 70.5 159.4 67.8Q161.3 65.2 163.4 57.8Q163.7 56.7 164.7 56.7Q165.5 56.7 165.7 57.3Q165.8 57.9 165.6 58.7Q163.7 65.5 161.5 69.3Q159.3 73.2 157.1 74.7Q154.8 76.2 152.5 76.2ZM176.8 76.2Q173.2 76.2 171.2 73.1Q169.2 70 169.2 64Q169.2 58.3 170.8 52.5Q172.4 46.8 175.2 41.6Q178 36.4 181.6 32.4Q185.1 28.4 189.1 26Q193 23.7 196.9 23.7Q198.8 23.7 200.5 24.4Q202.2 25.2 203.3 26.8Q203.9 27.7 204.5 27.7Q205.1 27.7 205.7 26.8Q206.8 25.2 207.5 24.7Q208.2 24.3 208.8 24.3Q210.1 24.3 209.8 25.7L200.9 64Q199.4 70.5 202.9 70.5Q205.2 70.5 207.1 67.4Q208.9 64.3 210.8 57.8Q211.1 56.7 212.1 56.7Q212.8 56.7 213 57.3Q213.2 57.9 213 58.7Q211.1 68.1 207.9 72.2Q204.7 76.2 200.2 76.2Q196.3 76.2 194.7 72.9Q193 69.6 194.3 63.9L195.6 58.4Q195.8 57.7 195.4 57.6Q194.9 57.5 194.6 58.1Q189.1 68.2 184.9 72.2Q180.6 76.2 176.8 76.2ZM179.3 71.1Q181.7 71.1 184.6 68.2Q187.5 65.3 190.4 60.7Q193.2 56.1 195.6 50.8Q198 45.5 199.4 40.6Q200.9 35.7 200.9 32.3Q200.9 26.2 196.6 26.2Q194 26.2 191.1 28.5Q188.2 30.9 185.6 34.9Q182.9 38.9 180.8 44Q178.6 49 177.3 54.5Q176 59.9 176 65.1Q176 68.6 176.9 69.8Q177.7 71.1 179.3 71.1Z" fill="currentColor"></path>
           <path d="M233.6 76.2Q230.8 76.2 227.7 75.6Q224.5 75 221.8 73.9Q219 72.9 217.4 71.5Q216.9 71 216.8 70.5Q216.6 70 216.8 69L219.6 53.3Q219.9 51.5 221.2 51.5Q222.4 51.5 222.4 53.5L222.5 57.4Q222.7 65.8 225.4 69.5Q228.1 73.2 234.2 73.2Q239.8 73.2 243.5 69.2Q247.2 65.1 247.2 58.3Q247.2 53.9 244.8 49.1Q242.4 44.3 238.1 39.5Q233 33.8 230.6 29.1Q228.1 24.4 228.1 19.2Q228.1 15.1 230.1 11.2Q232.1 7.4 236.2 4.8Q240.2 2.3 246.5 2.3Q255.2 2.3 259.8 6.2Q261.2 7.3 260.8 9.5L258 24.1Q257.7 25.6 256.6 25.6Q255.5 25.6 255.3 23.9L255.2 21.8Q254.8 13.7 253 9.4Q251.1 5.2 245.6 5.2Q241.6 5.2 239.2 7Q236.8 8.8 235.7 11.4Q234.6 14.1 234.6 16.7Q234.6 19.6 235.4 22.2Q236.2 24.9 238.2 27.8Q240.1 30.8 243.5 35Q248.3 40.7 251 45.9Q253.7 51.1 253.7 56Q253.7 61.9 251.1 66.5Q248.4 71 243.9 73.6Q239.4 76.2 233.6 76.2ZM266.1 76.3Q262.8 76.3 261.4 73.8Q260 71.4 261.3 65.8L274 11.3Q274.5 9.5 274 8.8Q273.6 8.1 272.2 8L269.2 7.7Q267.7 7.6 267.9 6.4Q268.1 5.5 269.3 5.3Q272.9 4.7 275.7 3.8Q278.5 3 280.2 1.6Q281 1 281.7 1Q282.9 1 282.6 2.5L267.8 65.9Q267.3 68.1 267.6 69.3Q268 70.6 269.5 70.6Q271.3 70.6 273.4 67.9Q275.6 65.3 278.3 57.9Q278.7 56.6 279.7 56.6Q281.2 56.6 280.5 58.4Q278.4 65.2 275.9 69.1Q273.3 73.1 270.8 74.7Q268.3 76.3 266.1 76.3ZM291.6 76.2Q288 76.2 286 73.1Q284 70 284 64Q284 58.3 285.6 52.5Q287.2 46.8 290 41.6Q292.8 36.4 296.4 32.4Q299.9 28.4 303.9 26Q307.8 23.7 311.7 23.7Q313.6 23.7 315.3 24.4Q317 25.2 318.1 26.8Q318.7 27.7 319.3 27.7Q319.9 27.7 320.5 26.8Q321.6 25.2 322.3 24.7Q323 24.3 323.6 24.3Q324.9 24.3 324.6 25.7L315.7 64Q314.2 70.5 317.7 70.5Q320 70.5 321.9 67.4Q323.7 64.3 325.6 57.8Q325.9 56.7 326.9 56.7Q327.6 56.7 327.8 57.3Q328 57.9 327.8 58.7Q325.9 68.1 322.7 72.2Q319.5 76.2 315 76.2Q311.1 76.2 309.4 72.9Q307.8 69.6 309.1 63.9L310.4 58.4Q310.6 57.7 310.1 57.6Q309.7 57.5 309.4 58.1Q303.9 68.2 299.6 72.2Q295.4 76.2 291.6 76.2ZM294.1 71.1Q296.5 71.1 299.4 68.2Q302.3 65.3 305.1 60.7Q308 56.1 310.4 50.8Q312.8 45.5 314.2 40.6Q315.7 35.7 315.7 32.3Q315.7 26.2 311.4 26.2Q308.8 26.2 305.9 28.5Q303 30.9 300.4 34.9Q297.7 38.9 295.5 44Q293.4 49 292.1 54.5Q290.8 59.9 290.8 65.1Q290.8 68.6 291.6 69.8Q292.5 71.1 294.1 71.1ZM340.3 76.2Q336.9 76.2 335 73.5Q333.1 70.8 334.4 64.8L342.7 28.6Q343 27.1 341.5 27.1H337.7Q336.3 27.1 336.3 25.8Q336.3 25.1 336.8 24.7Q337.3 24.3 338 24.3H341.6Q343.9 24.3 344.3 22.2L346.7 11.5Q347 10.4 348.1 10.4H352.2Q353.6 10.4 353.3 11.7L350.8 22.8Q350.5 24.3 352 24.3H357.7Q359.4 24.3 359.4 25.6Q359.4 27.1 357.3 27.1H351.9Q349.7 27.1 349.2 29.2L340.8 65.8Q340.3 68 341 69.2Q341.6 70.5 343.2 70.5Q345.5 70.5 347.5 67.9Q349.4 65.3 351.6 58Q352 56.7 352.9 56.7Q353.6 56.7 353.8 57.3Q354 57.9 353.5 59.5Q351.6 66.3 349.4 69.9Q347.1 73.5 344.8 74.8Q342.5 76.2 340.3 76.2ZM369.4 76.2Q364.1 76.2 360.9 72Q357.7 67.9 357.7 60.3Q357.7 53.7 360 47.2Q362.4 40.7 366.2 35.4Q370 30.1 374.6 26.9Q379.1 23.7 383.4 23.7Q388.1 23.7 390.1 25.9Q392.2 28.2 392.2 32Q392.2 36.5 389 40.9Q385.9 45.4 380.2 48.9Q374.6 52.4 367 54.1Q364.8 54.6 364.7 56.6Q364.6 57.3 364.6 58Q364.6 58.8 364.6 59.5Q364.6 65.2 366.6 68.1Q368.5 71 371.9 71Q375.7 71 379.2 67.5Q382.8 64 385.2 57.6Q385.5 56.7 386.4 56.7Q387 56.7 387.1 57.2Q387.3 57.7 387.1 58.4Q383.9 67.2 379.4 71.7Q374.8 76.2 369.4 76.2ZM365.7 50.3Q365.5 51 365.9 51.4Q366.4 51.9 367.1 51.7Q373.3 50 377.5 46.5Q381.7 43.1 383.9 38.8Q386 34.5 386 30.4Q386 26.2 382.7 26.2Q379.8 26.2 376.4 29.6Q373 33 370.1 38.5Q367.2 44 365.7 50.3Z" class="fill-primary"></path>
         </svg>
-        <span class="brand-slate-tag">SLATE · 24FPS</span>
       </a>
 
       <nav class="site-nav" aria-label="主导航">
-        <a href="#retake-desk">单镜重拍台</a>
-        <a href="#fcpxml-pack">时间线交付</a>
-        <a href="#gallery">界面实拍</a>
+        <a href="#retake-desk">单镜重拍</a>
+        <a href="#fcpxml-pack">时间线导出</a>
+        <a href="#gallery">工作台界面</a>
         <a href="#deploy">本地部署</a>
-        <a href="#partners">生态伙伴</a>
       </nav>
 
       <div class="header-actions">
-        <button type="button" id="theme-toggle" class="btn-ghost" aria-label="切换明暗印版外观">
-          <span class="slate-dot" aria-hidden="true"></span>
-          <span id="theme-toggle-label">深色印版</span>
+        <button type="button" id="theme-toggle" class="btn-ghost" aria-label="切换明暗主题">
+          <span id="theme-toggle-label">深色</span>
         </button>
         <a href="https://github.com/xeronsh/KomaSlate" target="_blank" rel="noopener noreferrer" class="btn-outline">
           <span>GitHub</span>
@@ -57,24 +55,6 @@
     <!-- ==================== HERO ==================== -->
     <section class="hero">
       <div class="container">
-        <div class="slate-meta-bar" aria-label="工作台技术规格">
-          <div class="slate-meta-group">
-            <span class="slate-dot" aria-hidden="true"></span>
-            <span>SCENE 01 · 《雨夜修表匠》实拍工程</span>
-            <span class="slate-sep">/</span>
-            <span>ROLL A · 24.00 FPS</span>
-          </div>
-          <div class="slate-meta-group">
-            <span>LOCAL SQLITE</span>
-            <span class="slate-sep">·</span>
-            <span>BYOK API</span>
-            <span class="slate-sep">·</span>
-            <span>FCPXML 1.9</span>
-            <span class="slate-sep">·</span>
-            <span>APACHE-2.0</span>
-          </div>
-        </div>
-
         <div class="hero-head">
           <h1 class="display hero-title">
             锁住已拍好的镜头，<br>
@@ -82,133 +62,27 @@
           </h1>
           <div class="hero-side">
             <p class="hero-lead">
-              KomaSlate 是面向桌面创作者的<strong>本地优先、非破坏性开源 AI 分镜工作台</strong>——把故事梗概拆解为角色定妆卡与九宫格分镜台本，单镜定向微调、双栏对比回退历史版本，既可直出配音成片，也可导出标准 FCPXML 时间线资产包
+              开源分镜工作台。按阶段生成角色定妆与分镜画面，支持单镜定向重拍、版本对比回退，可直出成片或导出剪辑时间线。
             </p>
             <div class="hero-ctas">
-              <a href="#retake-desk" class="btn-primary btn-lg">体验单镜重拍台 ↓</a>
-              <a href="#deploy" class="btn-outline btn-lg">1 行命令本地启动</a>
+              <a href="#retake-desk" class="btn-primary btn-lg">体验单镜重拍 ↓</a>
+              <a href="#deploy" class="btn-outline btn-lg">本地部署</a>
             </div>
           </div>
         </div>
 
         <div class="hero-stage-wrap">
           <div class="hero-stage">
-            <div class="slate-stripes" aria-hidden="true"></div>
-            <div class="stage-topbar">
-              <span>WORKBENCH LIVE CAPTURE · PROJECT #01 · 5 SHOTS / 24.0s</span>
-              <div class="stage-pills">
-                <span class="micro-pill success">4 SHOTS LOCKED</span>
-                <span class="micro-pill primary">S03 RETAKE READY</span>
-                <span class="micro-pill">ZIP + FCPXML 1.9</span>
-              </div>
-            </div>
             <img
               src="./assets/screenshots/workbench.webp"
               data-light-src="./assets/screenshots/workbench.webp"
               data-dark-src="./assets/screenshots/workbench-dark.webp"
               width="1600"
               height="1000"
-              alt="KomaSlate 工作台实拍：左侧活动流、中央锁镜分镜画布与右侧 S03 检查器"
+              alt="KomaSlate 工作台实拍：左侧活动流、中央分镜画布与右侧检查器"
               fetchpriority="high"
             >
           </div>
-
-          <div class="hero-callouts">
-            <div class="callout-strip plate-ticks">
-              <div class="callout-kicker">
-                <span>01 / SELECTIVE LOCK</span>
-                <span>SQLite WAL</span>
-              </div>
-              <strong>已批准镜头字节级锁定</strong>
-              <span>重跑分镜规划或重拍单镜时，已锁定的兄弟镜头图像、视频与配音绝不重画</span>
-            </div>
-            <div class="callout-strip plate-ticks">
-              <div class="callout-kicker">
-                <span>02 / VERSION STACK</span>
-                <span>CAS ROLLBACK</span>
-              </div>
-              <strong>重拍前自动写入版本快照</strong>
-              <span>双栏并排比对图像与视频动态，乐观锁一键回退画面、提示词与出场角色绑定</span>
-            </div>
-            <div class="callout-strip plate-ticks">
-              <div class="callout-kicker">
-                <span>03 / OPEN HANDOFF</span>
-                <span>FCPXML v1.9</span>
-              </div>
-              <strong>成片合成 + 专业非编时间线双交付</strong>
-              <span>内置自动配音配乐成片；同时支持导出 DaVinci Resolve / Final Cut Pro 标准时间线包</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ==================== MANIFESTO & DIAGRAMS ==================== -->
-    <section class="section" id="principles">
-      <div class="container">
-        <p class="display manifesto-quote">
-          告别抽卡式整片重来——把每一镜的锁镜权、选片权与时间线交还给创作者
-        </p>
-
-        <div class="principles-grid">
-          <article class="principle-card plate-ticks">
-            <span class="fig-tag">FIG 0.1 / NON-DESTRUCTIVE RETAKE</span>
-            <svg class="fig-diagram" viewBox="0 0 320 96" fill="none" aria-hidden="true">
-              <rect x="14" y="26" width="50" height="44" rx="3" stroke="currentColor" stroke-opacity="0.28"/>
-              <text x="39" y="46" text-anchor="middle" font-size="10" font-family="IBM Plex Mono, monospace" fill="currentColor" opacity="0.65">S01</text>
-              <text x="39" y="60" text-anchor="middle" font-size="8.5" font-family="IBM Plex Mono, monospace" fill="#1a7f37">LOCKED</text>
-
-              <rect x="74" y="26" width="50" height="44" rx="3" stroke="currentColor" stroke-opacity="0.28"/>
-              <text x="99" y="46" text-anchor="middle" font-size="10" font-family="IBM Plex Mono, monospace" fill="currentColor" opacity="0.65">S02</text>
-              <text x="99" y="60" text-anchor="middle" font-size="8.5" font-family="IBM Plex Mono, monospace" fill="#1a7f37">LOCKED</text>
-
-              <rect x="134" y="18" width="54" height="60" rx="4" fill="rgba(47,75,195,0.12)" stroke="#2f4bc3" stroke-width="1.6"/>
-              <text x="161" y="44" text-anchor="middle" font-size="10.5" font-weight="600" font-family="IBM Plex Mono, monospace" fill="#2f4bc3">S03 ↻</text>
-              <text x="161" y="60" text-anchor="middle" font-size="8.5" font-family="IBM Plex Mono, monospace" fill="#2f4bc3">RETAKE</text>
-
-              <rect x="198" y="26" width="50" height="44" rx="3" stroke="currentColor" stroke-opacity="0.28"/>
-              <text x="223" y="46" text-anchor="middle" font-size="10" font-family="IBM Plex Mono, monospace" fill="currentColor" opacity="0.65">S04</text>
-              <text x="223" y="60" text-anchor="middle" font-size="8.5" font-family="IBM Plex Mono, monospace" fill="#1a7f37">LOCKED</text>
-
-              <rect x="258" y="26" width="50" height="44" rx="3" stroke="currentColor" stroke-opacity="0.28"/>
-              <text x="283" y="46" text-anchor="middle" font-size="10" font-family="IBM Plex Mono, monospace" fill="currentColor" opacity="0.65">S05</text>
-              <text x="283" y="60" text-anchor="middle" font-size="8.5" font-family="IBM Plex Mono, monospace" fill="#1a7f37">LOCKED</text>
-            </svg>
-            <h3>局部失效，绝不波及无辜镜头</h3>
-            <p>修改 S03 的角色绑定或画面批注，只精准失效 S03 自身的旧视频与合成成片；S01、S02、S04、S05 原地保留</p>
-          </article>
-
-          <article class="principle-card plate-ticks">
-            <span class="fig-tag">FIG 0.2 / CAST BINDING &amp; DIFF</span>
-            <svg class="fig-diagram" viewBox="0 0 320 96" fill="none" aria-hidden="true">
-              <rect x="22" y="20" width="114" height="56" rx="4" stroke="currentColor" stroke-opacity="0.28" stroke-dasharray="3 3"/>
-              <text x="79" y="42" text-anchor="middle" font-size="10" font-family="IBM Plex Mono, monospace" fill="currentColor" opacity="0.7">TAKE v1</text>
-              <text x="79" y="58" text-anchor="middle" font-size="9" font-family="IBM Plex Mono, monospace" fill="#b42318">cast: [1, 2]</text>
-              <path d="M146 48H174M168 42L175 48L168 54" stroke="#2f4bc3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-              <rect x="184" y="20" width="114" height="56" rx="4" fill="rgba(47,75,195,0.10)" stroke="#2f4bc3" stroke-width="1.5"/>
-              <text x="241" y="42" text-anchor="middle" font-size="10" font-weight="600" font-family="IBM Plex Mono, monospace" fill="#2f4bc3">TAKE v2</text>
-              <text x="241" y="58" text-anchor="middle" font-size="9" font-family="IBM Plex Mono, monospace" fill="#1a7f37">cast: [1] · CAS</text>
-            </svg>
-            <h3>可编辑角色出场表与版本回退</h3>
-            <p>微距空镜或局部特写可一键增删出场角色参考图，避免无关角色强行入镜导致比例失真；全历史版本随时回退</p>
-          </article>
-
-          <article class="principle-card plate-ticks">
-            <span class="fig-tag">FIG 0.3 / RATIONAL 24FPS FCPXML</span>
-            <svg class="fig-diagram" viewBox="0 0 320 96" fill="none" aria-hidden="true">
-              <rect x="18" y="20" width="284" height="18" rx="2" fill="rgba(47,75,195,0.14)" stroke="#2f4bc3"/>
-              <line x1="80" y1="20" x2="80" y2="38" stroke="#2f4bc3"/>
-              <line x1="142" y1="20" x2="142" y2="38" stroke="#2f4bc3"/>
-              <line x1="192" y1="20" x2="192" y2="38" stroke="#2f4bc3"/>
-              <line x1="246" y1="20" x2="246" y2="38" stroke="#2f4bc3"/>
-              <rect x="18" y="44" width="284" height="12" rx="2" fill="rgba(26,127,55,0.14)" stroke="#1a7f37"/>
-              <rect x="18" y="62" width="284" height="12" rx="2" stroke="currentColor" stroke-opacity="0.3" stroke-dasharray="4 3"/>
-              <text x="296" y="32" text-anchor="end" font-size="8.5" font-family="IBM Plex Mono, monospace" fill="#2f4bc3">V1 SPINE</text>
-              <text x="296" y="53" text-anchor="end" font-size="8" font-family="IBM Plex Mono, monospace" fill="#1a7f37">LANE -1 TTS</text>
-            </svg>
-            <h3>开放交换标准，零平台锁死</h3>
-            <p>所有项目状态存于单文件 SQLite；剪辑包按 <code>100/2400s</code> 帧网格生成 FCPXML v1.9、序号素材与 SRT 字幕</p>
-          </article>
         </div>
       </div>
     </section>
@@ -218,32 +92,27 @@
       <div class="container">
         <div class="section-header">
           <div>
-            <div class="eyebrow-row">
-              <span>01 / INTERACTIVE CONTACT SHEET &amp; TAKE DIFF</span>
-            </div>
-            <h2 class="display section-title">选中任意一格分镜，<br>真实对比重拍前后的每一帧细节</h2>
+            <h2 class="display section-title">单镜重拍与版本对比</h2>
           </div>
           <p class="section-desc">
-            以下为 KomaSlate 本地实拍工程《雨夜修表匠》真实素材，默认选中微距特写 <strong>S03</strong>：查看解绑误入角色并添加灯光批注前后的真实像素对比，或点击其余锁定镜头查看保护状态
+            点击任意分镜查看详情，或在 <strong>S03</strong> 对比移出误入角色、调整灯光批注前后的重拍画面。
           </p>
         </div>
 
         <div class="workbench-demo">
           <!-- Left: Contact Sheet -->
           <div class="contact-sheet">
-            <div class="slate-stripes" aria-hidden="true"></div>
             <div class="sheet-header">
-              <span class="sheet-title">《雨夜修表匠》分镜印样单</span>
-              <span class="mono" style="font-size:11.5px;color:var(--ink-subtle)">5 SHOTS · 24.0s · 4 LOCKED</span>
+              <span class="sheet-title">《雨夜修表匠》分镜</span>
+              <span style="font-size:12px;color:var(--ink-muted)">共 5 镜</span>
             </div>
 
-            <div class="shot-grid" role="group" aria-label="分镜印样选择">
+            <div class="shot-grid" role="group" aria-label="分镜选择">
               <button type="button" class="shot-cell" data-shot-key="s01" aria-pressed="false">
                 <div class="shot-thumb-wrap">
                   <img src="./assets/shots/r01.webp" alt="S01 阁楼全景" loading="lazy" width="720" height="720">
                   <span class="shot-num">01</span>
                   <span class="shot-dur">5s</span>
-                  <span class="shot-lock-badge">LOCKED</span>
                 </div>
                 <div class="shot-cell-body">
                   <div class="shot-cell-top"><span>S01 · 阁楼雨夜</span></div>
@@ -256,7 +125,6 @@
                   <img src="./assets/shots/r02.webp" alt="S02 俯身检修" loading="lazy" width="720" height="720">
                   <span class="shot-num">02</span>
                   <span class="shot-dur">5s</span>
-                  <span class="shot-lock-badge">LOCKED</span>
                 </div>
                 <div class="shot-cell-body">
                   <div class="shot-cell-top"><span>S02 · 镊子试探</span></div>
@@ -269,14 +137,13 @@
                   <img src="./assets/shots/r03-v2.webp" alt="S03 放大镜微距重拍" loading="eager" width="960" height="960">
                   <span class="shot-num">03</span>
                   <span class="shot-dur">4s</span>
-                  <span class="shot-lock-badge retake">2 TAKES · COMPARE</span>
+                  <span class="shot-lock-badge retake">已重拍</span>
                 </div>
                 <div class="shot-cell-body">
                   <div class="shot-cell-top">
                     <span>S03 · 放大镜微距咬合</span>
-                    <span class="mono" style="font-size:11px;color:var(--primary)">v1 ⇄ v2</span>
                   </div>
-                  <p class="shot-cell-desc">解绑误入镜内的「银白小猫」并定向补光重拍，暖琥珀灯束精准照亮铜齿轮齿牙</p>
+                  <p class="shot-cell-desc">解绑误入镜内的「银白小猫」并定向补光重拍，暖琥珀灯束照亮铜齿轮齿牙</p>
                   <div class="cast-row">
                     <span class="cast-pill">阿哲</span>
                     <span class="cast-pill muted">银白小猫</span>
@@ -289,7 +156,6 @@
                   <img src="./assets/shots/r04.webp" alt="S04 怀表复苏" loading="lazy" width="720" height="720">
                   <span class="shot-num">04</span>
                   <span class="shot-dur">5s</span>
-                  <span class="shot-lock-badge">LOCKED</span>
                 </div>
                 <div class="shot-cell-body">
                   <div class="shot-cell-top"><span>S04 · 怀表复苏</span></div>
@@ -302,7 +168,6 @@
                   <img src="./assets/shots/r05.webp" alt="S05 终幕定格" loading="lazy" width="720" height="720">
                   <span class="shot-num">05</span>
                   <span class="shot-dur">5s</span>
-                  <span class="shot-lock-badge">LOCKED</span>
                 </div>
                 <div class="shot-cell-body">
                   <div class="shot-cell-top"><span>S05 · 时光重流</span></div>
@@ -312,17 +177,17 @@
             </div>
           </div>
 
-          <!-- Right: Director Slate Inspector -->
+          <!-- Right: Shot Inspector -->
           <div class="director-inspector" aria-live="polite">
             <div class="inspector-header">
-              <span id="insp-shot-id" class="mono" style="font-size:12px;font-weight:500">DIRECTOR SLATE · S03 (4s)</span>
-              <span id="insp-status" class="micro-pill primary">2 TAKES</span>
+              <span id="insp-shot-id" class="mono" style="font-size:12px;font-weight:500">S03 · 4s</span>
+              <span id="insp-status" class="micro-pill primary">已重拍</span>
             </div>
 
             <div id="take-tabs" class="take-tabs" role="tablist" aria-label="S03 版本对比模式">
-              <button type="button" role="tab" class="take-tab is-active" data-take-mode="split" aria-selected="true">双栏并排对比 (v1 ⇄ v2)</button>
-              <button type="button" role="tab" class="take-tab" data-take-mode="v2" aria-selected="false">Take v2 · 琥珀光束重拍</button>
-              <button type="button" role="tab" class="take-tab" data-take-mode="v1" aria-selected="false">Take v1 · 重拍前快照</button>
+              <button type="button" role="tab" class="take-tab is-active" data-take-mode="split" aria-selected="true">双栏对比</button>
+              <button type="button" role="tab" class="take-tab" data-take-mode="v2" aria-selected="false">重拍后</button>
+              <button type="button" role="tab" class="take-tab" data-take-mode="v1" aria-selected="false">重拍前</button>
             </div>
 
             <div class="inspector-stage">
@@ -339,17 +204,11 @@
 
                 <div class="meta-box">
                   <div class="meta-label">
-                    <span>CAST BINDING &amp; DIALOGUE</span>
-                    <span>SHOT CHARACTER CHIPS</span>
+                    <span>角色与台词</span>
                   </div>
                   <div id="insp-cast" class="cast-row" style="margin-bottom:6px"></div>
                   <p id="insp-dialogue" style="font-size:13px;color:var(--ink-muted)"></p>
                 </div>
-              </div>
-
-              <div class="inspector-footer">
-                <span>其余 4 个已批准镜头保持 <strong>LOCKED</strong>，零额外 Token 消耗</span>
-                <span class="mono" style="font-size:11.5px;color:var(--primary)">POST /api/v1/versions/rollback</span>
               </div>
             </div>
           </div>
@@ -357,29 +216,21 @@
       </div>
     </section>
 
-    <!-- ==================== INTERACTIVE #2: FCPXML v1.9 EDITORIAL PACK ==================== -->
+    <!-- ==================== INTERACTIVE #2: EDITORIAL PACK ==================== -->
     <section class="section" id="fcpxml-pack">
       <div class="container">
         <div class="section-header">
           <div>
-            <div class="eyebrow-row">
-              <span>02 / OPEN TIMELINE &amp; ASSET PACK</span>
-            </div>
-            <h2 class="display section-title">拒绝私有加密草稿锁死，<br>一键导出标准时间线资产包</h2>
+            <h2 class="display section-title">导出非编时间线资产包</h2>
           </div>
           <p class="section-desc">
-            避开加密私有草稿断代风险，KomaSlate 直接打包按镜号命名的图像、视频切片、独立 TTS 干声、角色立绘、SRT 字幕与标准 <code>FCPXML v1.9</code> 时间线，拖入主流非编软件即可精剪
+            按镜号打包分镜首帧、视频切片、配音干声、SRT 字幕与时间线工程文件，直接拖入 DaVinci Resolve、Final Cut Pro 或 Premiere Pro 精剪。
           </p>
         </div>
 
         <div class="nle-panel">
-          <div class="slate-stripes" aria-hidden="true"></div>
           <div class="nle-toolbar">
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-              <span class="mono" style="font-size:12px;font-weight:500">editorial_1_e690bff47000.zip</span>
-              <span class="micro-pill">21 FILES · 19.3 MB</span>
-              <span class="micro-pill primary">FRAME GRID 100/2400s (24FPS)</span>
-            </div>
+            <span style="font-size:13.5px;font-weight:600">剪辑资产包目录与轨道</span>
             <div class="deploy-tab-list" role="tablist" aria-label="时间线预览切换">
               <button type="button" role="tab" class="take-tab is-active" data-nle-view="tracks" aria-selected="true">多轨时间线视图</button>
               <button type="button" role="tab" class="take-tab" data-nle-view="xml" aria-selected="false">timeline.fcpxml 源码</button>
@@ -388,16 +239,15 @@
 
           <div class="nle-body">
             <aside class="zip-tree" aria-label="剪辑包目录结构">
-              <div class="zip-tree-title">ARCHIVE TREE</div>
               <ul>
-                <li class="highlight"><span>timeline.fcpxml</span><span>v1.9</span></li>
-                <li><span>subtitles.srt</span><span>5 cues</span></li>
-                <li><span>manifest.json</span><span>meta</span></li>
-                <li><span>README_IMPORT.txt</span><span>guide</span></li>
-                <li><span>shots/01..05_clip.mp4</span><span>H.264</span></li>
-                <li><span>shots/01..05_frame.webp</span><span>stills</span></li>
-                <li><span>audio/01..05_tts.mp3</span><span>stems</span></li>
-                <li><span>characters/01..02.webp</span><span>refs</span></li>
+                <li class="highlight"><span>timeline.fcpxml</span><span>时间线</span></li>
+                <li><span>subtitles.srt</span><span>字幕</span></li>
+                <li><span>manifest.json</span><span>清单</span></li>
+                <li><span>README_IMPORT.txt</span><span>导入说明</span></li>
+                <li><span>shots/01..05_clip.mp4</span><span>分镜视频</span></li>
+                <li><span>shots/01..05_frame.webp</span><span>分镜首帧</span></li>
+                <li><span>audio/01..05_tts.mp3</span><span>配音干声</span></li>
+                <li><span>characters/01..02.webp</span><span>角色参考</span></li>
               </ul>
             </aside>
 
@@ -414,7 +264,7 @@
 
                 <div style="display:flex;flex-direction:column;gap:10px;margin-top:12px">
                   <div class="track-row">
-                    <span class="track-label">V1 SPINE</span>
+                    <span class="track-label">视频轨</span>
                     <div class="track-clips">
                       <div class="t-clip video-clip">01_shot_1 (5s)</div>
                       <div class="t-clip video-clip">02_shot_2 (5s)</div>
@@ -425,7 +275,7 @@
                   </div>
 
                   <div class="track-row">
-                    <span class="track-label">LANE -1 TTS</span>
+                    <span class="track-label">配音轨</span>
                     <div class="track-clips">
                       <div class="t-clip audio-clip">01_tts.mp3</div>
                       <div class="t-clip audio-clip">02_tts.mp3</div>
@@ -436,9 +286,9 @@
                   </div>
 
                   <div class="track-row">
-                    <span class="track-label">CAPTIONS</span>
+                    <span class="track-label">字幕轨</span>
                     <div class="track-clips">
-                      <div class="t-clip srt-clip">subtitles.srt · 5 条逐镜对齐时间轴字幕 + characters/ 角色设定参考卡</div>
+                      <div class="t-clip srt-clip">subtitles.srt · 5 条逐镜对齐字幕 + characters/ 角色设定参考图</div>
                     </div>
                   </div>
                 </div>
@@ -466,11 +316,6 @@
   &lt;/project&gt;&lt;/event&gt;&lt;/library&gt;
 &lt;/fcpxml&gt;</code></pre>
               </div>
-
-              <div class="nle-compat-row">
-                <span>原生兼容：<strong>DaVinci Resolve</strong> · <strong>Final Cut Pro</strong> · <strong>Adobe Premiere Pro</strong>（以及任意支持序号素材 + SRT 的桌面剪辑器）</span>
-                <span class="mono" style="font-size:11.5px">POST /api/v1/projects/{id}/export/editorial-pack</span>
-              </div>
             </div>
           </div>
         </div>
@@ -482,29 +327,25 @@
       <div class="container">
         <div class="section-header">
           <div>
-            <div class="eyebrow-row">
-              <span>03 / REAL PRODUCT SURFACES</span>
-            </div>
-            <h2 class="display section-title">从故事场记台到多宇宙资产库，<br>全链路界面实拍</h2>
+            <h2 class="display section-title">工作台界面</h2>
           </div>
           <p class="section-desc">
-            拒绝概念渲染图——下方每张截图均实拍自 KomaSlate 本地工作台（点击顶部「深色印版」按钮同步预览暗色外观）
+            从故事输入、多路导出到本地模型配置，开箱即用。
           </p>
         </div>
 
         <div class="bento-grid">
           <article class="bento-card bento-span-7">
             <div class="bento-copy">
-              <span class="mono" style="font-size:11px;color:var(--ink-subtle)">SLATE 01 · CREATION DESK</span>
-              <h3>导演场记台：一句梗概启动阶段式分镜规划</h3>
-              <p>自由切换「逐步确认」与「自动确认」，支持绑定共享故事宇宙、指定镜头数与上传角色参考图</p>
+              <h3>故事与创作设置</h3>
+              <p>输入故事创意，选择逐步确认或自动确认，按需绑定宇宙并上传参考图。</p>
             </div>
             <div class="bento-media">
               <img
                 src="./assets/screenshots/home.webp"
                 data-light-src="./assets/screenshots/home.webp"
                 data-dark-src="./assets/screenshots/home-dark.webp"
-                alt="KomaSlate 导演场记台首页实拍"
+                alt="KomaSlate 首页创作界面"
                 loading="lazy"
                 width="1600"
                 height="1000"
@@ -514,14 +355,13 @@
 
           <article class="bento-card bento-span-5">
             <div class="bento-copy">
-              <span class="mono" style="font-size:11px;color:var(--ink-subtle)">EXPORT &amp; SYNTHESIS</span>
-              <h3>三路交付菜单：MP4 成片、Webtoon 与 FCPXML 剪辑包</h3>
-              <p>既可内置自动配音、烧录字幕与压低人声处的背景音乐一键出片，也可随时导出非编工程包</p>
+              <h3>多路导出与成片合成</h3>
+              <p>合成配音、字幕与背景音乐直出 MP4，或导出条漫长图与非编剪辑包。</p>
             </div>
             <div class="bento-media" style="display:flex;flex-direction:column;gap:10px">
               <img
                 src="./assets/screenshots/export-menu.webp"
-                alt="KomaSlate 顶部导出菜单：版本对比、导出 Webtoon 与导出剪辑包 (ZIP + FCPXML)"
+                alt="KomaSlate 顶部导出菜单"
                 loading="lazy"
                 width="740"
                 height="354"
@@ -531,16 +371,15 @@
                 alt="KomaSlate 成片合成选项卡片"
                 loading="lazy"
                 width="480"
-                height="292"
+                height="366"
               >
             </div>
           </article>
 
           <article class="bento-card bento-span-6">
             <div class="bento-copy">
-              <span class="mono" style="font-size:11px;color:var(--ink-subtle)">BYOK SETTINGS</span>
-              <h3>透明自备密钥（BYOK）与服务商预设</h3>
-              <p>无平台积分抽成与黑盒扣费；在界面内一键填入自有 API 密钥并验证连通性</p>
+              <h3>模型服务商与密钥配置</h3>
+              <p>填入自有文本、图像、视频模型 API 密钥即可在本地直接调用。</p>
             </div>
             <div class="bento-media">
               <img
@@ -555,9 +394,8 @@
 
           <article class="bento-card bento-span-6">
             <div class="bento-copy">
-              <span class="mono" style="font-size:11px;color:var(--ink-subtle)">PROJECT ARCHIVE</span>
-              <h3>本地项目库与可恢复工作流状态</h3>
-              <p>断网、重启或上游超时均由 SQLite 租约与事件表兜底，随时从断点继续执行</p>
+              <h3>项目库与断点恢复</h3>
+              <p>运行状态与检查点保存在本地，中断后可随时从断点继续。</p>
             </div>
             <div class="bento-media">
               <img
@@ -573,61 +411,19 @@
       </div>
     </section>
 
-    <!-- ==================== BYOK MATRIX & DEPLOY ==================== -->
+    <!-- ==================== DEPLOY ==================== -->
     <section class="section" id="deploy">
       <div class="container">
         <div class="section-header">
           <div>
-            <div class="eyebrow-row">
-              <span>04 / BYOK PROVIDERS &amp; SELF-HOST</span>
-            </div>
-            <h2 class="display section-title">自备密钥接入主流模型，<br>一行命令本地启动</h2>
+            <h2 class="display section-title">一行命令本地启动</h2>
           </div>
           <p class="section-desc">
-            架构解耦为 TypeScript 确定性编排引擎（<code>engine/</code>）、FastAPI 网关（<code>backend/</code>）与 React Flow 画布（<code>frontend/</code>），共享单文件 SQLite，无需配置外部数据库或消息队列
+            支持 Docker Compose 一键启动，也可直接运行前后端源码（后端首次生成时自动拉起编排引擎）。
           </p>
         </div>
 
-        <div class="matrix-grid">
-          <div class="matrix-card plate-ticks">
-            <span class="mono" style="font-size:11px;color:var(--primary)">STAGE 01 · TEXT / LLM</span>
-            <h3>剧本拆解与分镜规划</h3>
-            <p style="margin:0;font-size:13.5px;color:var(--ink-muted)">负责大纲结构、角色设定提取、九宫格机位提示词与项目助手工具调用</p>
-            <div class="provider-tags">
-              <span>OpenAI Compatible</span>
-              <span>Anthropic Claude</span>
-              <span>Google Gemini</span>
-              <span>DeepSeek / Qwen</span>
-            </div>
-          </div>
-
-          <div class="matrix-card plate-ticks">
-            <span class="mono" style="font-size:11px;color:var(--primary)">STAGE 02 · IMAGE / REF</span>
-            <h3>角色定妆与参考图重绘</h3>
-            <p style="margin:0;font-size:13.5px;color:var(--ink-muted)">支持携带角色立绘参考图生成关键帧，配合本地 InsightFace 一致性嵌入评估</p>
-            <div class="provider-tags">
-              <span>Flux / fal.ai</span>
-              <span>OpenAI Images</span>
-              <span>Doubao Seedream</span>
-              <span>DashScope Wanx</span>
-            </div>
-          </div>
-
-          <div class="matrix-card plate-ticks">
-            <span class="mono" style="font-size:11px;color:var(--primary)">STAGE 03 · VIDEO &amp; AUDIO</span>
-            <h3>图生视频与音画合成</h3>
-            <p style="margin:0;font-size:13.5px;color:var(--ink-muted)">按锁定关键帧异步轮询生成镜头视频，结合 Edge TTS / OpenAI TTS 与 FFmpeg 混音</p>
-            <div class="provider-tags">
-              <span>Doubao Seedance</span>
-              <span>Kling / Wan 2.1</span>
-              <span>OpenAI / Sora API</span>
-              <span>Edge TTS + FFmpeg</span>
-            </div>
-          </div>
-        </div>
-
         <div class="deploy-box">
-          <div class="slate-stripes" aria-hidden="true"></div>
           <div class="deploy-tabs">
             <div class="deploy-tab-list" role="tablist" aria-label="本地启动方式">
               <button type="button" role="tab" class="take-tab is-active" data-deploy-tab="docker" aria-selected="true">Docker Compose 一键部署</button>
@@ -643,69 +439,6 @@ docker compose up -d
         </div>
       </div>
     </section>
-
-    <!-- ==================== ECOSYSTEM & PARTNERS ==================== -->
-    <section class="section section-alt" id="partners">
-      <div class="container">
-        <div class="section-header">
-          <div>
-            <div class="eyebrow-row">
-              <span>05 / ECOSYSTEM &amp; SPONSORS</span>
-            </div>
-            <h2 class="display section-title">生态伙伴与开源赞助</h2>
-          </div>
-          <p class="section-desc">
-            KomaSlate 坚持 MIT 开源与本地优先，不设云端订阅墙，持续研发由社区生态伙伴与 API 服务商赞助支持
-          </p>
-        </div>
-
-        <div class="partners-grid">
-          <article class="partner-card plate-ticks">
-            <div>
-              <div class="partner-top">
-                <span class="partner-name">Bloome</span>
-                <span class="micro-pill primary">FEATURED SPONSOR</span>
-              </div>
-              <p>
-                多 AI 角色协同创作空间——把剧本头脑风暴、世界观推演与多智能体讨论沉淀在同一张工作台上，为 KomaSlate 分镜前期的故事打磨提供灵感引擎
-              </p>
-            </div>
-            <div>
-              <a
-                href="https://bloome.im/app?utm_medium=github&amp;utm_source=Xeron2000-openOii-ivor-202607"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn-primary"
-              >
-                访问 Bloome 工作空间 ↗
-              </a>
-            </div>
-          </article>
-
-          <article class="partner-card slot-open">
-            <div>
-              <div class="partner-top">
-                <span class="partner-name">Preferred API Partner</span>
-                <span class="micro-pill">OPEN SLOT · 2026</span>
-              </div>
-              <p>
-                面向图像/视频生成 API 网关、推理云与创意开发者工具开放包月合作展位（GitHub README 首屏 + 官网生态栏直达转化）
-              </p>
-            </div>
-            <div>
-              <a
-                href="https://github.com/xeronsh/KomaSlate/issues/new"
-                target="_blank"
-                rel="noopener noreferrer"
-                class="btn-outline"
-              >
-                洽谈合作伙伴展位 ↗
-              </a>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
   </main>
 
   <footer class="site-footer">
@@ -713,5 +446,18 @@ docker compose up -d
       <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
         <svg viewBox="0 0 393.4 77.3" aria-hidden="true" class="brand-wordmark" style="height:19px" fill="none">
           <path d="M2.4 75.3Q1 75.3 1 74.3Q1 73.2 3 72.9L5 72.6Q7.2 72.3 8 71.5Q8.9 70.8 9.3 68.7L22.9 9.9Q23.4 7.8 22.9 7.1Q22.4 6.4 20.4 6L18.4 5.6Q17.1 5.3 17.1 4.5Q17.1 3.3 18.9 3.3H36.8Q38.3 3.3 38.3 4.4Q38.3 5.5 36.7 5.7L34.1 6Q31.9 6.2 31.1 7Q30.3 7.9 29.8 10L23.5 37.2Q23.3 38 23.8 38.3Q24.2 38.6 24.8 37.9L47.5 11.8Q51.8 6.7 48.2 6L46.3 5.6Q44.9 5.3 44.9 4.4Q44.9 3.3 46.5 3.3H63.6Q65 3.3 65 4.3Q65 5.5 63.4 5.6L61.4 5.8Q58.3 6.1 56 7.6Q53.7 9.1 50.3 13L34.6 30.9Q33.4 32.5 33.9 34.1L44.6 69.4Q45.1 71 45.8 71.7Q46.4 72.4 47.5 72.6L49.6 73Q50.8 73.3 50.8 74.1Q50.8 75.3 49.1 75.3H32.4Q31 75.3 31 74.3Q31 73.2 32.6 73L34.4 72.8Q38.3 72.3 37.1 67.9L29 40Q28.8 39.2 28.2 39.1Q27.6 39 27.1 39.6L23.3 43.9Q22.3 45 21.7 46.2Q21.1 47.4 20.7 48.9L16.2 68.6Q15.8 70.7 16.2 71.5Q16.7 72.3 18.7 72.6L21.1 73Q22.2 73.1 22.2 74.1Q22.2 75.3 20.4 75.3ZM67.4 76.2Q61.2 76.2 57.6 71Q54 65.9 54 57.1Q54 50.6 56.1 44.6Q58.2 38.6 61.6 33.9Q65.1 29.2 69.3 26.4Q73.6 23.7 77.9 23.7Q84.1 23.7 87.7 28.8Q91.3 33.9 91.3 42.8Q91.3 49.3 89.2 55.3Q87.1 61.3 83.7 66Q80.2 70.7 76 73.5Q71.7 76.2 67.4 76.2ZM67.2 73.8Q70.4 73.8 73.5 70.7Q76.5 67.6 79 62.5Q81.5 57.4 83 51.1Q84.5 44.9 84.5 38.6Q84.5 26.1 78 26.1Q74.9 26.1 71.8 29.1Q68.7 32.2 66.2 37.3Q63.8 42.4 62.3 48.6Q60.8 54.9 60.8 61.2Q60.8 73.8 67.2 73.8ZM152.5 76.2Q148.9 76.2 147.1 73.2Q145.3 70.2 146.9 63.9L154.6 34.9Q155.7 31 155 29.5Q154.2 28 152.8 28Q150.8 28 148.2 30.7Q145.6 33.5 142.8 38.2Q139.9 42.9 137.2 48.9Q134.5 54.9 132.2 61.4Q129.9 67.9 128.4 74.2Q128.1 75.3 127 75.3H123.1Q121.7 75.3 122 74L131.2 34.9Q132.1 31 131.5 29.5Q130.8 28 129.4 28Q127.5 28 124.9 30.7Q122.3 33.5 119.5 38.2Q116.7 42.9 114 48.9Q111.3 54.9 109 61.4Q106.7 67.9 105.3 74.2Q105 75.3 103.9 75.3H99.8Q98.4 75.3 98.7 74L108.2 34.1Q108.7 31.9 108.3 30.6Q108 29.4 106.5 29.4Q104.7 29.4 102.6 32Q100.4 34.7 97.7 42.1Q97.3 43.4 96.3 43.4Q94.8 43.4 95.5 41.6Q97.7 34.7 100.2 30.8Q102.6 26.9 105.1 25.3Q107.6 23.7 109.7 23.7Q113 23.7 114.4 26.1Q115.8 28.6 114.5 34.2L112 45Q111.9 45.7 112.3 45.8Q112.7 45.9 113 45.3Q118.8 33.3 123.5 28.5Q128.2 23.7 132.1 23.7Q135.8 23.7 137.4 26.7Q138.9 29.7 137.5 35.9L135.4 45Q135.3 45.7 135.7 45.8Q136.1 45.9 136.4 45.3Q140.2 37.2 143.6 32.4Q146.9 27.7 149.9 25.7Q152.9 23.7 155.5 23.7Q159.2 23.7 160.9 26.7Q162.6 29.7 160.9 35.9L153.3 64.9Q152.6 67.7 153.2 69.1Q153.8 70.5 155.4 70.5Q157.4 70.5 159.4 67.8Q161.3 65.2 163.4 57.8Q163.7 56.7 164.7 56.7Q165.5 56.7 165.7 57.3Q165.8 57.9 165.6 58.7Q163.7 65.5 161.5 69.3Q159.3 73.2 157.1 74.7Q154.8 76.2 152.5 76.2ZM176.8 76.2Q173.2 76.2 171.2 73.1Q169.2 70 169.2 64Q169.2 58.3 170.8 52.5Q172.4 46.8 175.2 41.6Q178 36.4 181.6 32.4Q185.1 28.4 189.1 26Q193 23.7 196.9 23.7Q198.8 23.7 200.5 24.4Q202.2 25.2 203.3 26.8Q203.9 27.7 204.5 27.7Q205.1 27.7 205.7 26.8Q206.8 25.2 207.5 24.7Q208.2 24.3 208.8 24.3Q210.1 24.3 209.8 25.7L200.9 64Q199.4 70.5 202.9 70.5Q205.2 70.5 207.1 67.4Q208.9 64.3 210.8 57.8Q211.1 56.7 212.1 56.7Q212.8 56.7 213 57.3Q213.2 57.9 213 58.7Q211.1 68.1 207.9 72.2Q204.7 76.2 200.2 76.2Q196.3 76.2 194.7 72.9Q193 69.6 194.3 63.9L195.6 58.4Q195.8 57.7 195.4 57.6Q194.9 57.5 194.6 58.1Q189.1 68.2 184.9 72.2Q180.6 76.2 176.8 76.2ZM179.3 71.1Q181.7 71.1 184.6 68.2Q187.5 65.3 190.4 60.7Q193.2 56.1 195.6 50.8Q198 45.5 199.4 40.6Q200.9 35.7 200.9 32.3Q200.9 26.2 196.6 26.2Q194 26.2 191.1 28.5Q188.2 30.9 185.6 34.9Q182.9 38.9 180.8 44Q178.6 49 177.3 54.5Q176 59.9 176 65.1Q176 68.6 176.9 69.8Q177.7 71.1 179.3 71.1Z" fill="currentColor"></path>
+          <path d="M233.6 76.2Q230.8 76.2 227.7 75.6Q224.5 75 221.8 73.9Q219 72.9 217.4 71.5Q216.9 71 216.8 70.5Q216.6 70 216.8 69L219.6 53.3Q219.9 51.5 221.2 51.5Q222.4 51.5 222.4 53.5L222.5 57.4Q222.7 65.8 225.4 69.5Q228.1 73.2 234.2 73.2Q239.8 73.2 243.5 69.2Q247.2 65.1 247.2 58.3Q247.2 53.9 244.8 49.1Q242.4 44.3 238.1 39.5Q233 33.8 230.6 29.1Q228.1 24.4 228.1 19.2Q228.1 15.1 230.1 11.2Q232.1 7.4 236.2 4.8Q240.2 2.3 246.5 2.3Q255.2 2.3 259.8 6.2Q261.2 7.3 260.8 9.5L258 24.1Q257.7 25.6 256.6 25.6Q255.5 25.6 255.3 23.9L255.2 21.8Q254.8 13.7 253 9.4Q251.1 5.2 245.6 5.2Q241.6 5.2 239.2 7Q236.8 8.8 235.7 11.4Q234.6 14.1 234.6 16.7Q234.6 19.6 235.4 22.2Q236.2 24.9 238.2 27.8Q240.1 30.8 243.5 35Q248.3 40.7 251 45.9Q253.7 51.1 253.7 56Q253.7 61.9 251.1 66.5Q248.4 71 243.9 73.6Q239.4 76.2 233.6 76.2ZM266.1 76.3Q262.8 76.3 261.4 73.8Q260 71.4 261.3 65.8L274 11.3Q274.5 9.5 274 8.8Q273.6 8.1 272.2 8L269.2 7.7Q267.7 7.6 267.9 6.4Q268.1 5.5 269.3 5.3Q272.9 4.7 275.7 3.8Q278.5 3 280.2 1.6Q281 1 281.7 1Q282.9 1 282.6 2.5L267.8 65.9Q267.3 68.1 267.6 69.3Q268 70.6 269.5 70.6Q271.3 70.6 273.4 67.9Q275.6 65.3 278.3 57.9Q278.7 56.6 279.7 56.6Q281.2 56.6 280.5 58.4Q278.4 65.2 275.9 69.1Q273.3 73.1 270.8 74.7Q268.3 76.3 266.1 76.3ZM291.6 76.2Q288 76.2 286 73.1Q284 70 284 64Q284 58.3 285.6 52.5Q287.2 46.8 290 41.6Q292.8 36.4 296.4 32.4Q299.9 28.4 303.9 26Q307.8 23.7 311.7 23.7Q313.6 23.7 315.3 24.4Q317 25.2 318.1 26.8Q318.7 27.7 319.3 27.7Q319.9 27.7 320.5 26.8Q321.6 25.2 322.3 24.7Q323 24.3 323.6 24.3Q324.9 24.3 324.6 25.7L315.7 64Q314.2 70.5 317.7 70.5Q320 70.5 321.9 67.4Q323.7 64.3 325.6 57.8Q325.9 56.7 326.9 56.7Q327.6 56.7 327.8 57.3Q328 57.9 327.8 58.7Q325.9 68.1 322.7 72.2Q319.5 76.2 315 76.2Q311.1 76.2 309.4 72.9Q307.8 69.6 309.1 63.9L310.4 58.4Q310.6 57.7 310.1 57.6Q309.7 57.5 309.4 58.1Q303.9 68.2 299.6 72.2Q295.4 76.2 291.6 76.2ZM294.1 71.1Q296.5 71.1 299.4 68.2Q302.3 65.3 305.1 60.7Q308 56.1 310.4 50.8Q312.8 45.5 314.2 40.6Q315.7 35.7 315.7 32.3Q315.7 26.2 311.4 26.2Q308.8 26.2 305.9 28.5Q303 30.9 300.4 34.9Q297.7 38.9 295.5 44Q293.4 49 292.1 54.5Q290.8 59.9 290.8 65.1Q290.8 68.6 291.6 69.8Q292.5 71.1 294.1 71.1ZM340.3 76.2Q336.9 76.2 335 73.5Q333.1 70.8 334.4 64.8L342.7 28.6Q343 27.1 341.5 27.1H337.7Q336.3 27.1 336.3 25.8Q336.3 25.1 336.8 24.7Q337.3 24.3 338 24.3H341.6Q343.9 24.3 344.3 22.2L346.7 11.5Q347 10.4 348.1 10.4H352.2Q353.6 10.4 353.3 11.7L350.8 22.8Q350.5 24.3 352 24.3H357.7Q359.4 24.3 359.4 25.6Q359.4 27.1 357.3 27.1H351.9Q349.7 27.1 349.2 29.2L340.8 65.8Q340.3 68 341 69.2Q341.6 70.5 343.2 70.5Q345.5 70.5 347.5 67.9Q349.4 65.3 351.6 58Q352 56.7 352.9 56.7Q353.6 56.7 353.8 57.3Q354 57.9 353.5 59.5Q351.6 66.3 349.4 69.9Q347.1 73.5 344.8 74.8Q342.5 76.2 340.3 76.2ZM369.4 76.2Q364.1 76.2 360.9 72Q357.7 67.9 357.7 60.3Q357.7 53.7 360 47.2Q362.4 40.7 366.2 35.4Q370 30.1 374.6 26.9Q379.1 23.7 383.4 23.7Q388.1 23.7 390.1 25.9Q392.2 28.2 392.2 32Q392.2 36.5 389 40.9Q385.9 45.4 380.2 48.9Q374.6 52.4 367 54.1Q364.8 54.6 364.7 56.6Q364.6 57.3 364.6 58Q364.6 58.8 364.6 59.5Q364.6 65.2 366.6 68.1Q368.5 71 371.9 71Q375.7 71 379.2 67.5Q382.8 64 385.2 57.6Q385.5 56.7 386.4 56.7Q387 56.7 387.1 57.2Q387.3 57.7 387.1 58.4Q383.9 67.2 379.4 71.7Q374.8 76.2 369.4 76.2ZM365.7 50.3Q365.5 51 365.9 51.4Q366.4 51.9 367.1 51.7Q373.3 50 377.5 46.5Q381.7 43.1 383.9 38.8Q386 34.5 386 30.4Q386 26.2 382.7 26.2Q379.8 26.2 376.4 29.6Q373 33 370.1 38.5Q367.2 44 365.7 50.3Z" class="fill-primary"></path>
+        </svg>
+        <span>MIT License</span>
+      </div>
 
-[Showing lines 1-716 of 733 (50.0KB limit). Use offset=717 to continue.]
+      <div class="footer-links">
+        <a href="https://github.com/xeronsh/KomaSlate" target="_blank" rel="noopener noreferrer">GitHub 仓库</a>
+        <a href="https://github.com/xeronsh/KomaSlate/issues" target="_blank" rel="noopener noreferrer">Issues 反馈</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="./app.js" defer></script>
+</body>
+</html>

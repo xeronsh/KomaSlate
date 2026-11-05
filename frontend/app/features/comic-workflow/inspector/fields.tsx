@@ -76,7 +76,7 @@ export function ActionButton({
 			// 危险操作用红字的安静按钮（填充红底时红字会看不见）
 			variant={primary && !danger ? "primary" : "ghost"}
 			size="sm"
-			className={`w-full justify-start gap-1.5 !h-8 !min-h-8 text-xs ${danger ? "text-error-fg hover:bg-error/10" : ""}`}
+			className={`w-full justify-start gap-1.5 text-xs ${danger ? "text-error-fg hover:bg-error/10" : ""}`}
 			disabled={disabled}
 			loading={loading}
 			onClick={onClick}

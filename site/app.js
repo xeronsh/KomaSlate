@@ -5,14 +5,13 @@
       title: "阁楼全景 · 雨夜停摆",
       duration: "5s",
       locked: true,
-      camera: "全景固定机位 · 暖黄台灯与冷蓝雨窗冷暖对撞",
+      camera: "全景固定机位",
       cast: ["阿哲", "银白小猫"],
       removedCast: [],
       dialogue: "旁白：「雨夜里，时间停了很久」",
-      statusText: "LOCKED · 单镜重拍 S03 期间字节级保持不动",
       v2Img: "./assets/shots/r01.webp",
-      v2Label: "Approved Frame · 已锁定保护",
-      note: "已通过审批门锁定：修改下游或重拍兄弟镜头不会重画本镜",
+      v2Label: "当前画面",
+      note: "已通过审批门锁定，重拍其他镜头时保持不动。",
     },
     s02: {
       id: "S02",
@@ -23,10 +22,9 @@
       cast: ["阿哲", "银白小猫"],
       removedCast: [],
       dialogue: "旁白：「他一次次，细细检修着」",
-      statusText: "LOCKED · 角色立绘参考与一致性向量已锚定",
       v2Img: "./assets/shots/r02.webp",
-      v2Label: "Approved Frame · 已锁定保护",
-      note: "复用阿哲与银白小猫定妆立绘，衣纹与暖灯色温跨镜一致",
+      v2Label: "当前画面",
+      note: "复用阿哲与银白小猫定妆立绘，跨镜保持衣纹与色温一致。",
     },
     s03: {
       id: "S03",
@@ -34,44 +32,41 @@
       duration: "4s",
       locked: false,
       hasDiff: true,
-      camera: "微距特写 · 圆形黄铜放大镜边框构图",
+      camera: "微距特写 · 黄铜放大镜构图",
       cast: ["阿哲"],
       removedCast: ["银白小猫"],
       dialogue: "旁白：「最后一处，轻轻咬合」",
-      statusText: "RETAKE v2 · 历史快照 v1 随时可双栏对比与 CAS 回退",
       v1Img: "./assets/shots/r03-v1.webp",
-      v1Label: "Take v1 · 原始生成（小猫误入镜内比例穿帮）",
+      v1Label: "重拍前（小猫误入穿帮）",
       v2Img: "./assets/shots/r03-v2.webp",
-      v2Label: "Take v2 · 解绑小猫 + 暖琥珀光束重拍",
-      note: "操作记录：在检查器取消「银白小猫」出场标签，输入导演批注「暖琥珀台灯光束更集中地照在铜齿轮齿牙上，背景冷蓝雨窗焦外光斑更明显」后仅重绘 S03",
+      v2Label: "重拍后（解绑小猫 + 琥珀光束）",
+      note: "移出「银白小猫」出场绑定并补充暖琥珀台灯光束批注后，仅重绘 S03。",
     },
     s04: {
       id: "S04",
       title: "怀表复苏 · 掌心齿轮轻转",
       duration: "5s",
       locked: true,
-      camera: "近景正面 · 暖光映照面部神情",
+      camera: "近景正面",
       cast: ["阿哲"],
       removedCast: [],
       dialogue: "旁白：「滴答声，终于回来了」",
-      statusText: "LOCKED · 视频与配音音轨完整保留",
       v2Img: "./assets/shots/r04.webp",
-      v2Label: "Approved Frame · 已锁定保护",
-      note: "S03 重绘仅使总成片标记为需重合成，S04 视频切片无需重跑模型",
+      v2Label: "当前画面",
+      note: "已锁定保护，视频切片与配音音轨直接保留。",
     },
     s05: {
       id: "S05",
       title: "终幕定格 · 一人一猫凝望时光",
       duration: "5s",
       locked: true,
-      camera: "中景拉远 · 首尾呼应构图",
+      camera: "中景拉远",
       cast: ["阿哲", "银白小猫"],
       removedCast: [],
       dialogue: "旁白：「时间，又缓缓流动起来」",
-      statusText: "LOCKED · 已就绪并写入 FCPXML 主磁道",
       v2Img: "./assets/shots/r05.webp",
-      v2Label: "Approved Frame · 已锁定保护",
-      note: "可直接合成 MP4 成片，或连同分轨语音导出为 FCPXML v1.9 资产包",
+      v2Label: "当前画面",
+      note: "已锁定并就绪，可直出 MP4 或导出时间线资产包。",
     },
   };
 
@@ -85,7 +80,7 @@ docker compose up -d
 cd backend && uv sync
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 18765
 
-# 新开终端启动画布前端 (:5173)
+# 新开终端启动画布前端 (:15173)
 cd frontend && pnpm install && pnpm dev`,
   };
 
@@ -109,7 +104,11 @@ cd frontend && pnpm install && pnpm dev`,
       localStorage.setItem("komaslate-site-theme", theme);
     } catch (_) {}
     if (themeLabel) {
-      themeLabel.textContent = theme === "dark" ? "暖纸原稿" : "深色印版";
+      themeLabel.textContent = theme === "dark" ? "浅色" : "深色";
+    }
+    const themeMeta = document.querySelector('meta[name="theme-color"]');
+    if (themeMeta) {
+      themeMeta.setAttribute("content", theme === "dark" ? "#0f1018" : "#f7f5f0");
     }
     syncThemeImages(theme);
   }
@@ -156,9 +155,9 @@ cd frontend && pnpm install && pnpm dev`,
       btn.setAttribute("aria-pressed", String(selected));
     });
 
-    if (inspShotId) inspShotId.textContent = `DIRECTOR SLATE · ${shot.id} (${shot.duration})`;
+    if (inspShotId) inspShotId.textContent = `${shot.id} · ${shot.duration}`;
     if (inspStatus) {
-      inspStatus.textContent = shot.locked ? "LOCKED" : "2 TAKES";
+      inspStatus.textContent = shot.locked ? "已锁定" : "已重拍";
       inspStatus.className = "micro-pill " + (shot.locked ? "success" : "primary");
     }
     if (inspTitle) inspTitle.textContent = shot.title;
@@ -198,16 +197,16 @@ cd frontend && pnpm install && pnpm dev`,
       compareContainer.className = "compare-split";
       compareContainer.innerHTML = `
         <figure class="take-frame" style="margin:0">
-          <img src="${shot.v1Img}" alt="${shot.id} Take v1" loading="eager" decoding="async">
+          <img src="${shot.v1Img}" alt="${shot.id} 重拍前" loading="eager" decoding="async">
           <figcaption class="take-caption">
-            <span>Take v1 · 重拍前快照</span>
-            <span class="take-badge warn">比例穿帮</span>
+            <span>重拍前</span>
+            <span class="take-badge warn">穿帮</span>
           </figcaption>
         </figure>
         <figure class="take-frame highlight" style="margin:0">
-          <img src="${shot.v2Img}" alt="${shot.id} Take v2" loading="eager" decoding="async">
+          <img src="${shot.v2Img}" alt="${shot.id} 重拍后" loading="eager" decoding="async">
           <figcaption class="take-caption">
-            <span>Take v2 · 定向重拍后</span>
+            <span>重拍后</span>
             <span class="take-badge good">当前采用</span>
           </figcaption>
         </figure>
@@ -218,7 +217,7 @@ cd frontend && pnpm install && pnpm dev`,
       const src = showV1 ? shot.v1Img : shot.v2Img;
       const label = showV1 ? shot.v1Label : shot.v2Label;
       const badgeCls = showV1 ? "warn" : "good";
-      const badgeTxt = showV1 ? "历史快照 v1" : shot.locked ? "LOCKED" : "ACTIVE v2";
+      const badgeTxt = showV1 ? "历史版本" : shot.locked ? "已锁定" : "当前采用";
       compareContainer.innerHTML = `
         <figure class="take-frame highlight" style="margin:0">
           <img src="${src}" alt="${shot.id}" loading="eager" decoding="async">

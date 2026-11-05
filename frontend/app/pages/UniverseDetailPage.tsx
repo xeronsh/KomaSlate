@@ -222,13 +222,9 @@ export function UniverseDetailPage() {
 			<PageBody className="workbench-surface">
 				<PageContent>
 				<PageHeader
-					eyebrow="宇宙详情"
 					title={u.name}
 					plainTitle
-					description={
-						u.description ||
-						"尚未填写简介 · 可在右侧编辑设定"
-					}
+					description={u.description || undefined}
 					meta={`${u.chapters.length} 章节 · ${u.shared_characters.length} 角色`}
 					actions={
 						<>
@@ -297,7 +293,7 @@ export function UniverseDetailPage() {
 								}
 							/>
 						) : (
-							<div className="flex flex-col gap-2">
+							<div className="divide-y divide-line overflow-hidden rounded-md border border-line bg-paper-100/60">
 								{[...u.chapters]
 									.sort(
 										(a, b) =>
@@ -306,7 +302,7 @@ export function UniverseDetailPage() {
 									.map((ch) => (
 										<div
 											key={ch.id}
-											className="flex min-h-10 items-center justify-between gap-2 rounded-md border border-line bg-paper-200/50 px-2 py-1.5 transition-colors duration-fast hover:bg-paper-200"
+											className="flex min-h-10 items-center justify-between gap-2 px-3 py-2 transition-colors duration-fast hover:bg-paper-200/70"
 										>
 											<div className="flex min-w-0 items-center gap-2">
 												{ch.chapter_number != null ? (
@@ -314,27 +310,24 @@ export function UniverseDetailPage() {
 														第{ch.chapter_number}章
 													</span>
 												) : (
-													<span className="badge-doodle bg-paper-100/80 text-ink-muted border-line text-xs px-2 py-0.5 shrink-0">
+													<span className="badge-doodle bg-paper-200 text-ink-muted border-line text-xs px-2 py-0.5 shrink-0">
 														未编号
 													</span>
 												)}
 												<Link
 													to={`/project/${ch.project_id}`}
-													className="truncate text-sm font-bold transition-colors duration-fast hover:text-primary"
+													className="truncate text-sm font-semibold text-ink transition-colors duration-fast hover:text-primary"
 												>
 													{ch.chapter_title || ch.project_title || "未命名"}
 												</Link>
-												<span className="font-mono text-xs text-ink-muted">
-													#{ch.project_id}
-												</span>
 												{!ch.is_main_story ? (
-													<span className="badge-doodle bg-paper-100/80 text-ink-muted border-line text-xs px-1.5 py-0.5 shrink-0">
+													<span className="badge-doodle bg-paper-200 text-ink-muted border-line text-xs px-1.5 py-0.5 shrink-0">
 														外传
 													</span>
 												) : null}
 											</div>
 											<IconButton
-								className="text-ink-muted hover:bg-error-bg hover:text-error-fg focus-visible:text-error-fg"
+												className="text-ink-muted hover:bg-error-bg hover:text-error-fg focus-visible:text-error-fg"
 												aria-label={`从宇宙移除${ch.chapter_title || ch.project_title || "未命名项目"}`}
 												title="从宇宙移除"
 												onClick={() =>
@@ -450,7 +443,7 @@ export function UniverseDetailPage() {
 						}
 					/>
 					<label className="flex flex-col">
-						<span className="text-xs font-bold">简介</span>
+						<span className="label text-ink">简介</span>
 						<textarea
 							className="input-doodle mt-1 min-h-16 resize-y bg-paper-100 p-2.5 text-sm"
 							value={editForm.description}
@@ -460,7 +453,7 @@ export function UniverseDetailPage() {
 						/>
 					</label>
 					<label className="flex flex-col">
-						<span className="text-xs font-bold">世界观</span>
+						<span className="label text-ink">世界观</span>
 						<textarea
 							className="input-doodle mt-1 min-h-20 resize-y bg-paper-100 p-2.5 text-sm"
 							value={editForm.world_setting}
@@ -470,7 +463,7 @@ export function UniverseDetailPage() {
 						/>
 					</label>
 					<label className="flex flex-col">
-						<span className="text-xs font-bold">风格规则</span>
+						<span className="label text-ink">风格规则</span>
 						<textarea
 							className="input-doodle mt-1 min-h-16 resize-y bg-paper-100 p-2.5 text-sm"
 							value={editForm.style_rules}
@@ -515,7 +508,7 @@ export function UniverseDetailPage() {
 						}
 					/>
 					<label className="flex flex-col">
-						<span className="text-xs font-bold">描述</span>
+						<span className="label text-ink">描述</span>
 						<textarea
 							className="input-doodle mt-1 min-h-16 resize-y bg-paper-100 p-2.5 text-sm"
 							value={charForm.description}
@@ -525,7 +518,7 @@ export function UniverseDetailPage() {
 						/>
 					</label>
 					<label className="flex flex-col">
-						<span className="text-xs font-bold">视觉笔记</span>
+						<span className="label text-ink">视觉笔记</span>
 						<textarea
 							className="input-doodle mt-1 min-h-16 resize-y bg-paper-100 p-2.5 text-sm"
 							value={charForm.visual_notes}

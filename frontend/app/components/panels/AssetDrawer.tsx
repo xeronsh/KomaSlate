@@ -156,7 +156,7 @@ function CreateAssetForm({ isOpen, onClose, onCreated }: CreateAssetFormProps) {
 					<Button
 						variant="ghost"
 						size="sm"
-						className="!h-7 !min-h-7 !px-1"
+						className="!h-7 !px-1"
 						onClick={handleClose}
 						aria-label="关闭新建资产"
 					>
@@ -164,18 +164,17 @@ function CreateAssetForm({ isOpen, onClose, onCreated }: CreateAssetFormProps) {
 					</Button>
 				</div>
 
-				<div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-2.5">
+				<div className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
 					{/* Name */}
-					<div className="flex flex-col">
-						<label className="block py-1">
-							<span className="text-xs font-medium text-xs font-medium">
-								名称 <span className="text-error-fg">*</span>
-							</span>
+					<div className="flex flex-col gap-1">
+						<label htmlFor="create-asset-name" className="label text-ink">
+							名称 <span className="text-error-fg">*</span>
 						</label>
 						<input
+							id="create-asset-name"
 							type="text"
 							placeholder="输入资产名称"
-							className="input-doodle w-full text-xs"
+							className="input-doodle h-8 w-full px-2.5 text-xs"
 							value={name}
 							onChange={(e) => setName(e.target.value)}
 							maxLength={100}
@@ -183,56 +182,53 @@ function CreateAssetForm({ isOpen, onClose, onCreated }: CreateAssetFormProps) {
 					</div>
 
 					{/* Type */}
-					<div className="flex flex-col">
-						<label className="block py-1">
-							<span className="text-xs font-medium text-xs font-medium">
-								类型 <span className="text-error-fg">*</span>
-							</span>
-						</label>
+					<div className="flex flex-col gap-1">
+						<span className="label text-ink">
+							类型 <span className="text-error-fg">*</span>
+						</span>
 						<div className="flex gap-2">
 							<PlainButton
-								className={`flex-1 btn-doodle h-7 min-h-7 gap-1 px-2 text-xs ${
+								className={`flex-1 btn-doodle h-8 touch-target-dense justify-center gap-1 px-2 text-xs ${
 									assetType === "character"
-										? "bg-primary text-primary-content"
-										: "bg-transparent bg-transparent border-transparent shadow-none hover:bg-paper-200"
+										? "border-primary bg-primary text-primary-content"
+										: "border-line bg-paper-100 text-ink-muted hover:border-border-strong hover:text-ink"
 								}`}
 								onClick={() => setAssetType("character")}
 							>
-								<SvgIcon name="star" size={12} className="mr-1" />
+								<SvgIcon name="star" size={12} />
 								角色
 							</PlainButton>
 							<PlainButton
-								className={`flex-1 btn-doodle h-7 min-h-7 gap-1 px-2 text-xs ${
+								className={`flex-1 btn-doodle h-8 touch-target-dense justify-center gap-1 px-2 text-xs ${
 									assetType === "scene"
-										? "bg-primary text-primary-content"
-										: "bg-transparent bg-transparent border-transparent shadow-none hover:bg-paper-200"
+										? "border-primary bg-primary text-primary-content"
+										: "border-line bg-paper-100 text-ink-muted hover:border-border-strong hover:text-ink"
 								}`}
 								onClick={() => setAssetType("scene")}
 							>
-								<SvgIcon name="image" size={12} className="mr-1" />
+								<SvgIcon name="image" size={12} />
 								场景
 							</PlainButton>
 						</div>
 					</div>
 
 					{/* Description */}
-					<div className="flex flex-col">
-						<label className="block py-1">
-							<span className="text-xs font-medium text-xs font-medium">描述</span>
+					<div className="flex flex-col gap-1">
+						<label htmlFor="create-asset-description" className="label text-ink">
+							描述
 						</label>
 						<textarea
+							id="create-asset-description"
 							placeholder="输入资产描述（可选）"
-							className="input-doodle w-full text-xs h-16"
+							className="input-doodle h-16 w-full resize-y p-2 text-xs"
 							value={description}
 							onChange={(e) => setDescription(e.target.value)}
 						/>
 					</div>
 
 					{/* Image upload */}
-					<div className="flex flex-col">
-						<label className="block py-1">
-							<span className="text-xs font-medium text-xs font-medium">图片</span>
-						</label>
+					<div className="flex flex-col gap-1">
+						<span className="label text-ink">图片</span>
 						{imagePreview ? (
 							<div className="relative group">
 								<img
@@ -291,7 +287,7 @@ function CreateAssetForm({ isOpen, onClose, onCreated }: CreateAssetFormProps) {
 					)}
 
 					{/* Actions */}
-					<div className="flex gap-2 mt-auto pt-2">
+					<div className="flex gap-2 mt-auto border-t border-line pt-3">
 						<Button
 							variant="ghost"
 							size="sm"
@@ -333,8 +329,8 @@ function AssetCard({
 	isUsing: boolean;
 }) {
 	return (
-		<div className="card-doodle p-2 bg-paper-200 border border-line hover:border-primary/40 transition-colors duration-fast">
-			<figure className="h-32 bg-paper-300 overflow-hidden">
+		<div className="card-doodle flex flex-col p-2 bg-paper-100 border border-line hover:border-primary/40 transition-colors duration-fast">
+			<figure className="m-0 h-28 overflow-hidden rounded-sm border border-line bg-paper-200">
 				{asset.image_url ? (
 					<img
 						src={getStaticUrl(asset.image_url) ?? undefined}
@@ -344,35 +340,35 @@ function AssetCard({
 						{...imageReady}
 					/>
 				) : (
-					<div className="flex items-center justify-center w-full h-full text-ink-faint">
-						<SvgIcon name="image" size={32} />
+					<div className="media-blank flex items-center justify-center w-full h-full text-ink-faint">
+						<SvgIcon name="image" size={24} />
 					</div>
 				)}
 			</figure>
-			<div className="flex flex-col gap-2 p-4 p-2 gap-1">
+			<div className="flex flex-1 flex-col gap-1.5 pt-2">
 				<div className="flex items-center gap-1">
-					<span className="badge-doodle text-xs px-1.5 py-0.5 bg-transparent text-ink border-line-strong shrink-0">
+					<span className="badge-doodle text-xs px-1.5 py-0.5 bg-paper-200 text-ink-muted border-line shrink-0">
 						{asset.asset_type === "character"
 							? "角色"
 							: asset.asset_type === "scene"
 								? "场景"
 								: "风格"}
 					</span>
-					<h4 className="text-xs font-bold flex-1 truncate">{asset.name}</h4>
+					<h4 className="m-0 text-xs font-semibold text-ink flex-1 truncate">{asset.name}</h4>
 				</div>
 				{asset.description && (
-					<p className="text-xs text-ink-muted line-clamp-2">
+					<p className="m-0 text-xs text-ink-muted line-clamp-2">
 						{asset.description}
 					</p>
 				)}
-				<div className="flex items-center justify-end gap-1 mt-0.5">
+				<div className="mt-auto flex items-center justify-end gap-1 pt-1">
 					{projectId &&
 						(asset.asset_type === "character" ||
 							asset.asset_type === "scene") && (
 							<Button
 								variant="ghost"
 								size="sm"
-								className="!px-1.5 !py-0 !min-h-0 !h-5 text-xs text-primary"
+								className="!px-1.5 !py-0 !min-h-0 !h-6 text-xs text-primary"
 								onClick={() => onUse(asset)}
 								disabled={isUsing}
 								title="添加到当前项目"
@@ -384,7 +380,7 @@ function AssetCard({
 					<Button
 						variant="ghost"
 						size="sm"
-						className="!px-1 !py-0 !min-h-0 !h-5 text-xs text-ink-muted hover:text-error-fg focus-visible:text-error-fg"
+						className="!px-1 !py-0 !min-h-0 !h-6 text-xs text-ink-muted hover:bg-error-bg hover:text-error-fg focus-visible:text-error-fg"
 						onClick={() => onDelete(asset)}
 						aria-label={`删除资产 ${asset.name}`}
 						title="删除资产"
@@ -452,15 +448,15 @@ export function AssetDrawer({ open, onClose, projectId }: AssetDrawerProps) {
 				onClose={onClose}
 				variant="sheet-right"
 				labelledBy="asset-drawer-title"
-				className="w-72"
+				className="flex w-72 flex-col"
 			>
-				<div className="flex items-center justify-between border-b border-line px-2.5 py-2">
+				<div className="flex shrink-0 items-center justify-between border-b border-line px-3 py-2.5">
 					<div className="flex items-center gap-1.5">
 						<SvgIcon name="archive" size={14} className="text-primary" />
 						<h3 id="asset-drawer-title" className="m-0 text-sm font-bold">
 							资产库
 						</h3>
-						<span className="badge-doodle text-xs px-1.5 py-0.5 bg-paper-100/80 text-ink-muted border-line tabular-nums">
+						<span className="badge-doodle text-xs px-1.5 py-0.5 bg-paper-200 text-ink-muted border-line tabular-nums">
 							{data?.total ?? 0}
 						</span>
 					</div>
@@ -468,7 +464,7 @@ export function AssetDrawer({ open, onClose, projectId }: AssetDrawerProps) {
 						<Button
 							variant="ghost"
 							size="sm"
-							className="!h-7 !min-h-7 !px-1 text-primary"
+							className="!h-7 !px-1.5 text-primary"
 							onClick={() => setShowCreateForm(true)}
 							title="新建资产"
 							aria-label="新建资产"
@@ -478,7 +474,7 @@ export function AssetDrawer({ open, onClose, projectId }: AssetDrawerProps) {
 						<Button
 							variant="ghost"
 							size="sm"
-							className="!h-7 !min-h-7 !px-1"
+							className="!h-7 !px-1.5"
 							onClick={onClose}
 							aria-label="关闭资产库"
 						>
@@ -487,14 +483,14 @@ export function AssetDrawer({ open, onClose, projectId }: AssetDrawerProps) {
 					</div>
 				</div>
 
-				<div className="flex border-b border-line">
+				<div className="flex shrink-0 border-b border-line bg-paper-200/50">
 					{ASSET_TABS.map((tab) => (
 						<PlainButton
 							key={tab.key}
-							className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium transition-colors duration-fast border-b-2 -mb-0.5 ${
+							className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium transition-colors duration-fast border-b-2 -mb-px ${
 								activeTab === tab.key
-									? "border-primary text-primary"
-									: "border-transparent text-ink-muted hover:text-ink-muted"
+									? "border-primary bg-surface text-primary font-semibold"
+									: "border-transparent text-ink-muted hover:text-ink"
 							}`}
 							onClick={() => setActiveTab(tab.key)}
 						>
@@ -505,43 +501,47 @@ export function AssetDrawer({ open, onClose, projectId }: AssetDrawerProps) {
 				</div>
 
 				{/* Search */}
-				<div className="px-3 pt-2">
+				<div className="shrink-0 border-b border-line px-3 py-2">
 					<input
-						type="text"
+						type="search"
 						placeholder="搜索资产名称…"
-						className="input-doodle w-full text-xs"
+						aria-label="搜索资产名称"
+						className="input-doodle h-8 w-full px-2.5 text-xs"
 						value={search}
 						onChange={(e) => setSearch(e.target.value)}
 					/>
 				</div>
 
 				{/* Content */}
-				<div
-					className="p-3 overflow-y-auto"
-					style={{ height: "calc(100vh - 160px)" }}
-				>
+				<div className="min-h-0 flex-1 overflow-y-auto p-3">
 					{isLoading ? (
-						<div className="flex items-center justify-center py-8">
-							<span className="spinner-doodle h-4 w-4 text-primary" />
+						<div className="grid grid-cols-2 gap-2" role="status" aria-busy="true" aria-label="正在加载资产">
+							{[0, 1, 2, 3].map((idx) => (
+								<div key={idx} className="card-doodle p-2" aria-hidden="true">
+									<div className="skeleton-line h-28 w-full rounded-sm" />
+									<div className="skeleton-line mt-2 h-3.5 w-2/3" />
+									<div className="skeleton-line mt-1.5 h-3 w-full" />
+								</div>
+							))}
 						</div>
 					) : items.length === 0 ? (
-						<div className="text-center text-xs text-ink-muted py-8">
+						<div className="corner-marks rounded-md border border-dashed border-line bg-paper-100/60 px-3 py-8 text-center text-xs text-ink-muted">
 							<SvgIcon
 								name="layers"
 								size={24}
 								className="mx-auto mb-2 text-ink-faint"
 							/>
 							{search ? (
-								<p>没有匹配的资产</p>
+								<p className="m-0 font-semibold text-ink">没有匹配的资产</p>
 							) : (
 								<>
-									<p>还没有保存的资产</p>
-									<p className="text-ink-subtle mt-1">
-										点击{" "}
+									<p className="m-0 font-semibold text-ink">还没有保存的资产</p>
+									<p className="m-0 mt-1 text-ink-muted">
+										点击右上角{" "}
 										<SvgIcon name="plus" size={12} className="inline" />{" "}
 										新建，或在画布角色卡片点击{" "}
 										<SvgIcon name="star" size={12} className="inline" />{" "}
-										可添加
+										收藏复用
 									</p>
 								</>
 							)}

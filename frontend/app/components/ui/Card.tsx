@@ -31,12 +31,8 @@ export function Card({
       style={style}
     >
       {title && (
-        <h3 className="mb-2 flex items-center gap-1.5 text-md font-bold">
-          {typeof title === "string" ? (
-            <span className="underline-sketch">{title}</span>
-          ) : (
-            title
-          )}
+        <h3 className="mb-2.5 flex items-center gap-1.5 border-b border-line pb-2 text-md font-semibold text-ink">
+          {typeof title === "string" ? <span>{title}</span> : title}
         </h3>
       )}
       {children}
