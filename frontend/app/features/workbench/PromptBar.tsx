@@ -124,6 +124,15 @@ export function PromptBar({
 				) : awaitingConfirm && gateLabel ? null : (
 					<span className={`${chipClass} border-line text-ink-muted`}>整个项目</span>
 				)}
+				{awaitingConfirm ? (
+					<PlainButton
+						className="ml-auto inline-flex touch-target-dense shrink-0 items-center gap-1 rounded-full bg-primary px-2.5 text-xs font-semibold text-primary-content transition-colors duration-fast hover:bg-primary-hover"
+						onClick={() => onConfirm(undefined)}
+					>
+						<SvgIcon name="check" size={12} />
+						确认继续
+					</PlainButton>
+				) : null}
 			</div>
 			<MessageInput
 				value={input}

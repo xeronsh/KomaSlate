@@ -26,17 +26,33 @@ export function MultiShotActions({
 		void (async () => {
 			setBusy(type);
 			try {
-				await Promise.all(shotIds.map((id) => shotsApi.regenerate(id, type)));
-				queryClient.invalidateQueries({ queryKey: ["shots", projectId] });
-				toast.success({
-					title: type === "image" ? "批量重做首帧" : "批量重做视频",
-					message: `已为 ${shotIds.length} 格启动任务`,
-				});
-			} catch (error) {
-				toast.error({
-					title: "批量重做失败",
-					message: errorMessage(error, "请重试"),
-				});
+				const settled = await Promise.allSettled(
+					shotIds.map((id) => shotsApi.regenerate(id, type)),
+				);
+				const succeeded = settled.filter((r) => r.status === "fulfilled").length;
+				const failed = shotIds.length - succeeded;
+				if (succeeded > 0) {
+					queryClient.invalidateQueries({ queryKey: ["shots", projectId] });
+				}
+				if (failed === 0) {
+					toast.success({
+						title: type === "image" ? "批量重做首帧" : "批量重做视频",
+						message: `已为 ${shotIds.length} 格启动任务`,
+					});
+				} else if (succeeded > 0) {
+					toast.warning({
+						title: "部分分镜重做已启动",
+						message: `已启动 ${succeeded} 格，${failed} 格失败`,
+					});
+				} else {
+					const firstReason = settled.find(
+						(r): r is PromiseRejectedResult => r.status === "rejected",
+					)?.reason;
+					toast.error({
+						title: "批量重做失败",
+						message: errorMessage(firstReason, "请重试"),
+					});
+				}
 			} finally {
 				setBusy(null);
 			}

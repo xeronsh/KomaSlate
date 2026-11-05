@@ -8,6 +8,7 @@ import {
 import { useEffect, useState } from "react";
 import { PlainButton } from "~/components/ui/PlainButton";
 import { SvgIcon } from "~/components/ui/SvgIcon";
+import { WORKFLOW_STEPS } from "~/utils/workflowSteps";
 import "~/components/ui/icons/workbenchIcons";
 
 /** 创建运行在途的秒数；不在途时为 0。超过 10 秒就要说清楚还在等什么（P1-1）。 */
@@ -133,6 +134,31 @@ export function StudioControls({
 					aria-hidden="true"
 				/>
 				<span className="truncate">{pillText}</span>
+				{studioStatus.step ? (
+					<span aria-hidden="true" className="ml-0.5 hidden items-center gap-0.5 md:inline-flex">
+						{WORKFLOW_STEPS.map((s, idx) => {
+							const done = idx < studioStatus.step!.index;
+							const current = idx === studioStatus.step!.index;
+							const tone = awaitingConfirm
+								? done
+									? "bg-primary-content"
+									: current
+										? "bg-primary-content/60"
+										: "bg-primary-content/25"
+								: done
+									? "bg-primary"
+									: current
+										? "bg-primary/60"
+										: "bg-paper-300";
+							return (
+								<span
+									key={s.key}
+									className={`h-1.5 w-1.5 rounded-full transition-colors duration-fast ${tone}`}
+								/>
+							);
+						})}
+					</span>
+				) : null}
 				{studioStatus.pendingCount > 0 ? (
 					<span className="rounded-full bg-paper-100 px-1.5 text-ink">{studioStatus.pendingCount}</span>
 				) : null}

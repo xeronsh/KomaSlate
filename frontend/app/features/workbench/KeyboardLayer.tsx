@@ -100,8 +100,12 @@ export function KeyboardLayer({
 				setOpen("help");
 			}
 		};
+		const offPalette = canvasEvents.on("open-command-palette", () => setOpen("palette"));
 		window.addEventListener("keydown", onKey);
-		return () => window.removeEventListener("keydown", onKey);
+		return () => {
+			offPalette();
+			window.removeEventListener("keydown", onKey);
+		};
 	}, []);
 
 	return (

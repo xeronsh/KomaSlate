@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { Select } from "~/components/ui/Select";
 import type { Universe } from "~/types";
-import { STYLE_CATEGORIES } from "./styleCategories";
+import { STYLE_CATEGORIES, styleLabel } from "./styleCategories";
 import { Button } from "../../components/ui/Button";
 import { PlainButton } from "../../components/ui/PlainButton";
 
@@ -33,9 +33,37 @@ export function CreationSettings({ value, onChange, universes, disabled }: Creat
 	);
 	useEffect(() => () => previews.forEach((url) => URL.revokeObjectURL(url)), [previews]);
 
+	const selectedUniverseName = universes.find((u) => u.id === value.universeId)?.name;
+
 	return (
 		<details className="border-t border-line pt-2">
-			<summary className="touch-target-dense cursor-pointer py-2 text-xs font-bold">画面设置（可选）· 风格、宇宙、参考图、镜头与角色</summary>
+			<summary className="touch-target-dense flex cursor-pointer flex-wrap items-center justify-between gap-2 py-2 text-xs font-bold">
+				<span>画面设置（可选）· 风格、宇宙、参考图、镜头与角色</span>
+				<span className="flex flex-wrap items-center gap-1.5 font-normal text-ink-muted" aria-label="当前画面设置摘要">
+					<span className="rounded-full border border-line bg-paper-100 px-2 py-0.5 text-xs font-medium text-ink">
+						{styleLabel(value.style) ?? value.style}
+					</span>
+					<span className="rounded-full border border-line bg-paper-100 px-2 py-0.5 text-xs tabular-nums text-ink-muted">
+						{value.shotCount ? (
+							<>
+								<span className="font-mono">{value.shotCount}</span> 镜
+							</>
+						) : (
+							"自动镜头"
+						)}
+					</span>
+					{selectedUniverseName ? (
+						<span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
+							{selectedUniverseName}
+						</span>
+					) : null}
+					{value.referenceFiles.length > 0 ? (
+						<span className="rounded-full border border-primary/25 bg-primary/10 px-2 py-0.5 text-xs tabular-nums text-primary">
+							参考图 <span className="font-mono">{value.referenceFiles.length}</span>
+						</span>
+					) : null}
+				</span>
+			</summary>
 			<div className="grid gap-3 pt-2 sm:grid-cols-2">
 				<label className="block text-xs font-bold">
 					画面风格

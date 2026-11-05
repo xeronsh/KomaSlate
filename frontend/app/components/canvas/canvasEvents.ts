@@ -5,6 +5,8 @@ export interface CanvasEvents {
   "select-workflow-node": { nodeId: string };
   /** 命令面板：选中某张卡片并把画布移过去 */
   "focus-workflow-node": { nodeId: string };
+  /** 从画布导航栏唤起命令面板（⌘/Ctrl+K） */
+  "open-command-palette": Record<string, never>;
   /** PromptBar 移除选区 chip → 画布同步选区 */
   "set-workflow-selection": { nodeIds: string[] };
   /** 不带实体时打开项目级版本对比。 */

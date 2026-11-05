@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { SvgIcon } from "~/components/ui/SvgIcon";
 import type { ComicWorkflowNode } from "../graph/types";
@@ -43,11 +43,8 @@ export function WorkflowInspector({
 	atGate = false,
 	universeId = null,
 }: WorkflowInspectorProps) {
+	// 切换卡片时保留当前页签（如连续逐格改「属性」或点「生成」），不再强行踢回「概览」
 	const [activeTab, setActiveTab] = useState<InspectorTab>("selection");
-
-	useEffect(() => {
-		setActiveTab("selection");
-	}, [selectedNode?.id]);
 
 	const multiShotIds = selectedNodeIds
 		.filter((id) => id.startsWith("shot:"))

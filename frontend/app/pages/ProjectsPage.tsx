@@ -17,6 +17,7 @@ import { getProjectStatusMeta } from "~/features/projects/statusMeta";
 import { IconButton } from "../components/ui/IconButton";
 import { SvgIcon } from "~/components/ui/SvgIcon";
 import { MonoRuns } from "~/components/ui/MonoRuns";
+import { PlainButton } from "~/components/ui/PlainButton";
 import { styleLabel } from "~/features/projects/styleCategories";
 
 
@@ -43,6 +44,8 @@ export function ProjectsPage() {
 	const [deleteTarget, setDeleteTarget] = useState<number[] | null>(null);
 	const [selectedIds, setSelectedIds] = useState<number[]>([]);
 	const [selecting, setSelecting] = useState(false);
+	const [searchQuery, setSearchQuery] = useState("");
+	const [statusFilter, setStatusFilter] = useState<string>("all");
 
 	const [pageLimit, setPageLimit] = useState(PAGE_SIZE);
 
@@ -61,6 +64,17 @@ export function ProjectsPage() {
 	});
 
 	const visibleProjects = projects ?? [];
+	const filteredProjects = useMemo(() => {
+		const q = searchQuery.trim().toLowerCase();
+		return visibleProjects.filter((project) => {
+			if (statusFilter !== "all" && project.status !== statusFilter) return false;
+			if (!q) return true;
+			return (
+				project.title.toLowerCase().includes(q) ||
+				(project.story ?? "").toLowerCase().includes(q)
+			);
+		});
+	}, [visibleProjects, searchQuery, statusFilter]);
 	const totalCount = projects?.total ?? visibleProjects.length;
 	const loadedReadyCount = useMemo(
 		() => visibleProjects.filter((project) => project.status === "ready").length,
@@ -242,7 +256,47 @@ export function ProjectsPage() {
 					) : visibleProjects.length === 0 ? (
 						<EmptyState />
 					) : (
-						<div className="overflow-hidden rounded-lg border border-line bg-surface">
+						<div className="flex flex-col gap-3">
+							<div className="flex flex-wrap items-center justify-between gap-2" role="search" aria-label="筛选项目">
+								<div className="relative w-full sm:w-64">
+									<SvgIcon name="search" size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-ink-muted" />
+									<input
+										type="search"
+										value={searchQuery}
+										onChange={(event) => setSearchQuery(event.target.value)}
+										placeholder="搜索项目名称或故事…"
+										aria-label="搜索项目"
+										className="input-doodle h-8 w-full bg-surface pl-8 pr-2.5 text-xs"
+									/>
+								</div>
+								<div className="flex flex-wrap items-center gap-1" role="group" aria-label="按状态筛选">
+									{([
+										["all", "全部"],
+										["ready", "成片可用"],
+										["planning", "规划中"],
+										["draft", "草稿"],
+										["failed", "生成失败"],
+									] as const).map(([key, label]) => {
+										const active = statusFilter === key;
+										return (
+											<PlainButton
+												key={key}
+												aria-pressed={active}
+												onClick={() => setStatusFilter(key)}
+												className={
+													"press touch-target-dense h-7 min-h-7 rounded-full border px-2.5 text-xs transition-colors duration-fast " +
+													(active
+														? "border-primary bg-primary text-primary-content font-bold"
+														: "border-line bg-surface text-ink-muted hover:border-line-strong hover:text-ink")
+												}
+											>
+												{label}
+											</PlainButton>
+										);
+									})}
+								</div>
+							</div>
+							<div className="overflow-hidden rounded-lg border border-line bg-surface">
 							{/* 表头只服务 sm+ 的表格网格；<sm 是卡片式行，表头隐藏 */}
 							<div className={HEADER_CLASS + (selecting ? ROW_COLS_SELECTING : ROW_COLS)}>
 								{selecting ? <span /> : null}
@@ -251,38 +305,57 @@ export function ProjectsPage() {
 								<span>更新</span>
 								<span className="text-right">操作</span>
 							</div>
-							<div className="divide-y divide-ink/10">
-								{visibleProjects.map((project) => (
-									<ProjectRow
-										key={project.id}
-										project={project}
-										selecting={selecting}
-										selected={selectedIds.includes(project.id)}
-										onSelectedChange={(checked) =>
-											handleToggleSelect(project.id, checked)
-										}
-										onDelete={() => handleDeleteClick(project.id)}
-									/>
-								))}
-							</div>
-							{hasMore ? (
-								<div
-									ref={sentinelRef}
-									className="flex items-center justify-center border-t border-line px-3 py-2"
-								>
+							{filteredProjects.length === 0 ? (
+								<div className="flex flex-col items-center justify-center gap-2 py-8 text-center">
+									<p className="m-0 text-xs text-ink-muted">没有匹配当前筛选条件的项目</p>
 									<Button
 										variant="secondary"
 										size="sm"
-										onClick={loadMore}
-										disabled={loadingMore}
-										aria-busy={loadingMore}
+										onClick={() => {
+											setSearchQuery("");
+											setStatusFilter("all");
+										}}
 									>
-										{loadingMore
-											? "加载中…"
-											: `加载更多（还有 ${totalCount - visibleProjects.length} 个）`}
+										重置筛选
 									</Button>
 								</div>
-							) : null}
+							) : (
+								<>
+									<div className="divide-y divide-ink/10">
+										{filteredProjects.map((project) => (
+											<ProjectRow
+												key={project.id}
+												project={project}
+												selecting={selecting}
+												selected={selectedIds.includes(project.id)}
+												onSelectedChange={(checked) =>
+													handleToggleSelect(project.id, checked)
+												}
+												onDelete={() => handleDeleteClick(project.id)}
+											/>
+										))}
+									</div>
+									{hasMore ? (
+										<div
+											ref={sentinelRef}
+											className="flex items-center justify-center border-t border-line px-3 py-2"
+										>
+											<Button
+												variant="secondary"
+												size="sm"
+												onClick={loadMore}
+												disabled={loadingMore}
+												aria-busy={loadingMore}
+											>
+												{loadingMore
+													? "加载中…"
+													: `加载更多（还有 ${totalCount - visibleProjects.length} 个）`}
+											</Button>
+										</div>
+									) : null}
+								</>
+							)}
+							</div>
 						</div>
 					)}
 				</section>

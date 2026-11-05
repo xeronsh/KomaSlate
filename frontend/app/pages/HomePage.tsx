@@ -79,9 +79,9 @@ export function HomePage() {
 		mutationFn: async (payload: CreateProjectPayload) => {
 			const project = await projectsApi.create(payload);
 			try {
-				for (const file of settings.referenceFiles) {
-					await projectsApi.uploadReference(project.id, file);
-				}
+				await Promise.all(
+					settings.referenceFiles.map((file) => projectsApi.uploadReference(project.id, file)),
+				);
 			} catch (cause) {
 				// The project exists; don't fail the whole creation over a reference image.
 				toast.error({
@@ -166,7 +166,14 @@ export function HomePage() {
 							<DeskSection
 								icon={<SvgIcon name="pencil" size={16} />}
 								title="故事创意"
-								meta={story.length + "/5000"}
+								meta={
+									<span className="inline-flex items-center gap-2">
+										<span className="font-mono tabular-nums">{story.length}/5000</span>
+										<kbd className="hidden rounded-sm border border-line bg-paper-100 px-1.5 py-0.5 text-xs text-ink-muted sm:inline-block">
+											<span className="font-mono">⌘/Ctrl+↵</span> 开始
+										</kbd>
+									</span>
+								}
 								className="min-h-80 p-3 sm:min-h-96 sm:p-4"
 							>
 								<div className="flex min-h-0 flex-1 flex-col">
@@ -176,6 +183,12 @@ export function HomePage() {
 										placeholder="写下一个故事想法、人物、冲突或你脑海里的画面……"
 										value={story}
 										onChange={(event) => setStory(event.target.value)}
+										onKeyDown={(event) => {
+											if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+												event.preventDefault();
+												createProject();
+											}
+										}}
 										disabled={createMutation.isPending}
 										aria-label="输入你的故事创意"
 										maxLength={5000}
@@ -189,12 +202,12 @@ export function HomePage() {
 											<span className="text-xs text-ink-muted">试试这些试拍脚本：</span>
 											<div className="grid gap-1.5 sm:grid-cols-3">
 												{EXAMPLE_PROMPTS.map((prompt, index) => (
-													<div key={prompt} className="flex flex-col gap-1 rounded-md border border-line bg-paper-100/60 p-2 transition-colors duration-fast hover:border-primary/50">
-														<span className="font-mono text-xs font-bold uppercase text-primary">
+													<div key={prompt} className="relative flex flex-col rounded-md border border-line bg-paper-100/60 transition-colors duration-fast hover:border-primary/50">
+														<span aria-hidden="true" className="pointer-events-none absolute left-2.5 top-2 font-mono text-xs font-bold uppercase text-primary">
 															{String(index + 1).padStart(2, "0")}
 														</span>
 														<PlainButton
-															className="press touch-target-dense flex-1 rounded-sm px-1 py-0.5 text-left text-xs leading-relaxed text-ink-muted hover:text-ink"
+															className="press touch-target-dense flex-1 rounded-md px-2.5 pb-2.5 pt-7 text-left text-xs leading-relaxed text-ink-muted hover:text-ink"
 															onClick={() => setStory(prompt)}
 														>
 															{prompt}
@@ -264,9 +277,9 @@ export function HomePage() {
 											const status = getProjectStatusMeta(project.status);
 											return (
 												<li key={project.id}>
-													<Link to={"/project/" + project.id} className="flex touch-target flex-col gap-1 rounded-md border border-line bg-surface px-3 py-2 transition-colors duration-fast hover:border-primary">
+													<Link to={"/project/" + project.id} className="flex touch-target items-center justify-between gap-2 rounded-md border border-line bg-surface px-3 py-2.5 transition-colors duration-fast hover:border-primary">
 														<span className="truncate text-sm font-semibold text-ink">{project.title}</span>
-														<span className={"text-xs " + status.textCls}>{status.label}</span>
+														<span className={"shrink-0 rounded-full border px-2 py-0.5 text-xs font-bold " + status.badgeCls}>{status.label}</span>
 													</Link>
 												</li>
 											);

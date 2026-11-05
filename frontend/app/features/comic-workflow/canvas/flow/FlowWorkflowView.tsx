@@ -13,6 +13,8 @@ import "@xyflow/react/dist/style.css";
 import { type CSSProperties, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { canvasEvents } from "~/components/canvas/canvasEvents";
+import { PlainButton } from "~/components/ui/PlainButton";
+import { SvgIcon } from "~/components/ui/SvgIcon";
 import { projectQueryKeys } from "~/query/queryKeys";
 import { projectsApi } from "~/services/api";
 import { useThemeStore } from "~/stores/themeStore";
@@ -40,6 +42,16 @@ import {
 	type WorkflowInteractionMode,
 } from "./toFlowNodes";
 import { CardContextMenu, type CardMenuState, menuPosition } from "./CardContextMenu";
+
+const CANVAS_SECTIONS: ReadonlyArray<{
+	section: Extract<ComicWorkflowSection, "elements" | "shotline" | "output">;
+	num: string;
+	label: string;
+}> = [
+	{ section: "elements", num: "01", label: "角色" },
+	{ section: "shotline", num: "02", label: "分镜" },
+	{ section: "output", num: "03", label: "成片" },
+];
 
 /** 与 <ReactFlow minZoom> 一致：手动缩放的下限。 */
 const MIN_ZOOM = 0.2;
@@ -223,28 +235,35 @@ function FlowInner({
 		const vp = flow.getViewport();
 		void flow.setViewport({ ...vp, x: vp.x - delta });
 	}, [flow, insetLeft]);
-	useEffect(() => {
-		if (!fittedRef.current || !autoFitRef.current) return;
-		fit(motionDuration("normal"));
-	}, [fit, insetLeft, insetRight]);
-
-	const hasNodes = nodes.length > 0;
-	useEffect(() => {
-		if (!focusSection || !hasNodes) return;
-		const frame = flow.getNode(frameNodeId(focusSection));
-		const size = canvasSize();
-		if (!frame || !size) return;
-		const handle = requestAnimationFrame(() => {
-			// 平移到审批门的分区后，面板开合不再把视口拉回整板
+	const focusFrame = useCallback(
+		(section: ComicWorkflowSection) => {
+			const frame = flow.getNode(frameNodeId(section));
+			const size = canvasSize();
+			if (!frame || !size) return;
+			// 平移到指定分区后，面板开合不再把视口拉回整板
 			autoFitRef.current = false;
 			void flow.setViewport(
 				boardViewport(flow.getNodesBounds([frame]), size),
 				{ duration: motionDuration("normal") },
 			);
+		},
+		[canvasSize, flow],
+	);
+
+	useEffect(() => {
+		if (!fittedRef.current || !autoFitRef.current || focusSection) return;
+		fit(motionDuration("normal"));
+	}, [fit, focusSection, insetLeft, insetRight]);
+
+	const hasNodes = nodes.length > 0;
+	useEffect(() => {
+		if (!focusSection || !hasNodes) return;
+		const handle = requestAnimationFrame(() => {
+			focusFrame(focusSection);
 		});
 		return () => cancelAnimationFrame(handle);
 		// 只在审批门换分区时平移一次，不跟着节点数据变化反复跳
-	}, [canvasSize, flow, focusSection, hasNodes]);
+	}, [focusFrame, focusSection, hasNodes]);
 
 	const applySelection = useCallback(
 		(ids: string[]) => {
@@ -475,6 +494,42 @@ function FlowInner({
 			>
 				<Background gap={24} size={1} />
 			</ReactFlow>
+			{!announcement && hasNodes ? (
+				<nav
+					aria-label="画布分区导航"
+					className="pointer-events-auto absolute left-1/2 top-3 z-panel flex -translate-x-1/2 items-center gap-0.5 rounded-full border border-line bg-surface/95 p-1 shadow-panel backdrop-blur-md"
+				>
+					{CANVAS_SECTIONS.map(({ section, num, label }) => {
+						const active = focusSection === section;
+						return (
+							<PlainButton
+								key={section}
+								aria-label={`定位到${label}分区`}
+								aria-current={active ? "true" : undefined}
+								onClick={() => focusFrame(section)}
+								className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition-colors duration-fast ${
+									active
+										? "bg-primary text-primary-content"
+										: "text-ink-muted hover:bg-paper-200 hover:text-ink"
+								}`}
+							>
+								<span className="font-mono text-xs">{num}</span>
+								<span>{label}</span>
+							</PlainButton>
+						);
+					})}
+					<span className="mx-0.5 h-3.5 w-px bg-line" aria-hidden="true" />
+					<PlainButton
+						aria-label="打开命令面板"
+						title="搜索分镜、角色或项目 (⌘/Ctrl+K)"
+						onClick={() => canvasEvents.emit("open-command-palette", {})}
+						className="inline-flex items-center gap-1 rounded-full px-2 py-1 font-mono text-xs text-ink-muted transition-colors duration-fast hover:bg-paper-200 hover:text-ink"
+					>
+						<SvgIcon name="search" size={12} />
+						<span>⌘K</span>
+					</PlainButton>
+				</nav>
+			) : null}
 			<p
 				aria-live="polite"
 				className={

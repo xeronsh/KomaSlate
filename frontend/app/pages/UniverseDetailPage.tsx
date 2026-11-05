@@ -450,9 +450,9 @@ export function UniverseDetailPage() {
 						}
 					/>
 					<label className="flex flex-col">
-						<span className="text-xs font-medium text-xs font-medium">简介</span>
+						<span className="text-xs font-bold">简介</span>
 						<textarea
-							className="input-doodle min-h-16"
+							className="input-doodle mt-1 min-h-16 resize-y bg-paper-100 p-2.5 text-sm"
 							value={editForm.description}
 							onChange={(e) =>
 								setEditForm((s) => ({ ...s, description: e.target.value }))
@@ -460,9 +460,9 @@ export function UniverseDetailPage() {
 						/>
 					</label>
 					<label className="flex flex-col">
-						<span className="text-xs font-medium text-xs font-medium">世界观</span>
+						<span className="text-xs font-bold">世界观</span>
 						<textarea
-							className="input-doodle min-h-20"
+							className="input-doodle mt-1 min-h-20 resize-y bg-paper-100 p-2.5 text-sm"
 							value={editForm.world_setting}
 							onChange={(e) =>
 								setEditForm((s) => ({ ...s, world_setting: e.target.value }))
@@ -470,9 +470,9 @@ export function UniverseDetailPage() {
 						/>
 					</label>
 					<label className="flex flex-col">
-						<span className="text-xs font-medium text-xs font-medium">风格规则</span>
+						<span className="text-xs font-bold">风格规则</span>
 						<textarea
-							className="input-doodle min-h-16"
+							className="input-doodle mt-1 min-h-16 resize-y bg-paper-100 p-2.5 text-sm"
 							value={editForm.style_rules}
 							onChange={(e) =>
 								setEditForm((s) => ({ ...s, style_rules: e.target.value }))
@@ -515,9 +515,9 @@ export function UniverseDetailPage() {
 						}
 					/>
 					<label className="flex flex-col">
-						<span className="text-xs font-medium text-xs font-medium">描述</span>
+						<span className="text-xs font-bold">描述</span>
 						<textarea
-							className="input-doodle min-h-16"
+							className="input-doodle mt-1 min-h-16 resize-y bg-paper-100 p-2.5 text-sm"
 							value={charForm.description}
 							onChange={(e) =>
 								setCharForm((s) => ({ ...s, description: e.target.value }))
@@ -525,9 +525,9 @@ export function UniverseDetailPage() {
 						/>
 					</label>
 					<label className="flex flex-col">
-						<span className="text-xs font-medium text-xs font-medium">视觉笔记</span>
+						<span className="text-xs font-bold">视觉笔记</span>
 						<textarea
-							className="input-doodle min-h-16"
+							className="input-doodle mt-1 min-h-16 resize-y bg-paper-100 p-2.5 text-sm"
 							value={charForm.visual_notes}
 							onChange={(e) =>
 								setCharForm((s) => ({ ...s, visual_notes: e.target.value }))

@@ -101,7 +101,6 @@ export function UniversesPage() {
 				<DeskSection
 					title="全部宇宙"
 					icon={<SvgIcon name="globe" size={16} />}
-					meta={isLoading || isError ? undefined : `${universes.length} 个`}
 				>
 					{isLoading && (
 						<div className="flex items-center justify-center py-8">
@@ -185,7 +184,7 @@ export function UniversesPage() {
 							<textarea
 								id="universe-description"
 								name="universe-description"
-								className="input-doodle bg-paper-200 w-full h-20 text-sm"
+								className="input-doodle mt-1 h-20 w-full resize-y bg-paper-100 p-2.5 text-sm"
 								placeholder="宇宙的简要描述…"
 								value={createForm.description}
 								onChange={(e) =>
@@ -201,7 +200,7 @@ export function UniversesPage() {
 							<textarea
 								id="universe-world-setting"
 								name="universe-world-setting"
-								className="input-doodle bg-paper-200 w-full h-24 text-sm"
+								className="input-doodle mt-1 h-24 w-full resize-y bg-paper-100 p-2.5 text-sm"
 								placeholder="统一的世界观设定，所有章节必须遵循…"
 								value={createForm.world_setting}
 								onChange={(e) =>
@@ -217,7 +216,7 @@ export function UniversesPage() {
 							<textarea
 								id="universe-style-rules"
 								name="universe-style-rules"
-								className="input-doodle bg-paper-200 w-full h-16 text-sm"
+								className="input-doodle mt-1 h-16 w-full resize-y bg-paper-100 p-2.5 text-sm"
 								placeholder="角色设计、场景风格等统一规则…"
 								value={createForm.style_rules}
 								onChange={(e) =>

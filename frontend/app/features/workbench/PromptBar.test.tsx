@@ -64,11 +64,13 @@ describe("PromptBar", () => {
 		expect(await screen.findByDisplayValue("重画这一格")).toBeInTheDocument();
 	});
 
-	it("shows the gate chip and sends feedback to the gate", async () => {
+	it("shows the gate chip, allows direct gate approval, and sends feedback to the gate", async () => {
 		const onConfirm = vi.fn();
 		render(<PromptBar {...base} awaitingConfirm gateLabel="规划" onConfirm={onConfirm} />);
 
 		expect(screen.getByText("规划 · 待确认")).toBeInTheDocument();
+		await userEvent.click(screen.getByRole("button", { name: "确认继续" }));
+		expect(onConfirm).toHaveBeenCalledWith(undefined);
 		expect(screen.getByRole("textbox")).toHaveAttribute("placeholder", "说明需要修改的地方…");
 		await userEvent.type(screen.getByRole("textbox"), "  节奏再快一点  {Enter}");
 		expect(onConfirm).toHaveBeenCalledWith("节奏再快一点");
