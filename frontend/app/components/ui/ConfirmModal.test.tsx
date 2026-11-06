@@ -26,7 +26,9 @@ describe('ConfirmModal', () => {
     expect(screen.getByText('确认操作')).toBeInTheDocument(); // default title
     expect(screen.getByText('Are you sure?')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '确认' })).toBeInTheDocument(); // default confirmText
-    expect(screen.getByRole('button', { name: '取消' })).toBeInTheDocument(); // default cancelText
+    const cancelButton = screen.getByRole('button', { name: '取消' });
+    expect(cancelButton).toBeInTheDocument(); // default cancelText
+    expect(cancelButton).toHaveFocus();
   });
 
   it('displays custom title, message, and button texts', () => {

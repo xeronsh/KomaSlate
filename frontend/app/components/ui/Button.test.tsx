@@ -1,3 +1,4 @@
+import { createRef } from 'react';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Button } from './Button';
@@ -70,6 +71,12 @@ describe('Button', () => {
     await user.click(button);
     
     expect(handleClick).not.toHaveBeenCalled();
+  });
+
+  it('forwards ref to the underlying button element', () => {
+    const ref = createRef<HTMLButtonElement>();
+    render(<Button ref={ref}>Focusable</Button>);
+    expect(ref.current).toBe(screen.getByRole('button', { name: 'Focusable' }));
   });
 
   it('IconButton exposes its aria-label as the accessible name', () => {

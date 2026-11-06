@@ -1,5 +1,5 @@
 import { clsx } from "clsx";
-import { type ButtonHTMLAttributes, type ReactNode } from "react";
+import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from "react";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
@@ -38,18 +38,20 @@ export function buttonClass({
   return clsx(BUTTON_BASE, BUTTON_VARIANTS[variant], BUTTON_SIZES[size], className);
 }
 
-export function Button({
-  variant = "primary",
-  size = "md",
-  loading = false,
-  className,
-  children,
-  disabled,
-  onClick,
-  type = "button",
-  ...props
-}: ButtonProps) {
-
+export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  {
+    variant = "primary",
+    size = "md",
+    loading = false,
+    className,
+    children,
+    disabled,
+    onClick,
+    type = "button",
+    ...props
+  },
+  ref,
+) {
   const handleClick = async (e: React.MouseEvent<HTMLButtonElement>) => {
     if (loading || disabled) return;
     await onClick?.(e);
@@ -59,6 +61,7 @@ export function Button({
 
   return (
     <button
+      ref={ref}
       className={buttonClass({
         variant,
         size,
@@ -76,4 +79,4 @@ export function Button({
       )}
     </button>
   );
-}
+});
