@@ -1669,4 +1669,35 @@ async def test_probe_returns_invalid_when_generate_fails(monkeypatch):
     assert result.reason_code == "provider_generate_unavailable"
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model", ["claude-sonnet-5-5", "kimi-k3"])
+async def test_probe_omits_temperature_for_strict_model_presets(monkeypatch, model):
+    """probe() omits temperature so claude-sonnet-5-5 and kimi-k3 presets return valid."""
+    svc = TextService(make_settings(text_model=model))
 
+    def reject_non_default_temperature(payload: dict) -> None:
+        if "temperature" not in payload:
+            return
+        if model == "claude-sonnet-5-5" and payload["temperature"] < 1:
+            raise TextServiceError("temperature below 1 is not supported", status_code=400)
+        if model == "kimi-k3" and payload["temperature"] != 1.0:
+            raise TextServiceError("temperature must be 1.0", status_code=400)
+
+    async def fake_post(_url, payload):
+        assert "temperature" not in payload
+        reject_non_default_temperature(payload)
+        return {"choices": [{"message": {"content": "OK"}}]}
+
+    async def fake_stream(payload):
+        assert "temperature" not in payload
+        reject_non_default_temperature(payload)
+        yield {"type": "text", "text": "OK"}
+        yield {"type": "final", "response": LLMResponse(text="OK", tool_calls=[], raw=None)}
+
+    monkeypatch.setattr(svc, "_post_json_with_retry", fake_post)
+    monkeypatch.setattr(svc, "_stream_native_events", fake_stream)
+
+    result = await svc.probe()
+    assert result.status == "valid"
+    assert result.generate is True
+    assert result.stream is True
