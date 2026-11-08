@@ -328,7 +328,6 @@ class TextService:
                 payload = self._build_payload(
                     messages=messages,
                     max_tokens=8,
-                    temperature=0,
                     stream=False,
                 )
                 await self._post_json_with_retry(self._build_url(), payload)
@@ -362,7 +361,6 @@ class TextService:
                 self._build_payload(
                     messages=probe_messages,
                     max_tokens=1,
-                    temperature=0,
                     stream=True,
                 )
             ):

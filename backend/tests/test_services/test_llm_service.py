@@ -533,3 +533,39 @@ async def test_probe_generate_capability_retries_once_then_succeeds(monkeypatch)
     await service._probe_generate_capability(messages=[{"role": "user", "content": "ping"}])
 
     assert calls["generate"] == 2
+
+
+@pytest.mark.asyncio
+async def test_probe_omits_temperature_for_claude_opus_4_7(monkeypatch):
+    settings = Settings(
+        database_url="sqlite+aiosqlite:///:memory:",
+        anthropic_api_key="key",
+        anthropic_model="claude-opus-4-7",
+    )
+    service = LLMService(settings)
+
+    class StrictTemperatureClient:
+        class messages:
+            @staticmethod
+            async def create(**kwargs):
+                if "temperature" in kwargs and kwargs["temperature"] < 1:
+                    err = RuntimeError("temperature below 1 is not supported")
+                    err.status_code = 400
+                    raise err
+                return DummyMessage()
+
+            @staticmethod
+            def stream(**kwargs):
+                if "temperature" in kwargs and kwargs["temperature"] < 1:
+                    err = RuntimeError("temperature below 1 is not supported")
+                    err.status_code = 400
+                    raise err
+                return DummyStream()
+
+    monkeypatch.setattr(service, "_get_client", lambda: StrictTemperatureClient())
+
+    result = await service.probe()
+
+    assert result.status == "valid"
+    assert result.generate is True
+    assert result.stream is True

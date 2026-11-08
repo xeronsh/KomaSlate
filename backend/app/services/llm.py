@@ -118,7 +118,7 @@ class LLMService:
 
         for attempt in range(2):
             try:
-                await self.generate(messages=messages, max_tokens=1, temperature=0)
+                await self.generate(messages=messages, max_tokens=1)
                 return
             except Exception as exc:
                 last_exc = exc
@@ -145,7 +145,7 @@ class LLMService:
             )
 
         try:
-            async for _ in self.stream(messages=probe_messages, max_tokens=1, temperature=0):
+            async for _ in self.stream(messages=probe_messages, max_tokens=1):
                 pass
         except Exception as exc:
             return TextProviderCapability(
