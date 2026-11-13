@@ -132,25 +132,17 @@ const storeState: {
   inspectorOpen: boolean;
   agentTab: 'chat' | 'activity' | 'inbox';
   workbenchView: 'nodegraph' | 'storyboard';
-  bottomDrawerOpen: boolean;
   activeGraphNodeId: string | null;
   hubDialogOpen: boolean;
   hubTab: 'outbound' | 'cli' | 'inbound';
-  protocolFilter: 'ALL' | 'RPC' | 'STDIO' | 'ERROR';
-  wipeShotId: number | null;
-  wipePct: number;
   syncViewportWidth: ReturnType<typeof vi.fn>;
   setAgentCollapsed: ReturnType<typeof vi.fn>;
   setInspectorOpen: ReturnType<typeof vi.fn>;
   setAgentTab: ReturnType<typeof vi.fn>;
   setWorkbenchView: ReturnType<typeof vi.fn>;
-  setBottomDrawerOpen: ReturnType<typeof vi.fn>;
   setActiveGraphNodeId: ReturnType<typeof vi.fn>;
   setHubDialogOpen: ReturnType<typeof vi.fn>;
   setHubTab: ReturnType<typeof vi.fn>;
-  setProtocolFilter: ReturnType<typeof vi.fn>;
-  setWipeShotId: ReturnType<typeof vi.fn>;
-  setWipePct: ReturnType<typeof vi.fn>;
 } = {
   selectedShotId: null,
   selectedCharacterId: null,
@@ -168,13 +160,9 @@ const storeState: {
   inspectorOpen: false,
   agentTab: 'activity',
   workbenchView: 'storyboard',
-  bottomDrawerOpen: false,
   activeGraphNodeId: 'agent_core',
   hubDialogOpen: false,
   hubTab: 'outbound',
-  protocolFilter: 'ALL',
-  wipeShotId: null,
-  wipePct: 50,
   syncViewportWidth: vi.fn((width: number, opts?: { initial?: boolean }) => {
     storeState.viewportWidth = width;
     if (opts?.initial) {
@@ -207,10 +195,6 @@ const storeState: {
     storeState.workbenchView = view;
     notifyStore();
   }),
-  setBottomDrawerOpen: vi.fn((open: boolean) => {
-    storeState.bottomDrawerOpen = open;
-    notifyStore();
-  }),
   setActiveGraphNodeId: vi.fn((nodeId: string | null) => {
     storeState.activeGraphNodeId = nodeId;
     notifyStore();
@@ -221,18 +205,6 @@ const storeState: {
   }),
   setHubTab: vi.fn((tab: 'outbound' | 'cli' | 'inbound') => {
     storeState.hubTab = tab;
-    notifyStore();
-  }),
-  setProtocolFilter: vi.fn((filter: 'ALL' | 'RPC' | 'STDIO' | 'ERROR') => {
-    storeState.protocolFilter = filter;
-    notifyStore();
-  }),
-  setWipeShotId: vi.fn((shotId: number | null) => {
-    storeState.wipeShotId = shotId;
-    notifyStore();
-  }),
-  setWipePct: vi.fn((pct: number) => {
-    storeState.wipePct = pct;
     notifyStore();
   }),
 };
@@ -569,7 +541,6 @@ describe('ProjectPage live hydration', () => {
     storeState.inspectorOpen = storeState.viewportWidth >= 1280;
     storeState.agentTab = 'activity';
     storeState.workbenchView = 'storyboard';
-    storeState.bottomDrawerOpen = false;
     storeState.runMode = 'manual';
     mutationPendingStates = [];
     currentRouteProjectId = '9';

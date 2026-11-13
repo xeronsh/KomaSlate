@@ -10,7 +10,6 @@
   <p><em>Local-first, editable, non-destructive AI storyboarding workspace</em></p>
 
   <p>
-    <a href="https://xeronsh.github.io/KomaSlate/"><img src="https://img.shields.io/badge/Website-KomaSlate-2F4BC3?style=flat-square" alt="Website" /></a>
     <img src="https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python 3.10+" />
     <img src="https://img.shields.io/badge/FastAPI-0.115+-009688?style=flat-square&logo=fastapi&logoColor=white" alt="FastAPI" />
     <img src="https://img.shields.io/badge/Node.js-22+-339933?style=flat-square&logo=nodedotjs&logoColor=white" alt="Node.js 22+" />
@@ -21,7 +20,6 @@
   </p>
 
   <p>
-    <a href="https://xeronsh.github.io/KomaSlate/">🌐 在线落地页与单镜重拍演示</a> ·
     <a href="#为什么选择-komaslate">核心特性</a> ·
     <a href="#界面预览">界面预览</a> ·
     <a href="#架构">架构</a> ·

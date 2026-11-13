@@ -10,7 +10,7 @@ import { useEditorStore } from "~/stores/editorStore";
 import { ApiError } from "~/types/errors";
 import type { Character, Project, Shot } from "~/types";
 import { ProjectWorkbench } from "./ProjectWorkbench";
-import { appendProtocolLog, clearProtocolLogs } from "./protocol/protocolLogStore";
+import { clearProtocolLogs } from "./protocol/protocolLogStore";
 
 if (typeof globalThis.ResizeObserver === "undefined") {
 	globalThis.ResizeObserver = class ResizeObserver {
@@ -212,7 +212,6 @@ beforeEach(() => {
 	useEditorStore.getState().reset();
 	useEditorStore.getState().setRunMode("manual");
 	useEditorStore.getState().setWorkbenchView("storyboard");
-	useEditorStore.getState().setBottomDrawerOpen(false);
 	Object.defineProperty(window, "innerWidth", { configurable: true, value: 1600 });
 });
 
@@ -455,9 +454,8 @@ describe("ProjectWorkbench drawers and export", () => {
 });
 
 describe("Option 3 Node-Graph & Protocol Workbench", () => {
-	it("renders SVG Cubic Bezier node graph, 3-tier Semantic LOD, 3-pane drawer and Protocol Hub", async () => {
+	it("renders SVG Cubic Bezier node graph, 3-tier Semantic LOD and Protocol Hub", async () => {
 		useEditorStore.getState().setWorkbenchView("nodegraph");
-		useEditorStore.getState().setBottomDrawerOpen(true);
 		h.data = {
 			...h.data,
 			characters,
@@ -470,30 +468,12 @@ describe("Option 3 Node-Graph & Protocol Workbench", () => {
 				} as Shot,
 			],
 		};
-		h.api.versionsApi.list.mockResolvedValue({
-			entity_type: "shot",
-			entity_id: 11,
-			versions: [
-				{ id: 2, entity_type: "shot", entity_id: 11, version: 2, snapshot: { image_url: "/static/s1-v2.png" }, trigger: "regen", created_at: "2026-11-13T00:00:00Z" },
-				{ id: 1, entity_type: "shot", entity_id: 11, version: 1, snapshot: { image_url: "/static/s1-v1.png" }, trigger: "init", created_at: "2026-11-13T00:00:00Z" },
-			],
-		});
-		h.api.shotsApi.patch.mockRejectedValueOnce(
-			new ApiError({ code: "CONFLICT", message: "revision mismatch", status: 409 }),
-		);
 		patchRunState(PID, {
 			isGenerating: true,
 			currentRunId: 8,
 			awaitingConfirm: true,
 			awaitingAgent: "render",
 			recoveryGate: { run_id: 8, current_stage: "render_shots", stage: "render_shots" } as never,
-		});
-		appendProtocolLog(PID, {
-			channel: "RPC",
-			direction: "OUT",
-			source: "comfyui-inpaint",
-			summary: "tools/call inpaint_region",
-			latencyMs: 42,
 		});
 
 		const { container } = renderShell();
@@ -511,34 +491,8 @@ describe("Option 3 Node-Graph & Protocol Workbench", () => {
 		expect(graph).toHaveAttribute("data-lod", "micro");
 		expect(screen.getAllByText("rev=14").length).toBeGreaterThan(0);
 
-		// Bottom 3-pane Protocol Workbench
-		expect(await screen.findByTestId("ab-wipe-pane")).toBeInTheDocument();
-		expect(screen.getByTestId("human-only-gate-card")).toBeInTheDocument();
-		expect(screen.getByTestId("protocol-console-pane")).toBeInTheDocument();
-		expect(screen.getByText("tools/call inpaint_region")).toBeInTheDocument();
-
-		// CAS revert 409 conflict alert
-		const revertBtn = await screen.findByRole("button", { name: "CAS 回退到上一版本" });
-		await waitFor(() => expect(revertBtn).not.toBeDisabled());
-		fireEvent.click(revertBtn);
-		expect(await screen.findByTestId("cas-conflict-alert")).toBeInTheDocument();
-		expect(h.api.shotsApi.patch).toHaveBeenCalledWith(11, {
-			expected_revision: 14,
-			image_url: "/static/s1-v1.png",
-		});
-
 		// Protocol Hub Dialog
 		fireEvent.click(screen.getByRole("button", { name: "打开全局协议枢纽" }));
 		expect(await screen.findByText("双向 MCP & CLI 协议枢纽")).toBeInTheDocument();
-
-		// Responsive drawer layout: >=1024px three-pane -> <1024px compact tabs
-		expect(screen.getByTestId("protocol-workbench-drawer")).toHaveAttribute("data-layout", "three-pane");
-		act(() => {
-			useEditorStore.getState().syncViewportWidth(768);
-		});
-		expect(screen.getByTestId("protocol-workbench-drawer")).toHaveAttribute("data-layout", "compact-tabs");
-		expect(screen.getByRole("tab", { name: "A/B 对比" })).toBeInTheDocument();
-		expect(screen.getByRole("tab", { name: "审批与队列" })).toBeInTheDocument();
-		expect(screen.getByRole("tab", { name: "协议终端" })).toBeInTheDocument();
 	});
 });

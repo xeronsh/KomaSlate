@@ -79,11 +79,6 @@ const NodeGraphCanvas = lazy(() =>
 		default: m.NodeGraphCanvas,
 	})),
 );
-const ProtocolWorkbenchDrawer = lazy(() =>
-	import("~/features/workbench/protocol/ProtocolWorkbenchDrawer").then((m) => ({
-		default: m.ProtocolWorkbenchDrawer,
-	})),
-);
 const AssetDrawer = lazy(() =>
 	import("~/components/panels/AssetDrawer").then((m) => ({ default: m.AssetDrawer })),
 );
@@ -183,8 +178,6 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 	const setAgentTab = useEditorStore((s) => s.setAgentTab);
 	const workbenchView = useEditorStore((s) => s.workbenchView);
 	const setWorkbenchView = useEditorStore((s) => s.setWorkbenchView);
-	const bottomDrawerOpen = useEditorStore((s) => s.bottomDrawerOpen);
-	const setBottomDrawerOpen = useEditorStore((s) => s.setBottomDrawerOpen);
 	const activeGraphNodeId = useEditorStore((s) => s.activeGraphNodeId);
 	const setActiveGraphNodeId = useEditorStore((s) => s.setActiveGraphNodeId);
 	const hubDialogOpen = useEditorStore((s) => s.hubDialogOpen);
@@ -493,8 +486,8 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 	const openInbox = useCallback(() => {
 		setAgentTab("inbox");
 		setAgentCollapsed(false);
-		setBottomDrawerOpen(true);
-	}, [setAgentCollapsed, setAgentTab, setBottomDrawerOpen]);
+		setWorkbenchView("storyboard");
+	}, [setAgentCollapsed, setAgentTab, setWorkbenchView]);
 
 	const inboxActions: InboxActions = {
 		onConfirm: handleConfirm,
@@ -663,7 +656,9 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 	const handleTriggerGraphAction = useCallback(
 		(node: HybridGraphNode) => {
 			if (node.kind === "wf_gate") {
-				setBottomDrawerOpen(true);
+				setAgentTab("inbox");
+				setAgentCollapsed(false);
+				setWorkbenchView("storyboard");
 				return;
 			}
 			if (node.kind === "mcp_out") {
@@ -684,7 +679,7 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 				setWorkbenchView("storyboard");
 			}
 		},
-		[handlePingMcp, setBottomDrawerOpen, setHubDialogOpen, setHubTab, setWorkbenchView],
+		[handlePingMcp, setAgentCollapsed, setAgentTab, setHubDialogOpen, setHubTab, setWorkbenchView],
 	);
 
 	const runExport = async (
@@ -897,7 +892,7 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 
 				{!isMobileWorkbench ? (
 					<>
-						{/* 工作台视图与协议抽屉开关条 */}
+						{/* 工作台视图切换与协议枢纽开关条 */}
 						<div className="flex shrink-0 items-center justify-between gap-2 border-b border-line bg-paper-200 px-3 py-1">
 							<div className="flex items-center gap-1" role="group" aria-label="工作台视图模式">
 								<PlainButton
@@ -938,14 +933,6 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 								) : null}
 								<Button
 									size="xs"
-									variant="ghost"
-									onClick={() => setBottomDrawerOpen(!bottomDrawerOpen)}
-									aria-expanded={bottomDrawerOpen}
-								>
-									{bottomDrawerOpen ? "收起协议抽屉" : "展开三栏协议抽屉"}
-								</Button>
-								<Button
-									size="xs"
 									variant="secondary"
 									onClick={() => setHubDialogOpen(true)}
 									aria-label="打开全局协议枢纽"
@@ -956,12 +943,11 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 							</div>
 						</div>
 
-						{/* 上部 58% 画布区 */}
+						{/* 主画布区 */}
 						<div
 							className={`relative isolate min-h-0 flex-1 overflow-hidden workbench-canvas-frame ${
 								workbenchView === "nodegraph" ? "flex" : ""
 							}`}
-							style={bottomDrawerOpen ? { height: "58%", flex: "0 0 58%" } : undefined}
 						>
 							{workbenchView === "nodegraph" ? (
 								<>
@@ -1038,16 +1024,14 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 										inboxItems={inboxItems}
 										inboxActions={inboxActions}
 									/>
-									{!bottomDrawerOpen ? (
-										<PromptBar
-											floating
-											selection={selectionChips}
-											onRemoveSelection={removeSelection}
-											gateLabel={gateLabel}
-											awaitingConfirm={runAwaitingConfirm}
-											onSend={sendToAssistant}
-										/>
-									) : null}
+									<PromptBar
+										floating
+										selection={selectionChips}
+										onRemoveSelection={removeSelection}
+										gateLabel={gateLabel}
+										awaitingConfirm={runAwaitingConfirm}
+										onSend={sendToAssistant}
+									/>
 									<InspectorPanel
 										projectId={projectId}
 										selectedNode={selectedWorkflowNode}
@@ -1062,29 +1046,6 @@ export function ProjectWorkbench({ projectId }: { projectId: number }) {
 								</>
 							)}
 						</div>
-
-						{/* 下部 42% 三栏协议工作台 */}
-						{bottomDrawerOpen ? (
-							<Suspense fallback={null}>
-								<ProtocolWorkbenchDrawer
-									projectId={projectId}
-									shots={shots}
-									selectedShotId={selectedShotId}
-									awaitingConfirm={runAwaitingConfirm}
-									gateLabel={gateLabel}
-									recoveryGate={runState.recoveryGate}
-									feedbackReceipt={runState.feedbackReceipt}
-									gateDecisionPending={gateDecisionPending}
-									onConfirmGate={handleConfirm}
-									chatState={chatState}
-									selectionChips={selectionChips}
-									onRemoveSelection={removeSelection}
-									onSendChat={sendToAssistant}
-									onOpenHub={() => setHubDialogOpen(true)}
-									onPingMcp={() => void handlePingMcp()}
-								/>
-							</Suspense>
-						) : null}
 					</>
 				) : null}
 			</main>

@@ -8,15 +8,12 @@ export type RunMode = "manual" | "yolo";
 export type AgentPanelTab = "chat" | "activity" | "inbox";
 export type WorkbenchViewMode = "nodegraph" | "storyboard";
 export type ProtocolHubTab = "outbound" | "cli" | "inbound";
-export type ProtocolLogFilter = "ALL" | "RPC" | "STDIO" | "ERROR";
 
 const LAYOUT_STORAGE_KEY = "komaslate.workbench.layout.v1";
 
 interface PersistedWorkbenchPrefs {
 	workbenchView?: WorkbenchViewMode;
-	bottomDrawerOpen?: boolean;
 	hubTab?: ProtocolHubTab;
-	protocolFilter?: ProtocolLogFilter;
 }
 
 function readPersistedPrefs(): PersistedWorkbenchPrefs {
@@ -68,13 +65,9 @@ interface EditorState {
 	inspectorOpen: boolean;
 	agentTab: AgentPanelTab;
 	workbenchView: WorkbenchViewMode;
-	bottomDrawerOpen: boolean;
 	activeGraphNodeId: string | null;
 	hubDialogOpen: boolean;
 	hubTab: ProtocolHubTab;
-	protocolFilter: ProtocolLogFilter;
-	wipeShotId: number | null;
-	wipePct: number;
 
 	setSelectedShot: (id: number | null) => void;
 	setSelectedCharacter: (id: number | null) => void;
@@ -86,13 +79,9 @@ interface EditorState {
 	setInspectorOpen: (open: boolean) => void;
 	setAgentTab: (tab: AgentPanelTab) => void;
 	setWorkbenchView: (view: WorkbenchViewMode) => void;
-	setBottomDrawerOpen: (open: boolean) => void;
 	setActiveGraphNodeId: (nodeId: string | null) => void;
 	setHubDialogOpen: (open: boolean) => void;
 	setHubTab: (tab: ProtocolHubTab) => void;
-	setProtocolFilter: (filter: ProtocolLogFilter) => void;
-	setWipeShotId: (shotId: number | null) => void;
-	setWipePct: (pct: number) => void;
 	reset: () => void;
 }
 
@@ -110,13 +99,9 @@ const initialState = {
 	inspectorOpen: initialWidth >= 1280,
 	agentTab: "activity" as AgentPanelTab,
 	workbenchView: (persisted.workbenchView ?? "nodegraph") as WorkbenchViewMode,
-	bottomDrawerOpen: persisted.bottomDrawerOpen ?? true,
 	activeGraphNodeId: "agent_core" as string | null,
 	hubDialogOpen: false,
 	hubTab: (persisted.hubTab ?? "outbound") as ProtocolHubTab,
-	protocolFilter: (persisted.protocolFilter ?? "ALL") as ProtocolLogFilter,
-	wipeShotId: null as number | null,
-	wipePct: 50,
 };
 
 export const useEditorStore = create<EditorState>()(
@@ -192,11 +177,6 @@ export const useEditorStore = create<EditorState>()(
 				set({ workbenchView: view }, false, "setWorkbenchView");
 			},
 
-			setBottomDrawerOpen: (open) => {
-				writePersistedPrefs({ bottomDrawerOpen: open });
-				set({ bottomDrawerOpen: open }, false, "setBottomDrawerOpen");
-			},
-
 			setActiveGraphNodeId: (nodeId) =>
 				set({ activeGraphNodeId: nodeId }, false, "setActiveGraphNodeId"),
 
@@ -207,21 +187,6 @@ export const useEditorStore = create<EditorState>()(
 				writePersistedPrefs({ hubTab: tab });
 				set({ hubTab: tab }, false, "setHubTab");
 			},
-
-			setProtocolFilter: (filter) => {
-				writePersistedPrefs({ protocolFilter: filter });
-				set({ protocolFilter: filter }, false, "setProtocolFilter");
-			},
-
-			setWipeShotId: (shotId) =>
-				set({ wipeShotId: shotId }, false, "setWipeShotId"),
-
-			setWipePct: (pct) =>
-				set(
-					{ wipePct: Math.max(0, Math.min(100, Math.round(pct))) },
-					false,
-					"setWipePct",
-				),
 
 			reset: () => {
 				const w = currentWindowWidth();
