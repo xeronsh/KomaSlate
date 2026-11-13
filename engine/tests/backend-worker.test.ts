@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BackendWorker } from "../src/backend-worker.js";
+import { BackendWorker, BackendWorkerPool } from "../src/backend-worker.js";
 
 /**
  * The worker speaks one JSON line per request to `python -m app.services.engine_media_cli`.
@@ -234,5 +234,54 @@ describe("BackendWorker protocol", () => {
     const { pid } = (await raw(w, { action: "whoami" })) as { pid: number };
     await w.close();
     expect(() => process.kill(pid, 0)).toThrow();
+  });
+
+  it("pool-reuse: reuses one resident worker across sequential compositions and supports Zero-Copy file paths (ENG-09)", async () => {
+    const pool = new BackendWorkerPool(2, 60_000);
+    const controller = new AbortController();
+
+    const w1 = new BackendWorker(controller.signal, { pooled: true, pool });
+    const ref1 = await w1.characterReference(["/static/c1.png"]);
+    expect(ref1.toString()).toBe("ref:/static/c1.png");
+    await w1.close(); // returns process to warm pool rather than terminating it
+
+    const w2 = new BackendWorker(controller.signal, { pooled: true, pool });
+    const ref2 = await w2.characterReference(["/static/c2.png"]);
+    expect(ref2.toString()).toBe("ref:/static/c2.png");
+    await w2.close();
+
+    expect(pool.stats()).toEqual({ spawns: 1, idle: 1, active: 0 });
+
+    // Verify Zero-Copy file path input/output avoids base64 serialization.
+    const outPath = join(dir, "composed.png");
+    writeFileSync(outPath, "zero-copy-bytes");
+    const customCli = join(dir, "zero-copy-python");
+    writeFileSync(
+      customCli,
+      `#!/usr/bin/env node
+const readline = require("node:readline");
+const rl = readline.createInterface({ input: process.stdin });
+rl.on("line", (line) => {
+  const req = JSON.parse(line);
+  if (req.action === "face_embedding") {
+    return process.stdout.write(JSON.stringify(req.image_path ? Array(512).fill(0.25) : null) + "\\n");
+  }
+  if (req.action === "character_reference") {
+    return process.stdout.write(JSON.stringify({ file_path: req.output_path }) + "\\n");
+  }
+});
+`,
+    );
+    chmodSync(customCli, 0o755);
+    process.env.ENGINE_PYTHON = customCli;
+
+    const w3 = new BackendWorker(controller.signal, { pooled: true, pool });
+    const emb = await w3.faceEmbedding(outPath);
+    expect(emb).toHaveLength(512);
+    expect(emb?.[0]).toBe(0.25);
+    const resolvedOut = await w3.characterReferencePath(["/static/c1.png"], outPath);
+    expect(resolvedOut).toBe(outPath);
+    await w3.close();
+    await pool.closeAll();
   });
 });

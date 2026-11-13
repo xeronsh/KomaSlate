@@ -155,6 +155,10 @@ function asNumber(value: unknown, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+export interface PipelineRunnerOptions {
+  reclaimLease?: () => boolean;
+}
+
 export class PipelineRunner {
   private cancelRequested = false;
   /**
@@ -169,6 +173,7 @@ export class PipelineRunner {
     private readonly shared: SharedDb,
     private readonly llm: TextLlmService,
     private readonly runContext?: RunCreativeContext,
+    private readonly options?: PipelineRunnerOptions,
   ) {}
 
   get abortSignal(): AbortSignal {
@@ -233,6 +238,42 @@ export class PipelineRunner {
     const index = STAGE_ORDER.indexOf(stage);
     if (index < 0) return;
     this.db.deleteCheckpoints(runId, STAGE_ORDER.slice(index));
+  }
+
+  private loadCritiqueState(runId: number): {
+    critiqueRounds: { characters: number; shots: number };
+    critiqueNotes: Map<number, string>;
+  } {
+    const saved = this.db.getCheckpoint<{
+      critiqueRounds?: { characters?: number; shots?: number };
+      critiqueNotes?: Array<[number, string]> | Record<string, string>;
+    }>(runId, "stage_critique_state");
+    const critiqueRounds = {
+      characters:
+        typeof saved?.critiqueRounds?.characters === "number" ? saved.critiqueRounds.characters : 0,
+      shots: typeof saved?.critiqueRounds?.shots === "number" ? saved.critiqueRounds.shots : 0,
+    };
+    const critiqueNotes = new Map<number, string>();
+    if (Array.isArray(saved?.critiqueNotes)) {
+      for (const entry of saved.critiqueNotes) {
+        if (Array.isArray(entry) && typeof entry[0] === "number" && typeof entry[1] === "string") {
+          critiqueNotes.set(entry[0], entry[1]);
+        }
+      }
+    } else if (saved?.critiqueNotes && typeof saved.critiqueNotes === "object") {
+      for (const [key, note] of Object.entries(saved.critiqueNotes)) {
+        const shotId = Number(key);
+        if (Number.isFinite(shotId) && typeof note === "string") critiqueNotes.set(shotId, note);
+      }
+    }
+    return { critiqueRounds, critiqueNotes };
+  }
+
+  private saveCritiqueState(runId: number, ctx: StageContext): void {
+    this.db.saveCheckpoint(runId, "stage_critique_state", {
+      critiqueRounds: ctx.critiqueRounds,
+      critiqueNotes: ctx.critiqueNotes ? Array.from(ctx.critiqueNotes.entries()) : [],
+    });
   }
 
   /**
@@ -536,7 +577,7 @@ export class PipelineRunner {
         this.db,
         this.shared.getProject(request.projectId) ?? null,
       ),
-      critiqueRounds: { characters: 0, shots: 0 },
+      ...this.loadCritiqueState(request.runId),
       critiqueEnabled: this.boolPolicy("critique_enabled", "CRITIQUE_ENABLED", true),
       critiqueScoreThreshold: this.numberPolicy(
         "critique_score_threshold",
@@ -586,6 +627,7 @@ export class PipelineRunner {
           const roundsKey: "characters" | "shots" =
             entityType === "character" ? "characters" : "shots";
           ctx.critiqueRounds[roundsKey] += 1;
+          this.saveCritiqueState(request.runId, ctx);
           if (outcome.willRegenerate) {
             if (entityType === "character") {
               ctx.targetCharacterIds = outcome.regenerateEntityIds;
@@ -622,6 +664,7 @@ export class PipelineRunner {
         await this.runProductionAttempt(stage, request, ctx, emitter);
         this.shared.assertExecutionFence();
         if (this.shouldCancel(request.runId)) return await this.finishCancelled(request, emitter);
+        if (stage === "render_shots") this.saveCritiqueState(request.runId, ctx);
         this.db.saveCheckpoint(request.runId, stage, { completed_at: new Date().toISOString() });
         stage = NEXT_STAGE[stage] as StageId;
       }
@@ -928,6 +971,7 @@ export class PipelineRunner {
     });
     this.shared.assertExecutionFence();
     ctx.critiqueRounds[entityType === "character" ? "characters" : "shots"] += 1;
+    this.saveCritiqueState(request.runId, ctx);
     if (!outcome.willRegenerate) return false;
     if (entityType === "character") ctx.targetCharacterIds = outcome.regenerateEntityIds;
     else ctx.targetShotIds = outcome.regenerateEntityIds;
@@ -986,7 +1030,7 @@ export class PipelineRunner {
         ctx.completedTargets.add(checkpoint);
       },
       ...resolveStageStyleContext(this.db, this.shared.getProject(request.projectId) ?? null),
-      critiqueRounds: { characters: 0, shots: 0 },
+      ...this.loadCritiqueState(request.runId),
       // A targeted redraw is checked like a full run: keyframes after render,
       // each clip inside compose_videos.
       critiqueEnabled: this.boolPolicy("critique_enabled", "CRITIQUE_ENABLED", true),
@@ -1057,6 +1101,7 @@ export class PipelineRunner {
             ctx.shared = this.shared;
           }
         });
+        if (stage === "render_shots") this.saveCritiqueState(request.runId, ctx);
         if (await this.critiqueTargets(stage, request, ctx, emitter)) index -= 1;
       }
       this.shared.assertExecutionFence();
@@ -1353,7 +1398,12 @@ export class PipelineRunner {
     while (Date.now() < deadline) {
       // One read per poll; the exact readers run only when a signal is set.
       const signals = this.shared.gateSignals(runId);
-      if (!signals.leaseOwned) this.shared.assertExecutionFence();
+      if (!signals.leaseOwned) {
+        if (!this.options?.reclaimLease?.()) {
+          this.shared.assertExecutionFence();
+        }
+        continue;
+      }
       if (signals.cancelRequested && !this.cancelRequested) this.requestCancel();
       if (this.abortController.signal.aborted) this.cancelRequested = true;
       if (this.cancelRequested) return { kind: "timeout" };

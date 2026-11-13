@@ -4,7 +4,7 @@ import type { Toast } from "~/types/errors";
 interface ToastStore {
   toasts: Toast[];
   /** 返回新 Toast 的 id，用于之后替换 / 关闭它 */
-  addToast: (toast: Omit<Toast, "id">) => string;
+  addToast: (toast: Omit<Toast, "id"> & { id?: string }) => string;
   removeToast: (id: string) => void;
   clearToasts: () => void;
 }
@@ -15,9 +15,15 @@ export const useToastStore = create<ToastStore>((set) => ({
   toasts: [],
 
   addToast: (toast) => {
-    const id = `toast-${Date.now()}-${Math.random()}`;
+    const id = toast.id ?? `toast-${Date.now()}-${Math.random()}`;
     set((state) => {
-      const newToast = { ...toast, id };
+      const newToast: Toast = { ...toast, id };
+      const existingIdx = state.toasts.findIndex((t) => t.id === id);
+      if (existingIdx >= 0) {
+        const next = [...state.toasts];
+        next[existingIdx] = newToast;
+        return { toasts: next };
+      }
 
       // 限制最多 5 个 Toast
       const toasts = [...state.toasts, newToast];

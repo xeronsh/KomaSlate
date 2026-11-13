@@ -1,13 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useSettingsStore } from "~/stores/settingsStore";
 import { configApi } from "~/services/api";
 import type { ConfigValue } from "~/types";
 import { Dialog } from "~/components/ui/Dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/Tabs";
 import { groupConfigs } from "~/utils/configGroups";
 import { Button } from "../../components/ui/Button";
 import { IconButton } from "../../components/ui/IconButton";
-import { PlainButton } from "../../components/ui/PlainButton";
 import { SettingsAlert, type AlertState } from "./SettingsAlert";
 import { SettingsSection } from "./SettingsSection";
 import { TAB_CONFIG } from "./settingsTabs";
@@ -53,8 +53,6 @@ export function SettingsModal() {
 			setInitialFormState(initialState);
 		}
 	}, [config]);
-
-	const tabRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
 	// 切换标签页
 	const handleTabChange = (tab: string) => {
@@ -187,32 +185,6 @@ export function SettingsModal() {
 
 	const sections = config ? groupConfigs(config) : [];
 
-	const focusTab = (tab: string) => {
-		setActiveTab(tab);
-		tabRefs.current[tab]?.focus();
-	};
-
-	const handleTabKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-		const currentIndex = sections.findIndex((section) => section.key === activeTab);
-		if (currentIndex < 0 || sections.length === 0) return;
-
-		const keyHandlers: Record<string, () => void> = {
-			ArrowRight: () => focusTab(sections[(currentIndex + 1) % sections.length].key),
-			ArrowDown: () => focusTab(sections[(currentIndex + 1) % sections.length].key),
-			ArrowLeft: () => focusTab(sections[(currentIndex - 1 + sections.length) % sections.length].key),
-			ArrowUp: () => focusTab(sections[(currentIndex - 1 + sections.length) % sections.length].key),
-			Home: () => focusTab(sections[0].key),
-			End: () => focusTab(sections[sections.length - 1].key),
-		};
-
-		const handler = keyHandlers[event.key];
-		if (!handler) return;
-		event.preventDefault();
-		handler();
-	};
-
-	const activeSection = sections.find((s) => s.key === activeTab);
-
 	return (
 		<>
 			<Dialog
@@ -263,68 +235,59 @@ export function SettingsModal() {
 						onSubmit={handleSubmit}
 						className="flex min-h-0 flex-1 flex-col"
 					>
-						<div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+						<Tabs
+							value={activeTab}
+							onValueChange={handleTabChange}
+							className="flex min-h-0 flex-1 flex-col lg:flex-row"
+						>
 							<nav className="shrink-0 border-b border-line bg-paper-200/45 p-2 lg:w-56 lg:border-b-0 lg:border-r" aria-label="设置分类">
-							<div role="tablist" aria-label="设置分类" onKeyDown={handleTabKeyDown} className="flex gap-1.5 overflow-x-auto lg:flex-col">
-								{sections.map((section) => {
-									const cfg = TAB_CONFIG[section.key];
-									const isActive = activeTab === section.key;
-									return (
-										<PlainButton
-											key={section.key}
-											ref={(node) => {
-												tabRefs.current[section.key] = node;
-											}}
-											id={`settings-tab-${section.key}`}
-											role="tab"
-											aria-selected={isActive}
-											aria-controls="settings-panel"
-											tabIndex={isActive ? 0 : -1}
-											onClick={() => handleTabChange(section.key)}
-											className={`
-                        touch-target-dense flex shrink-0 items-center justify-between gap-2 border px-2.5
-                        text-xs font-semibold lg:w-full
-												border border-line-strong transition-colors duration-fast
-                        ${
+								<TabsList
+									variant="pill"
+									aria-label="设置分类"
+									className="flex gap-1.5 overflow-x-auto lg:flex-col lg:items-stretch"
+								>
+									{sections.map((section) => {
+										const cfg = TAB_CONFIG[section.key];
+										const isActive = activeTab === section.key;
+										return (
+											<TabsTrigger
+												key={section.key}
+												value={section.key}
+												variant="pill"
+												className={`shrink-0 justify-between gap-2 lg:w-full ${
 													isActive
 														? "bg-primary text-primary-content"
 														: "bg-paper-200 hover:bg-paper-300"
-												}
-                      `}
-										>
-											{cfg ? <SvgIcon name={cfg.icon} size={16} /> : null}
-											<span>{cfg?.title || section.title}</span>
-											<span
-												className={`
-                        rounded-sm px-1 py-0.5 text-xs tabular-nums
-                        ${isActive ? "bg-primary-content/20" : "bg-paper-300"}
-                      `}
+												}`}
 											>
-												{section.items.length}
-											</span>
-									</PlainButton>
-									);
-								})}
-							</div>
+												{cfg ? <SvgIcon name={cfg.icon} size={16} /> : null}
+												<span>{cfg?.title || section.title}</span>
+												<span
+													className={`rounded-sm px-1 py-0.5 text-xs tabular-nums ${
+														isActive ? "bg-primary-content/20" : "bg-paper-300"
+													}`}
+												>
+													{section.items.length}
+												</span>
+											</TabsTrigger>
+										);
+									})}
+								</TabsList>
 							</nav>
 
-						<div
-							id="settings-panel"
-							role="tabpanel"
-							aria-labelledby={`settings-tab-${activeTab}`}
-							tabIndex={0}
-							className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 lg:p-6"
-						>
-							{activeSection ? (
-								<SettingsSection
-									tab={activeTab}
-									items={activeSection.items}
-									formState={formState}
-									onChange={handleInputChange}
-								/>
-							) : null}
+							<div className="min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4 lg:p-6">
+								{sections.map((section) => (
+									<TabsContent key={section.key} value={section.key}>
+										<SettingsSection
+											tab={section.key}
+											items={section.items}
+											formState={formState}
+											onChange={handleInputChange}
+										/>
+									</TabsContent>
+								))}
 							</div>
-						</div>
+						</Tabs>
 
 						<div className="flex shrink-0 flex-wrap items-center gap-2 border-t border-line bg-paper-200 px-3 py-2 sm:px-4">
 							<div className="flex min-w-0 flex-1 items-center gap-1.5 text-xs text-ink-muted">

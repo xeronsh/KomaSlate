@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { SvgIcon } from "~/components/ui/SvgIcon";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/Tabs";
 import type { ComicWorkflowNode } from "../graph/types";
-import { PlainButton } from "../../../components/ui/PlainButton";
 import { GenerationSection } from "./GenerationSection";
 import { HistorySection } from "./HistorySection";
 import { MultiShotActions } from "./MultiShotActions";
@@ -68,7 +68,8 @@ export function WorkflowInspector({
 			<MultiShotActions
 				projectId={projectId}
 				shotIds={multiShotIds}
-				structureLocked={structureLocked} atGate={atGate}
+				structureLocked={structureLocked}
+				atGate={atGate}
 			/>
 		);
 	}
@@ -88,44 +89,56 @@ export function WorkflowInspector({
 				</p>
 			</div>
 
-			<div className="flex gap-0.5 border-b border-line p-0.5">
-				{(Object.keys(TAB_LABELS) as InspectorTab[]).map((tab) => (
-					<PlainButton
-						key={tab}
-						className={`touch-target-dense flex-1 rounded-sm text-xs font-semibold transition-colors duration-fast ${
-							activeTab === tab
-								? "bg-primary text-primary-content"
-								: "text-ink-muted hover:bg-paper-200"
-						}`}
-						onClick={() => setActiveTab(tab)}
-					>
-						{TAB_LABELS[tab]}
-					</PlainButton>
-				))}
-			</div>
+			<Tabs
+				value={activeTab}
+				onValueChange={(value) => setActiveTab(value as InspectorTab)}
+				className="flex min-h-0 flex-1 flex-col"
+			>
+				<TabsList variant="segment" aria-label="检查器分区">
+					{(Object.keys(TAB_LABELS) as InspectorTab[]).map((tab) => (
+						<TabsTrigger key={tab} value={tab} variant="segment">
+							{TAB_LABELS[tab]}
+						</TabsTrigger>
+					))}
+				</TabsList>
 
-			<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
-				{activeTab === "selection" ? (
+				<TabsContent
+					value="selection"
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
+				>
 					<SelectionSection node={selectedNode} />
-				) : null}
-				{activeTab === "properties" ? (
+				</TabsContent>
+				<TabsContent
+					value="properties"
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
+				>
 					<PropertiesSection
 						projectId={projectId}
 						node={selectedNode}
-						structureLocked={structureLocked} atGate={atGate}
+						structureLocked={structureLocked}
+						atGate={atGate}
 					/>
-				) : null}
-				{activeTab === "generation" ? (
+				</TabsContent>
+				<TabsContent
+					value="generation"
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
+				>
 					<GenerationSection
 						projectId={projectId}
 						node={selectedNode}
-						structureLocked={structureLocked} atGate={atGate}
+						structureLocked={structureLocked}
+						atGate={atGate}
 						universeId={universeId}
 						multiShotIds={multiShotIds}
 					/>
-				) : null}
-				{activeTab === "history" ? <HistorySection node={selectedNode} projectId={projectId} /> : null}
-			</div>
+				</TabsContent>
+				<TabsContent
+					value="history"
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
+				>
+					<HistorySection node={selectedNode} projectId={projectId} />
+				</TabsContent>
+			</Tabs>
 		</div>
 	);
 }

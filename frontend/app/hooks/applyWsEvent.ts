@@ -28,6 +28,10 @@ import { clearGateTitleBadge, notifyRunEvent } from "~/utils/runNotifications";
 import { appQueryClient } from "~/query/client";
 import { applyChatMessage, applyChatStatus } from "~/query/assistantChat";
 import { projectQueryKeys } from "~/query/queryKeys";
+import { applyAgentThoughtFragment } from "~/features/workbench/protocol/thoughtStreamStore";
+import { appendProtocolLog } from "~/features/workbench/protocol/protocolLogStore";
+import type { DomainEventType } from "~/generated/eventsContract";
+import type { ChatState } from "~/types";
 
 function cachedProjectTitle(projectId: number): string | null {
 	return appQueryClient.getQueryData<Project>(projectQueryKeys.project(projectId))?.title ?? null;
@@ -169,7 +173,8 @@ export function applyWsEvent(
 ): void {
 	// `runMode` is a genuine client preference (manual/yolo) owned by the editor
 	// store; everything else in this reducer writes to the query cache.
-	switch (event.type) {
+	const eventType: DomainEventType | string = event.type;
+	switch (eventType) {
 		case "connected":
 			break;
 
@@ -180,6 +185,171 @@ export function applyWsEvent(
 		case "chat_status":
 			applyChatStatus(projectId, event.data as Parameters<typeof applyChatStatus>[1]);
 			break;
+
+		case "chat_confirmation_created": {
+			const toolCallId = event.data.tool_call_id as string | undefined;
+			const tool = (event.data.tool_label as string | undefined) || (event.data.tool_name as string | undefined);
+			const summary = event.data.summary as string | undefined;
+			if (toolCallId && tool && summary) {
+				appQueryClient.setQueryData<ChatState>(projectQueryKeys.chat(projectId), (old) =>
+					old
+						? { ...old, pending: { tool_call_id: toolCallId, tool, summary } }
+						: { messages: [], busy: false, text: "", pending: { tool_call_id: toolCallId, tool, summary } },
+				);
+			}
+			appendProtocolLog(projectId, {
+				channel: "RPC",
+				direction: "SYS",
+				source: "SQLite WAL",
+				summary: `持久化确认卡 created: ${tool ?? "tool"} (${toolCallId ?? ""})`,
+				payload: event.data,
+			});
+			break;
+		}
+
+		case "chat_confirmation_resolved":
+		case "chat_confirmation_expired": {
+			const toolCallId = event.data.tool_call_id as string | undefined;
+			appQueryClient.setQueryData<ChatState>(projectQueryKeys.chat(projectId), (old) => {
+				if (!old?.pending) return old;
+				if (!toolCallId || old.pending.tool_call_id === toolCallId) {
+					return { ...old, pending: null };
+				}
+				return old;
+			});
+			void appQueryClient.invalidateQueries({ queryKey: projectQueryKeys.chat(projectId) });
+			appendProtocolLog(projectId, {
+				channel: eventType === "chat_confirmation_expired" ? "ERROR" : "RPC",
+				direction: "SYS",
+				source: "SQLite WAL",
+				summary: `${event.type}: ${String(event.data.tool_name ?? toolCallId ?? "")}`,
+				payload: event.data,
+			});
+			break;
+		}
+
+		case "agent_thought":
+		case "chat_agent_thought": {
+			applyAgentThoughtFragment(projectId, {
+				agent: event.data.agent as string | undefined,
+				phase: event.data.phase as string | null | undefined,
+				content: event.data.content as string | undefined,
+				delta: event.data.delta as string | null | undefined,
+				done: event.data.done as boolean | undefined,
+				timestamp: event.data.timestamp as string | null | undefined,
+			});
+			break;
+		}
+
+		case "shot_invalidation_cascaded": {
+			const ids = Array.isArray(event.data.invalidated_shot_ids) ? event.data.invalidated_shot_ids : [];
+			if (ids.length > 0) {
+				appendMessage(projectId, {
+					id: generateMessageId(),
+					agent: "system",
+					role: "info",
+					content: `下游 ${ids.length} 个分镜已标为待重审（关键帧联动失效）`,
+					timestamp: new Date().toISOString(),
+				});
+				appendProtocolLog(projectId, {
+					channel: "RPC",
+					direction: "SYS",
+					source: "Invalidation",
+					summary: `shot_invalidation_cascaded -> [${ids.join(", ")}]`,
+					payload: event.data,
+				});
+			}
+			break;
+		}
+
+		case "mcp_server_status": {
+			const serverName = String(event.data.server_name ?? "mcp");
+			const status = String(event.data.status ?? "unknown");
+			appendProtocolLog(projectId, {
+				channel: status === "unhealthy" ? "ERROR" : "RPC",
+				direction: event.data.direction === "inbound" ? "IN" : "OUT",
+				source: serverName,
+				summary: `server_status=${status} (${String(event.data.transport ?? "")})`,
+				latencyMs: typeof event.data.latency_ms === "number" ? event.data.latency_ms : null,
+				payload: event.data,
+			});
+			break;
+		}
+
+		case "mcp_rpc_request": {
+			appendProtocolLog(projectId, {
+				channel: "RPC",
+				direction: event.data.direction === "inbound" ? "IN" : "OUT",
+				source: String(event.data.server_name ?? "mcp"),
+				summary: `JSON-RPC -> ${String(event.data.method ?? "call")}`,
+				payload: event.data,
+			});
+			break;
+		}
+
+		case "mcp_rpc_response": {
+			const ok = event.data.ok !== false;
+			appendProtocolLog(projectId, {
+				channel: ok ? "RPC" : "ERROR",
+				direction: event.data.direction === "inbound" ? "IN" : "OUT",
+				source: String(event.data.server_name ?? "mcp"),
+				summary: `JSON-RPC <- ${String(event.data.method ?? "call")} ${ok ? "ok" : "error"}`,
+				latencyMs: typeof event.data.latency_ms === "number" ? event.data.latency_ms : null,
+				payload: event.data,
+			});
+			break;
+		}
+
+		case "mcp_tool_called": {
+			const failed = event.data.status === "failed";
+			appendProtocolLog(projectId, {
+				channel: failed ? "ERROR" : "RPC",
+				direction: event.data.direction === "inbound" ? "IN" : "OUT",
+				source: String(event.data.server_name ?? "mcp"),
+				summary: `tools/call ${String(event.data.tool_name ?? "")} [${String(event.data.status ?? "")}]`,
+				latencyMs: typeof event.data.latency_ms === "number" ? event.data.latency_ms : null,
+				payload: event.data,
+			});
+			break;
+		}
+
+		case "cli_process_started": {
+			const cmd = String(event.data.command ?? "cli");
+			const args = Array.isArray(event.data.args) ? event.data.args.join(" ") : "";
+			appendProtocolLog(projectId, {
+				channel: "STDIO",
+				direction: "OUT",
+				source: cmd,
+				summary: `$ ${cmd}${args ? ` ${args}` : ""}`,
+				payload: event.data,
+			});
+			break;
+		}
+
+		case "cli_stdout": {
+			const isErr = event.data.stream === "stderr";
+			appendProtocolLog(projectId, {
+				channel: isErr ? "ERROR" : "STDIO",
+				direction: "IN",
+				source: String(event.data.command ?? "cli"),
+				summary: String(event.data.line ?? ""),
+				payload: event.data,
+			});
+			break;
+		}
+
+		case "cli_process_exited": {
+			const code = typeof event.data.exit_code === "number" ? event.data.exit_code : 0;
+			appendProtocolLog(projectId, {
+				channel: code !== 0 ? "ERROR" : "STDIO",
+				direction: "IN",
+				source: String(event.data.command ?? "cli"),
+				summary: `exit=${code}${event.data.error ? ` · ${String(event.data.error)}` : ""}`,
+				latencyMs: typeof event.data.duration_ms === "number" ? event.data.duration_ms : null,
+				payload: event.data,
+			});
+			break;
+		}
 
 		case "error": {
 			const code = event.data.code as string | undefined;

@@ -16,7 +16,7 @@ from app.models.project import Character, Project, Shot
 from app.schemas.project import ProjectProviderEntry
 from app.services import engine_client, provider_resolution
 from app.services.text_capabilities import TextProviderCapability
-from tests.factories import create_character, create_project, create_run, create_shot
+from tests.factories import create_character, create_project, create_run, create_shot, read_outbox_events
 
 
 def _resolution() -> generation_routes.ProviderResolution:
@@ -118,7 +118,7 @@ async def test_failed_run_is_still_recoverable(async_client, test_session):
 
 
 @pytest.mark.asyncio
-async def test_cancel_on_interrupted_run_dismisses_it(async_client, test_session, ws_manager):
+async def test_cancel_on_interrupted_run_dismisses_it(async_client, test_session):
     project = await create_project(test_session)
     run = await create_run(test_session, project.id, status="failed", live_lease=False)
 
@@ -128,7 +128,7 @@ async def test_cancel_on_interrupted_run_dismisses_it(async_client, test_session
     await test_session.refresh(run)
     assert run.status == "cancelled"
     assert run.cancel_requested_at is not None
-    assert any(event["type"] == "run_cancelled" for _, event in ws_manager.events)
+    assert await read_outbox_events(test_session, "run_cancelled")
 
     current = await async_client.get(f"/api/v1/projects/{project.id}/runs/current")
     assert current.json() is None
@@ -142,7 +142,7 @@ async def test_cancel_on_interrupted_run_dismisses_it(async_client, test_session
 
 @pytest.mark.asyncio
 async def test_regenerate_keeps_previous_version_and_stop_restores_it(
-    async_client, test_session, ws_manager, valid_providers
+    async_client, test_session, valid_providers
 ):
     project, character, shot = await _finished_project(test_session)
 
@@ -169,7 +169,7 @@ async def test_regenerate_keeps_previous_version_and_stop_restores_it(
     shots = (await test_session.execute(select(Shot).where(Shot.project_id == project.id))).scalars().all()
     assert [(c.id, c.name) for c in chars] == [(character.id, "橘猫")]
     assert [(s.id, s.description) for s in shots] == [(shot.id, "站台")]
-    assert any(event["type"] == "project_restored" for _, event in ws_manager.events)
+    assert await read_outbox_events(test_session, "project_restored")
     # 活动流里有一条落库的说明，刷新后还在
     notes = (
         await test_session.execute(
@@ -196,6 +196,10 @@ async def test_engine_side_stop_restores_on_next_read(async_client, test_session
 
     current = await async_client.get(f"/api/v1/projects/{project.id}/runs/current")
     assert current.json() is None
+    # P2-3: GET /runs/current is strictly read-only; explicit reconcile settles stopped runs.
+    reconciled = await async_client.post(f"/api/v1/projects/{project.id}/runs/reconcile")
+    assert reconciled.status_code == 200
+    assert reconciled.json() is None
     test_session.expire_all()
     assert (await test_session.get(Project, project.id)).video_url == "/static/managed-v1/old-cut.mp4"
     await test_session.refresh(run)

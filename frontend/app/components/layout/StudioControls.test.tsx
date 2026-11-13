@@ -70,12 +70,13 @@ describe("StudioControls", () => {
 			renderControls({ generatePending: true, generateDisabled: true });
 			const button = screen.getByRole("button", { name: /正在创建/ });
 			expect(button).toBeDisabled();
-			expect(button.parentElement).toHaveAttribute("title", "正在创建运行");
+			expect(button).toHaveAttribute("aria-busy", "true");
+			expect(screen.getByText("正在创建运行")).toBeInTheDocument();
 			act(() => {
 				vi.advanceTimersByTime(12_000);
 			});
 			expect(screen.getByRole("button", { name: /仍在连接模型… 12s/ })).toBeInTheDocument();
-			expect(screen.getByText(/刷新页面后重试/)).toBeInTheDocument();
+			expect(screen.getAllByText(/刷新页面后重试/).length).toBeGreaterThanOrEqual(1);
 		} finally {
 			vi.useRealTimers();
 		}

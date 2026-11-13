@@ -1,11 +1,12 @@
 import { MEDIA, imageReady } from "~/components/ui/media";
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { assetsApi, getStaticUrl } from "~/services/api";
 import { Button } from "~/components/ui/Button";
 import { SvgIcon, type IconName } from "~/components/ui/SvgIcon";
 import { ConfirmModal } from "~/components/ui/ConfirmModal";
 import { Dialog } from "~/components/ui/Dialog";
+import { Tabs, TabsList, TabsTrigger } from "~/components/ui/Tabs";
 import { toast } from "~/utils/toast";
 import type { Asset, AssetCreatePayload } from "~/types";
 import { IconButton } from "../../components/ui/IconButton";
@@ -144,7 +145,7 @@ function CreateAssetForm({ isOpen, onClose, onCreated }: CreateAssetFormProps) {
 			onClose={handleClose}
 			variant="sheet-right"
 			labelledBy="create-asset-title"
-			className="flex w-72 flex-col"
+			className="flex w-72 max-w-full flex-col"
 		>
 				<div className="flex items-center justify-between border-b border-line px-2.5 py-2">
 					<div className="flex items-center gap-1.5">
@@ -153,15 +154,13 @@ function CreateAssetForm({ isOpen, onClose, onCreated }: CreateAssetFormProps) {
 							新建资产
 						</h3>
 					</div>
-					<Button
-						variant="ghost"
-						size="sm"
-						className="!h-7 !min-h-7 !px-1"
+					<IconButton
+						size="xs"
 						onClick={handleClose}
 						aria-label="关闭新建资产"
 					>
 						<SvgIcon name="x" size={14} />
-					</Button>
+					</IconButton>
 				</div>
 
 				<div className="flex flex-1 flex-col gap-2.5 overflow-y-auto p-2.5">
@@ -319,7 +318,7 @@ function CreateAssetForm({ isOpen, onClose, onCreated }: CreateAssetFormProps) {
 
 /* ---------- Asset Card ---------- */
 
-function AssetCard({
+const AssetCard = memo(function AssetCard({
 	asset,
 	projectId,
 	onDelete,
@@ -395,7 +394,7 @@ function AssetCard({
 			</div>
 		</div>
 	);
-}
+});
 
 /* ---------- Asset Drawer ---------- */
 
@@ -452,7 +451,7 @@ export function AssetDrawer({ open, onClose, projectId }: AssetDrawerProps) {
 				onClose={onClose}
 				variant="sheet-right"
 				labelledBy="asset-drawer-title"
-				className="w-72"
+				className="flex w-72 max-w-full flex-col"
 			>
 				<div className="flex items-center justify-between border-b border-line px-2.5 py-2">
 					<div className="flex items-center gap-1.5">
@@ -465,44 +464,43 @@ export function AssetDrawer({ open, onClose, projectId }: AssetDrawerProps) {
 						</span>
 					</div>
 					<div className="flex items-center gap-0.5">
-						<Button
-							variant="ghost"
-							size="sm"
-							className="!h-7 !min-h-7 !px-1 text-primary"
+						<IconButton
+							size="xs"
+							className="text-primary"
 							onClick={() => setShowCreateForm(true)}
 							title="新建资产"
 							aria-label="新建资产"
 						>
 							<SvgIcon name="plus" size={14} />
-						</Button>
-						<Button
-							variant="ghost"
-							size="sm"
-							className="!h-7 !min-h-7 !px-1"
+						</IconButton>
+						<IconButton
+							size="xs"
 							onClick={onClose}
 							aria-label="关闭资产库"
 						>
 							<SvgIcon name="x" size={14} />
-						</Button>
+						</IconButton>
 					</div>
 				</div>
 
-				<div className="flex border-b border-line">
-					{ASSET_TABS.map((tab) => (
-						<PlainButton
-							key={tab.key}
-							className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-medium transition-colors duration-fast border-b-2 -mb-0.5 ${
-								activeTab === tab.key
-									? "border-primary text-primary"
-									: "border-transparent text-ink-muted hover:text-ink-muted"
-							}`}
-							onClick={() => setActiveTab(tab.key)}
-						>
-							<SvgIcon name={tab.icon} size={12} />
-							{tab.label}
-						</PlainButton>
-					))}
-				</div>
+				<Tabs
+					value={activeTab}
+					onValueChange={(value) => setActiveTab(value as AssetType | "all")}
+				>
+					<TabsList variant="underline" aria-label="资产分类" className="w-full">
+						{ASSET_TABS.map((tab) => (
+							<TabsTrigger
+								key={tab.key}
+								value={tab.key}
+								variant="underline"
+								className="flex-1 py-2"
+							>
+								<SvgIcon name={tab.icon} size={12} />
+								{tab.label}
+							</TabsTrigger>
+						))}
+					</TabsList>
+				</Tabs>
 
 				{/* Search */}
 				<div className="px-3 pt-2">
@@ -516,10 +514,7 @@ export function AssetDrawer({ open, onClose, projectId }: AssetDrawerProps) {
 				</div>
 
 				{/* Content */}
-				<div
-					className="p-3 overflow-y-auto"
-					style={{ height: "calc(100vh - 160px)" }}
-				>
+				<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3">
 					{isLoading ? (
 						<div className="flex items-center justify-center py-8">
 							<span className="spinner-doodle h-4 w-4 text-primary" />

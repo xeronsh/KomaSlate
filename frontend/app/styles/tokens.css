@@ -170,6 +170,14 @@
     --z-popover: 40; /* 下拉、菜单 */
     --z-toast: 60;
     --z-tooltip: 70;
+
+    /* —— Option 3 混合编排节点连线语义色 —— */
+    --color-wire-stage: 37 99 235;
+    --color-wire-gate: 217 119 6;
+    --color-wire-agent: 8 145 178;
+    --color-wire-mcp-out: 8 145 178;
+    --color-wire-cli: 5 150 105;
+    --color-wire-mcp-in: 124 58 237;
   }
 
   /* 深色 = 油墨版：底色带群青色相（hue≈265），不是中性灰 */
@@ -202,6 +210,14 @@
     /* 深色面板：白 8% 发丝描边勾边（beautifului.dev），再加压暗的投影 */
     --shadow-panel: 0 0 0 1px rgb(255 255 255 / 0.06), 0 8px 24px -4px rgb(0 0 0 / 0.5);
     --shadow-dialog: 0 0 0 1px rgb(255 255 255 / 0.08), 0 24px 56px -8px rgb(0 0 0 / 0.6);
+
+    /* —— Option 3 混合编排节点连线语义色（深色） —— */
+    --color-wire-stage: 96 165 250;
+    --color-wire-gate: 245 158 11;
+    --color-wire-agent: 34 211 238;
+    --color-wire-mcp-out: 34 211 238;
+    --color-wire-cli: 16 185 129;
+    --color-wire-mcp-in: 167 139 250;
   }
 
   /* 触屏下密集档自动升到无障碍下限；桌面密集布局不受影响 */

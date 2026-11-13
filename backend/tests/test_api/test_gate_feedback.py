@@ -7,7 +7,7 @@ from sqlmodel import select
 
 from app.models.agent_run import AgentRun
 from app.models.message import Message
-from tests.factories import create_project, create_run
+from tests.factories import create_project, create_run, read_outbox_events
 
 GATE_PAYLOAD = {
     "run_id": 0,
@@ -34,6 +34,7 @@ async def _gate_run(session, project_id: int) -> AgentRun:
 @pytest.fixture()
 def _shared_maker(monkeypatch, shared_session_maker):
     monkeypatch.setattr("app.db.session.async_session_maker", shared_session_maker)
+    monkeypatch.setattr("app.db.session.async_readonly_session_maker", shared_session_maker)
 
 
 @pytest.mark.asyncio
@@ -79,7 +80,7 @@ async def test_gate_feedback_requests_changes_without_approving(
     assert [m.content for m in messages if m.role == "user"] == ["结局更温暖"]
     assert [m.summary for m in messages if m.role == "feedback_receipt"] == [feedback_id]
 
-    receipts = [e for _, e in ws_manager.events if e["type"] == "run_feedback"]
+    receipts = await read_outbox_events(test_session, "run_feedback")
     assert receipts and receipts[-1]["data"]["state"] == "received"
     assert receipts[-1]["data"]["stage"] == "outline_approval"
 
@@ -192,7 +193,7 @@ async def test_feedback_receipt_is_persisted_and_rounds_count_from_the_db(
         (2, "结局反转", "received", "outline_approval"),
     ]
     assert rows[0].summary == first.json()["feedback_id"]
-    rounds = [e["data"]["round"] for _, e in ws_manager.events if e["type"] == "run_feedback"]
+    rounds = [e["data"]["round"] for e in await read_outbox_events(test_session, "run_feedback")]
     assert rounds == [1, 2]
     await test_session.refresh(run)
     assert run.gate_feedback["round"] == 2
@@ -201,3 +202,74 @@ async def test_feedback_receipt_is_persisted_and_rounds_count_from_the_db(
     listed = (await async_client.get(f"/api/v1/projects/{project.id}/messages")).json()
     roles = [m["role"] for m in listed]
     assert roles == ["user", "feedback_receipt", "user", "feedback_receipt"]
+
+
+@pytest.mark.asyncio
+async def test_mcp_gate_approval_requires_single_use_human_auth_token(
+    async_client, test_session, shared_session_maker, _shared_maker
+):
+    from app.mcp.server import handle_jsonrpc_message
+
+    project = await create_project(test_session)
+    run = await _gate_run(test_session, project.id)
+
+    tools_res = await handle_jsonrpc_message(
+        {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+        session_maker=shared_session_maker,
+        readonly_session_maker=shared_session_maker,
+    )
+    tool_names = [t["name"] for t in tools_res["result"]["tools"]]
+    assert "approve_gate" not in tool_names
+    assert "submit_gate_approval" in tool_names
+
+    # Missing / bogus token is rejected
+    bad_res = await handle_jsonrpc_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "submit_gate_approval",
+                "arguments": {"run_id": run.id, "human_auth_token": "forged-token-00000000"},
+            },
+        },
+        session_maker=shared_session_maker,
+        readonly_session_maker=shared_session_maker,
+    )
+    assert bad_res["result"]["isError"] is True
+
+    # Mint 60s single-use token via UI human-auth-token endpoint
+    tok_res = await async_client.post(f"/api/v1/runs/{run.id}/human-auth-token")
+    assert tok_res.status_code == 200
+    token = tok_res.json()["human_auth_token"]
+
+    ok_res = await handle_jsonrpc_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+                "name": "submit_gate_approval",
+                "arguments": {"run_id": run.id, "human_auth_token": token},
+            },
+        },
+        session_maker=shared_session_maker,
+        readonly_session_maker=shared_session_maker,
+    )
+    assert not ok_res["result"].get("isError")
+
+    # Replay of the same token is rejected (single-use)
+    replay_res = await handle_jsonrpc_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 4,
+            "method": "tools/call",
+            "params": {
+                "name": "submit_gate_approval",
+                "arguments": {"run_id": run.id, "human_auth_token": token},
+            },
+        },
+        session_maker=shared_session_maker,
+        readonly_session_maker=shared_session_maker,
+    )
+    assert replay_res["result"]["isError"] is True

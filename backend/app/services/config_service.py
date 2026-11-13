@@ -267,46 +267,12 @@ class ConfigService:
         return created
 
     async def ensure_provider_configs_initialized(self) -> int:
-        """Persist reusable generation-provider interface settings into DB.
+        """Retained for API compatibility; startup no longer persists defaults into DB.
 
-        Keep the scope to text/image/video/TTS/BGM provider settings. Database,
-        admin and deployment settings stay environment-owned unless the
-        user explicitly saves them.
+        Configuration precedence is strictly:
+        process env > .env > DB configitem > Settings defaults.
         """
-        env_values = _load_effective_env_values()
-        res = await self.session.execute(select(ConfigItem))
-        existing = {item.key.upper() for item in res.scalars().all()}
-        created = 0
-
-        for key in sorted(SETTINGS_ENV_FIELD_MAP):
-            if not _is_provider_config_key(key) or key in existing:
-                continue
-
-            value = env_values.get(key)
-            if value is None:
-                field_name = SETTINGS_ENV_FIELD_MAP.get(key)
-                default_value = getattr(SETTINGS_DEFAULTS, field_name, None) if field_name else None
-                if default_value is None:
-                    continue
-                value = _serialize_config_value(default_value)
-
-            if value == "":
-                continue
-
-            self.session.add(
-                ConfigItem(
-                    key=key,
-                    value=value,
-                    is_sensitive=is_sensitive_key(key),
-                    created_at=utcnow(),
-                    updated_at=utcnow(),
-                )
-            )
-            created += 1
-
-        if created:
-            await self.session.commit()
-        return created
+        return 0
 
     async def list_effective(self) -> list[dict[str, Any]]:
         env_values = _load_effective_env_values()
@@ -322,14 +288,14 @@ class ConfigService:
         for key in keys:
             item = db_map.get(key)
             value: str | None
-            if item:
-                value = item.value
-                is_sensitive = item.is_sensitive or is_sensitive_key(key)
-                source = "db"
-            elif key in env_values:
+            if key in env_values:
                 value = env_values.get(key)
                 is_sensitive = is_sensitive_key(key)
                 source = "env"
+            elif item:
+                value = item.value
+                is_sensitive = item.is_sensitive or is_sensitive_key(key)
+                source = "db"
             else:
                 # Fall back to Settings model default
                 field_name = SETTINGS_ENV_FIELD_MAP.get(key)
@@ -355,23 +321,31 @@ class ConfigService:
         return results
 
     async def get_raw_value(self, key: str) -> str | None:
-        """获取配置项的原始值（未脱敏）"""
-        # 先从数据库查找
+        """获取配置项的原始值（未脱敏），严格遵循 Process Env > .env > DB。"""
+        env_values = _load_effective_env_values()
+        if key in env_values:
+            return env_values[key]
+        upper_key = key.upper()
+        if upper_key in env_values:
+            return env_values[upper_key]
+
         res = await self.session.execute(select(ConfigItem).where(ConfigItem.key == key))
         item = res.scalar_one_or_none()
         if item:
             return item.value
-
-        # 回退到 .env 文件
-        env_values = _load_effective_env_values()
-        return env_values.get(key.upper()) or env_values.get(key)
+        return None
 
     async def build_settings_overrides(self) -> dict[str, Any]:
+        env_values = _load_effective_env_values()
+        env_upper = {k.upper() for k in env_values}
         res = await self.session.execute(select(ConfigItem))
         items = res.scalars().all()
         overrides: dict[str, Any] = {}
         for item in items:
-            field_name = SETTINGS_ENV_FIELD_MAP.get(item.key.upper())
+            upper = item.key.upper()
+            if upper in env_upper:
+                continue
+            field_name = SETTINGS_ENV_FIELD_MAP.get(upper)
             if not field_name:
                 continue
             field = Settings.model_fields[field_name]
@@ -380,6 +354,12 @@ class ConfigService:
 
     async def apply_settings_overrides(self) -> None:
         overrides = await self.build_settings_overrides()
+        env_values = _load_effective_env_values()
+        for key, raw_val in env_values.items():
+            field_name = SETTINGS_ENV_FIELD_MAP.get(key.upper())
+            if field_name:
+                field = Settings.model_fields[field_name]
+                overrides[field_name] = _parse_value(raw_val, field.annotation)
         if overrides:
             apply_settings_overrides_to_runtime(overrides)
 

@@ -7,11 +7,11 @@ import json
 import pytest
 
 from app.api.v1.routes import characters as routes
-from tests.factories import create_character, create_project
+from tests.factories import create_character, create_project, read_outbox_events
 
 
-def _bible_events(ws_manager):
-    return [event["data"] for _, event in ws_manager.events if event["type"] == "bible_updated"]
+async def _bible_events(session):
+    return [e["data"] for e in await read_outbox_events(session, "bible_updated")]
 
 
 @pytest.mark.asyncio
@@ -72,7 +72,7 @@ async def test_bible_of_unknown_character_is_404(async_client):
 
 
 @pytest.mark.asyncio
-async def test_update_bible_saves_notes_and_images(async_client, test_session, ws_manager):
+async def test_update_bible_saves_notes_and_images(async_client, test_session):
     project = await create_project(test_session)
     character = await create_character(test_session, project_id=project.id)
 
@@ -85,13 +85,13 @@ async def test_update_bible_saves_notes_and_images(async_client, test_session, w
     body = res.json()
     assert body["visual_notes"] == "red scarf"
     assert body["reference_images"] == ["/static/a.png"]
-    assert _bible_events(ws_manager) == [
+    assert await _bible_events(test_session) == [
         {"character_id": character.id, "visual_notes": True, "reference_images_count": 1, "has_embedding": False}
     ]
 
 
 @pytest.mark.asyncio
-async def test_update_bible_images_only_does_not_flag_notes(async_client, test_session, ws_manager):
+async def test_update_bible_images_only_does_not_flag_notes(async_client, test_session):
     project = await create_project(test_session)
     character = await create_character(test_session, project_id=project.id)
 
@@ -101,7 +101,7 @@ async def test_update_bible_images_only_does_not_flag_notes(async_client, test_s
 
     assert res.status_code == 200
     assert res.json()["visual_notes"] is None
-    assert _bible_events(ws_manager)[0]["visual_notes"] is False
+    assert (await _bible_events(test_session))[0]["visual_notes"] is False
 
 
 @pytest.mark.asyncio
@@ -120,7 +120,7 @@ async def test_update_bible_rejects_a_stale_revision(async_client, test_session)
 
 
 @pytest.mark.asyncio
-async def test_reference_images_append_and_delete(async_client, test_session, ws_manager):
+async def test_reference_images_append_and_delete(async_client, test_session):
     project = await create_project(test_session)
     character = await create_character(test_session, project_id=project.id)
     url = f"/api/v1/characters/{character.id}/reference-images"
@@ -133,7 +133,7 @@ async def test_reference_images_append_and_delete(async_client, test_session, ws
     assert deleted.status_code == 204
     bible = (await async_client.get(f"/api/v1/characters/{character.id}/bible")).json()
     assert bible["reference_images"] == ["/static/b.png"]
-    assert [event["reference_images_count"] for event in _bible_events(ws_manager)] == [1, 2, 1]
+    assert [event["reference_images_count"] for event in await _bible_events(test_session)] == [1, 2, 1]
 
 
 @pytest.mark.asyncio
@@ -153,7 +153,7 @@ async def test_reference_image_delete_rejects_a_bad_index(async_client, test_ses
 
 
 @pytest.mark.asyncio
-async def test_compute_embedding_stores_the_vector(async_client, test_session, monkeypatch, ws_manager):
+async def test_compute_embedding_stores_the_vector(async_client, test_session, monkeypatch):
     project = await create_project(test_session)
     character = await create_character(test_session, project_id=project.id, image_url="/static/crow.png")
     asked = []
@@ -170,7 +170,7 @@ async def test_compute_embedding_stores_the_vector(async_client, test_session, m
     assert asked == ["/static/crow.png"]
     await test_session.refresh(character)
     assert json.loads(character.face_embedding) == [0.5, 0.25]
-    assert _bible_events(ws_manager)[-1]["has_embedding"] is True
+    assert (await _bible_events(test_session))[-1]["has_embedding"] is True
 
 
 @pytest.mark.asyncio

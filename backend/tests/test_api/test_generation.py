@@ -437,9 +437,100 @@ async def test_stale_cancelling_run_ends_cancelled_not_failed(async_client, test
     assert res.status_code == 200
     # The stop is honoured and is final: nothing is offered as resumable.
     assert res.json() is None
+    # GET /runs/current is strictly read-only; explicit reconcile persists the transition.
+    rec = await async_client.post(f"/api/v1/projects/{project.id}/runs/reconcile")
+    assert rec.status_code == 200
+    assert rec.json() is None
     await test_session.refresh(run)
     assert run.status == "cancelled"
     assert run.error is None
+
+
+@pytest.mark.asyncio
+async def test_get_current_run_is_readonly(async_client, test_session):
+    """BE-10: Repeated GET /runs/current never mutates or writes to the DB."""
+    project = await create_project(test_session)
+    run = await create_run(test_session, project_id=project.id, status="running", live_lease=False)
+    run_id = run.id
+    orig_status = run.status
+    orig_revision = run.revision
+
+    for _ in range(10):
+        res = await async_client.get(f"/api/v1/projects/{project.id}/runs/current")
+        assert res.status_code == 200
+        assert res.json()["state"] == "recoverable"
+
+    test_session.expire_all()
+    stored = await test_session.get(AgentRun, run_id)
+    assert stored is not None
+    assert stored.status == orig_status
+    assert stored.revision == orig_revision
+
+
+@pytest.mark.asyncio
+async def test_create_local_run_ensures_engine_and_prevents_zombie_lock(
+    test_session, test_settings, ws_manager, monkeypatch
+):
+    """BE-01: create_local_run calls ensure_engine_running; failure leaves no queued zombie."""
+    from fastapi import HTTPException
+    from app.services import run_lifecycle
+    from app.services.engine_client import EngineUnavailableError
+
+    calls: list[str] = []
+
+    async def _fail_ensure(*_args, **_kwargs):
+        calls.append("ensure")
+        raise EngineUnavailableError("engine offline")
+
+    monkeypatch.setattr(run_lifecycle, "ensure_engine_running", _fail_ensure)
+    project = await create_project(test_session)
+
+    with pytest.raises(HTTPException) as exc:
+        await run_lifecycle.create_local_run(
+            test_session,
+            settings=test_settings,
+            ws=ws_manager,
+            spec=run_lifecycle.TargetedRunSpec(
+                project_id=project.id,
+                resource_type="shot",
+                resource_id=10,
+                stage="render_shots",
+                target_shot_ids=(10,),
+            ),
+        )
+    assert exc.value.status_code == 503
+    assert calls == ["ensure"]
+    # No queued row left behind -> assert_resource_idle does not 409
+    await run_lifecycle.assert_resource_idle(
+        test_session, project_id=project.id, resource_type="shot", resource_id=10
+    )
+
+    # Also if start_run fails after ensure succeeds, the created run is marked failed
+    async def _ok_ensure(*_args, **_kwargs):
+        return None
+
+    async def _fail_start(*_args, **_kwargs):
+        raise EngineUnavailableError("dispatch failed")
+
+    monkeypatch.setattr(run_lifecycle, "ensure_engine_running", _ok_ensure)
+    monkeypatch.setattr(run_lifecycle, "engine_start_run", _fail_start)
+    with pytest.raises(HTTPException) as exc2:
+        await run_lifecycle.create_local_run(
+            test_session,
+            settings=test_settings,
+            ws=ws_manager,
+            spec=run_lifecycle.TargetedRunSpec(
+                project_id=project.id,
+                resource_type="shot",
+                resource_id=10,
+                stage="render_shots",
+                target_shot_ids=(10,),
+            ),
+        )
+    assert exc2.value.status_code == 503
+    await run_lifecycle.assert_resource_idle(
+        test_session, project_id=project.id, resource_type="shot", resource_id=10
+    )
 
 
 @pytest.mark.asyncio

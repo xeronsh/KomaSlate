@@ -5,7 +5,16 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { SettingsModal } from "./SettingsModal";
 import { useSettingsStore } from "~/stores/settingsStore";
 import { configApi } from "~/services/api";
+import { toast } from "~/utils/toast";
 import type { ConfigItem } from "~/types";
+
+if (typeof globalThis.ResizeObserver === "undefined") {
+	globalThis.ResizeObserver = class ResizeObserver {
+		observe() {}
+		unobserve() {}
+		disconnect() {}
+	};
+}
 
 // Mock API
 vi.mock("~/services/api", () => ({
@@ -883,9 +892,7 @@ describe("SettingsModal", () => {
 
 	it("显示真实值失败时给出错误提示", async () => {
 		const user = userEvent.setup();
-		const alertSpy = vi
-			.spyOn(window, "alert")
-			.mockImplementation(() => undefined);
+		const toastErrorSpy = vi.spyOn(toast, "error").mockImplementation(() => "");
 		const consoleErrorSpy = vi
 			.spyOn(console, "error")
 			.mockImplementation(() => undefined);
@@ -905,11 +912,14 @@ describe("SettingsModal", () => {
 		await user.click(screen.getByTitle("显示真实值"));
 
 		await waitFor(() => {
-			expect(alertSpy).toHaveBeenCalledWith("获取真实值失败，请检查网络连接");
+			expect(toastErrorSpy).toHaveBeenCalledWith({
+				title: "获取真实值失败",
+				message: "获取真实值失败，请检查网络连接",
+			});
 		});
 
 		consoleErrorSpy.mockRestore();
-		alertSpy.mockRestore();
+		toastErrorSpy.mockRestore();
 	});
 
 	it("敏感配置显示脱敏值", async () => {

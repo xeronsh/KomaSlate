@@ -1,7 +1,9 @@
 /** Workflow engine sidecar HTTP entry (loopback only). */
+import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { promisify } from "node:util";
 import { EngineDatabase } from "./db.js";
 import {
   TextLlmService,
@@ -17,6 +19,63 @@ import {
 import { PRODUCTION_STAGE_SEQUENCE, WORKFLOW_VERSION } from "./contract.js";
 import { ChatAgents, ChatBusyError } from "./agent/index.js";
 import { backendFetch } from "./agent/tools.js";
+import { sharedBackendWorkerPool } from "./backend-worker.js";
+import { McpClientPool } from "./mcp/index.js";
+
+const execFileAsync = promisify(execFile);
+
+interface CliToolSpec {
+  id: string;
+  label: string;
+  command: string;
+  probeArgs: string[];
+  description: string;
+}
+
+const REGISTERED_CLI_TOOLS: readonly CliToolSpec[] = [
+  {
+    id: "komaslate",
+    label: "komaslate CLI",
+    command: "komaslate",
+    probeArgs: ["--help"],
+    description: "KomaSlate 统一命令行工具",
+  },
+  {
+    id: "ffmpeg",
+    label: "ffmpeg",
+    command: "ffmpeg",
+    probeArgs: ["-version"],
+    description: "音视频拼接与字幕烧录工具",
+  },
+  {
+    id: "ffprobe",
+    label: "ffprobe",
+    command: "ffprobe",
+    probeArgs: ["-version"],
+    description: "媒体时长与流探测工具",
+  },
+  {
+    id: "dreamina",
+    label: "dreamina",
+    command: "dreamina",
+    probeArgs: ["--version"],
+    description: "Dreamina CLI 图像/视频工具",
+  },
+  {
+    id: "engine_media_cli",
+    label: "engine_media_cli",
+    command: process.env.ENGINE_PYTHON ?? "python",
+    probeArgs: ["-m", "app.services.engine_media_cli", "--help"],
+    description: "Backend 常驻媒体 Worker CLI",
+  },
+  {
+    id: "komaslate-media",
+    label: "komaslate media",
+    command: "komaslate",
+    probeArgs: ["media", "--help"],
+    description: "KomaSlate 独立媒体子命令",
+  },
+];
 
 const LEASE_TTL_SECONDS = 120;
 const LEASE_HEARTBEAT_MS = 30_000;
@@ -49,6 +108,8 @@ export function createEngineApp(dbPath: string) {
     llm,
     api: backendFetch(process.env.KOMASLATE_BACKEND_URL ?? process.env.OPENOII_BACKEND_URL ?? "http://127.0.0.1:18765"),
   });
+  const mcpPool = new McpClientPool(db);
+  mcpPool.startHealthMonitor();
 
   function runContext(runId: number): RunCreativeContext {
     const row = shared.getRun(runId);
@@ -138,7 +199,9 @@ export function createEngineApp(dbPath: string) {
         });
       }
 
-      const runner = new PipelineRunner(db, fencedShared, runScopedLlm(context), context);
+      const runner = new PipelineRunner(db, fencedShared, runScopedLlm(context), context, {
+        reclaimLease: () => reclaimLease(runId, request.projectId, leaseToken),
+      });
       pipelines.set(runId, runner);
 
       const heartbeat = setInterval(() => {
@@ -242,6 +305,190 @@ export function createEngineApp(dbPath: string) {
 
     if (req.method === "GET" && url.pathname === "/runs") {
       send(200, { runs: [...pipelines.keys()] });
+      return;
+    }
+
+    if (req.method === "GET" && (url.pathname === "/mcp/servers" || url.pathname === "/mcp/status")) {
+      send(200, {
+        servers: mcpPool.listStatus(),
+        worker_pool: sharedBackendWorkerPool.stats(),
+      });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/mcp/events") {
+      const pidParam = url.searchParams.get("project_id");
+      const limitParam = Number(url.searchParams.get("limit") ?? 100);
+      const pid = pidParam !== null ? Number(pidParam) : undefined;
+      const rows = db.recentProtocolEvents(
+        pid !== undefined && Number.isFinite(pid) ? pid : undefined,
+        Number.isFinite(limitParam) ? limitParam : 100,
+      );
+      send(200, {
+        events: rows.map((row) => ({
+          seq: row.seq,
+          run_id: row.run_id,
+          project_id: row.project_id,
+          type: row.type,
+          data: parseJsonColumn(row.payload, {}),
+          created_at: row.created_at,
+        })),
+      });
+      return;
+    }
+
+    const mcpPingMatch = /^\/mcp\/servers\/([^/]+)\/ping$/.exec(url.pathname);
+    if (req.method === "POST" && (url.pathname === "/mcp/ping" || mcpPingMatch)) {
+      const body = await readJson(req);
+      const serverName = mcpPingMatch
+        ? decodeURIComponent(mcpPingMatch[1]!)
+        : typeof body.server_name === "string"
+          ? body.server_name
+          : "";
+      if (!serverName) {
+        send(422, { error: { code: "MCP_SERVER_REQUIRED", message: "server_name is required" } });
+        return;
+      }
+      if (!mcpPool.getServerStatus(serverName)) {
+        send(404, { error: { code: "MCP_SERVER_NOT_FOUND", message: `MCP server "${serverName}" is not registered` } });
+        return;
+      }
+      const projectId = typeof body.project_id === "number" && Number.isFinite(body.project_id) ? body.project_id : 0;
+      const snapshot = await mcpPool.pingServer(serverName, { projectId });
+      send(200, {
+        ok: snapshot.status === "connected",
+        latency_ms: snapshot.latency_ms,
+        error: snapshot.error,
+        server: snapshot,
+      });
+      return;
+    }
+
+    const mcpPolicyMatch = /^\/mcp\/servers\/([^/]+)\/policy$/.exec(url.pathname);
+    if (req.method === "PATCH" && mcpPolicyMatch) {
+      const serverName = decodeURIComponent(mcpPolicyMatch[1]!);
+      const body = await readJson(req);
+      const rawPolicy = body.policy;
+      const policy =
+        rawPolicy === "read_only_auto" || rawPolicy === "auto_readonly"
+          ? "read_only_auto"
+          : rawPolicy === "confirm_writes"
+            ? "confirm_writes"
+            : null;
+      if (!policy) {
+        send(422, { error: { code: "MCP_POLICY_INVALID", message: "policy must be read_only_auto or confirm_writes" } });
+        return;
+      }
+      const updated = mcpPool.setServerPolicy(serverName, policy);
+      if (!updated) {
+        send(404, { error: { code: "MCP_SERVER_NOT_FOUND", message: `MCP server "${serverName}" is not registered` } });
+        return;
+      }
+      send(200, updated);
+      return;
+    }
+
+    const mcpServerMatch = /^\/mcp\/servers\/([^/]+)$/.exec(url.pathname);
+    if (req.method === "PATCH" && mcpServerMatch) {
+      const serverName = decodeURIComponent(mcpServerMatch[1]!);
+      const body = await readJson(req);
+      if (typeof body.enabled !== "boolean") {
+        send(422, { error: { code: "MCP_ENABLED_INVALID", message: "enabled must be boolean" } });
+        return;
+      }
+      const updated = mcpPool.setServerEnabled(serverName, body.enabled);
+      if (!updated) {
+        send(404, { error: { code: "MCP_SERVER_NOT_FOUND", message: `MCP server "${serverName}" is not registered` } });
+        return;
+      }
+      send(200, updated);
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/cli/tools") {
+      send(200, {
+        tools: REGISTERED_CLI_TOOLS.map((tool) => ({
+          id: tool.id,
+          label: tool.label,
+          command: `${tool.command} ${tool.probeArgs.join(" ")}`,
+          description: tool.description,
+        })),
+        worker_pool: sharedBackendWorkerPool.stats(),
+      });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/cli/dry-run") {
+      const body = await readJson(req);
+      const toolId = typeof body.tool === "string" ? body.tool : "";
+      const spec = REGISTERED_CLI_TOOLS.find((entry) => entry.id === toolId);
+      if (!spec) {
+        send(404, { error: { code: "CLI_TOOL_NOT_FOUND", message: `Unknown CLI tool: ${toolId}` } });
+        return;
+      }
+      const projectId = typeof body.project_id === "number" && Number.isFinite(body.project_id) ? body.project_id : 0;
+      const startedAt = Date.now();
+      const command = spec.id === "engine_media_cli" ? (process.env.ENGINE_PYTHON ?? "python") : spec.command;
+      db.appendEvent(0, projectId, "cli_process_started", {
+        command: spec.id,
+        args: spec.probeArgs,
+        pid: null,
+        stage: "dry_run",
+        timestamp: new Date(startedAt).toISOString(),
+      });
+      try {
+        const { stdout, stderr } = await execFileAsync(command, spec.probeArgs, {
+          timeout: 5000,
+          maxBuffer: 256 * 1024,
+        });
+        const trimmedOut = stdout.trim().slice(0, 2000);
+        const trimmedErr = stderr.trim().slice(0, 2000);
+        if (trimmedOut) {
+          db.appendEvent(0, projectId, "cli_stdout", {
+            command: spec.id,
+            stream: "stdout",
+            line: trimmedOut.split("\n")[0] ?? trimmedOut,
+            pid: null,
+            timestamp: new Date().toISOString(),
+          });
+        }
+        db.appendEvent(0, projectId, "cli_process_exited", {
+          command: spec.id,
+          exit_code: 0,
+          duration_ms: Date.now() - startedAt,
+          pid: null,
+          error: null,
+          timestamp: new Date().toISOString(),
+        });
+        send(200, {
+          ok: true,
+          tool: spec.id,
+          exit_code: 0,
+          stdout: trimmedOut,
+          stderr: trimmedErr,
+          duration_ms: Date.now() - startedAt,
+        });
+      } catch (err) {
+        const execErr = err as { code?: number | string; stdout?: string; stderr?: string; message?: string };
+        const exitCode = typeof execErr.code === "number" ? execErr.code : 1;
+        const message = execErr.message ?? "dry-run failed";
+        db.appendEvent(0, projectId, "cli_process_exited", {
+          command: spec.id,
+          exit_code: exitCode,
+          duration_ms: Date.now() - startedAt,
+          pid: null,
+          error: message.slice(0, 500),
+          timestamp: new Date().toISOString(),
+        });
+        send(200, {
+          ok: false,
+          tool: spec.id,
+          exit_code: exitCode,
+          stdout: String(execErr.stdout ?? "").trim().slice(0, 2000),
+          stderr: String(execErr.stderr ?? message).trim().slice(0, 2000),
+          duration_ms: Date.now() - startedAt,
+        });
+      }
       return;
     }
 
@@ -500,7 +747,12 @@ export function createEngineApp(dbPath: string) {
     });
   });
 
-  return { server, db, llm, shared, pipelines, ownerId, chat };
+  server.on("close", () => {
+    void mcpPool.closeAll();
+    void sharedBackendWorkerPool.closeAll();
+  });
+
+  return { server, db, llm, shared, pipelines, ownerId, chat, mcpPool };
 }
 
 function legacyFullCommand(

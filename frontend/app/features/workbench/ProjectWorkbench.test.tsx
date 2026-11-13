@@ -10,6 +10,15 @@ import { useEditorStore } from "~/stores/editorStore";
 import { ApiError } from "~/types/errors";
 import type { Character, Project, Shot } from "~/types";
 import { ProjectWorkbench } from "./ProjectWorkbench";
+import { appendProtocolLog, clearProtocolLogs } from "./protocol/protocolLogStore";
+
+if (typeof globalThis.ResizeObserver === "undefined") {
+	globalThis.ResizeObserver = class ResizeObserver {
+		observe() {}
+		unobserve() {}
+		disconnect() {}
+	};
+}
 
 /**
  * The workbench shell wires run control, selection, inbox, export and version
@@ -35,6 +44,18 @@ const h = vi.hoisted(() => ({
 	api: {
 		exportApi: { triggerWebtoon: vi.fn(), getStatus: vi.fn() },
 		projectsApi: { getRegeneratePlan: vi.fn(), currentRun: vi.fn() },
+		chatApi: { get: vi.fn(), send: vi.fn(), abort: vi.fn(), confirm: vi.fn() },
+		mcpApi: {
+			listServers: vi.fn(),
+			pingServer: vi.fn(),
+			updatePolicy: vi.fn(),
+			toggleServer: vi.fn(),
+			listCliTools: vi.fn(),
+			dryRunCli: vi.fn(),
+			issueHumanAuthToken: vi.fn(),
+		},
+		shotsApi: { update: vi.fn(), patch: vi.fn(), approve: vi.fn(), regenerate: vi.fn(), delete: vi.fn() },
+		versionsApi: { list: vi.fn(), get: vi.fn(), rollback: vi.fn(), compare: vi.fn() },
 		getStaticUrl: (url?: string | null) => (url ? `http://static${url}` : null),
 	},
 	toast: { info: vi.fn(() => "pending-toast"), success: vi.fn(), error: vi.fn(), warning: vi.fn(), dismiss: vi.fn() },
@@ -100,7 +121,7 @@ vi.mock("~/components/chat/ChatPanel", () => ({ ChatPanel: () => <div data-testi
 vi.mock("~/features/comic-workflow/agent/RunTimingBar", () => ({ RunTimingBar: () => <div data-testid="timing" /> }));
 vi.mock("~/features/comic-workflow/inspector/InspectorPanel", () => ({
 	InspectorPanel: (p: Record<string, any>) => (
-		<section data-testid="inspector" data-open={String(p.open)} data-node={p.selectedNode?.id ?? ""} data-brief={p.briefNode?.id ?? ""} data-locked={String(p.structureLocked)}>
+		<section data-testid="inspector" data-open={String(p.open)} data-docked={String(Boolean(p.docked))} data-node={p.selectedNode?.id ?? ""} data-brief={p.briefNode?.id ?? ""} data-locked={String(p.structureLocked)}>
 			<button onClick={() => p.onOpenChange(true)}>打开检查器</button>
 			<button onClick={() => p.onOpenChange(false)}>收起检查器</button>
 		</section>
@@ -177,13 +198,21 @@ function renderShell() {
 beforeEach(() => {
 	vi.clearAllMocks();
 	appQueryClient.clear();
+	clearProtocolLogs(PID);
 	h.mobile = false;
 	h.controllerArgs = [];
 	h.controller.lastRunStatus = null;
 	h.data = { project: baseProject, characters: [], shots: [], projectLoading: false, projectError: null };
 	h.api.projectsApi.currentRun.mockReturnValue(new Promise(() => undefined));
 	h.api.projectsApi.getRegeneratePlan.mockResolvedValue({ previous_version: null });
+	h.api.chatApi.get.mockResolvedValue({ messages: [], busy: false, text: "", pending: null });
+	h.api.mcpApi.listServers.mockResolvedValue({ servers: [] });
+	h.api.mcpApi.listCliTools.mockResolvedValue({ tools: [] });
+	h.api.versionsApi.list.mockResolvedValue({ entity_type: "shot", entity_id: 0, versions: [] });
+	useEditorStore.getState().reset();
 	useEditorStore.getState().setRunMode("manual");
+	useEditorStore.getState().setWorkbenchView("storyboard");
+	useEditorStore.getState().setBottomDrawerOpen(false);
 	Object.defineProperty(window, "innerWidth", { configurable: true, value: 1600 });
 });
 
@@ -422,5 +451,94 @@ describe("ProjectWorkbench drawers and export", () => {
 		h.api.exportApi.triggerWebtoon.mockRejectedValueOnce(new Error("没有分镜"));
 		fireEvent.click(screen.getByRole("button", { name: "导出" }));
 		await waitFor(() => expect(h.toast.error).toHaveBeenLastCalledWith({ title: "导出失败", message: "没有分镜" }));
+	});
+});
+
+describe("Option 3 Node-Graph & Protocol Workbench", () => {
+	it("renders SVG Cubic Bezier node graph, 3-tier Semantic LOD, 3-pane drawer and Protocol Hub", async () => {
+		useEditorStore.getState().setWorkbenchView("nodegraph");
+		useEditorStore.getState().setBottomDrawerOpen(true);
+		h.data = {
+			...h.data,
+			characters,
+			shots: [
+				{
+					...shots[0],
+					revision: 14,
+					image_url: "/static/s1-v2.png",
+					review_status: "unchecked",
+				} as Shot,
+			],
+		};
+		h.api.versionsApi.list.mockResolvedValue({
+			entity_type: "shot",
+			entity_id: 11,
+			versions: [
+				{ id: 2, entity_type: "shot", entity_id: 11, version: 2, snapshot: { image_url: "/static/s1-v2.png" }, trigger: "regen", created_at: "2026-11-13T00:00:00Z" },
+				{ id: 1, entity_type: "shot", entity_id: 11, version: 1, snapshot: { image_url: "/static/s1-v1.png" }, trigger: "init", created_at: "2026-11-13T00:00:00Z" },
+			],
+		});
+		h.api.shotsApi.patch.mockRejectedValueOnce(
+			new ApiError({ code: "CONFLICT", message: "revision mismatch", status: 409 }),
+		);
+		patchRunState(PID, {
+			isGenerating: true,
+			currentRunId: 8,
+			awaitingConfirm: true,
+			awaitingAgent: "render",
+			recoveryGate: { run_id: 8, current_stage: "render_shots", stage: "render_shots" } as never,
+		});
+		appendProtocolLog(PID, {
+			channel: "RPC",
+			direction: "OUT",
+			source: "comfyui-inpaint",
+			summary: "tools/call inpaint_region",
+			latencyMs: 42,
+		});
+
+		const { container } = renderShell();
+		const graph = await screen.findByTestId("node-graph-canvas");
+		expect(screen.getByTestId("inspector")).toHaveAttribute("data-docked", "true");
+		expect(graph).toHaveAttribute("data-lod", "mid");
+		expect(container.querySelector("#wire-arrow")).toBeInTheDocument();
+
+		// Switch Semantic LOD: 40% Macro -> 130% Micro
+		fireEvent.click(screen.getByRole("button", { name: "切换 40% 宏观缩放" }));
+		expect(graph).toHaveAttribute("data-lod", "macro");
+		expect(screen.getByTestId("lod-badge")).toHaveTextContent("40%");
+
+		fireEvent.click(screen.getByRole("button", { name: "切换 130% 微观缩放" }));
+		expect(graph).toHaveAttribute("data-lod", "micro");
+		expect(screen.getAllByText("rev=14").length).toBeGreaterThan(0);
+
+		// Bottom 3-pane Protocol Workbench
+		expect(await screen.findByTestId("ab-wipe-pane")).toBeInTheDocument();
+		expect(screen.getByTestId("human-only-gate-card")).toBeInTheDocument();
+		expect(screen.getByTestId("protocol-console-pane")).toBeInTheDocument();
+		expect(screen.getByText("tools/call inpaint_region")).toBeInTheDocument();
+
+		// CAS revert 409 conflict alert
+		const revertBtn = await screen.findByRole("button", { name: "CAS 回退到上一版本" });
+		await waitFor(() => expect(revertBtn).not.toBeDisabled());
+		fireEvent.click(revertBtn);
+		expect(await screen.findByTestId("cas-conflict-alert")).toBeInTheDocument();
+		expect(h.api.shotsApi.patch).toHaveBeenCalledWith(11, {
+			expected_revision: 14,
+			image_url: "/static/s1-v1.png",
+		});
+
+		// Protocol Hub Dialog
+		fireEvent.click(screen.getByRole("button", { name: "打开全局协议枢纽" }));
+		expect(await screen.findByText("双向 MCP & CLI 协议枢纽")).toBeInTheDocument();
+
+		// Responsive drawer layout: >=1024px three-pane -> <1024px compact tabs
+		expect(screen.getByTestId("protocol-workbench-drawer")).toHaveAttribute("data-layout", "three-pane");
+		act(() => {
+			useEditorStore.getState().syncViewportWidth(768);
+		});
+		expect(screen.getByTestId("protocol-workbench-drawer")).toHaveAttribute("data-layout", "compact-tabs");
+		expect(screen.getByRole("tab", { name: "A/B 对比" })).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "审批与队列" })).toBeInTheDocument();
+		expect(screen.getByRole("tab", { name: "协议终端" })).toBeInTheDocument();
 	});
 });

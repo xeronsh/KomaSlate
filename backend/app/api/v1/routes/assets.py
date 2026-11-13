@@ -1,23 +1,24 @@
 from __future__ import annotations
 
-from uuid import uuid4
-
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import SessionDep
+from app.db.utils import utcnow
 from app.models.asset import Asset
 from app.models.project import Character, Shot
 from app.schemas.project import (
     AssetCreate,
     AssetListRead,
     AssetRead,
+    AssetUpdate,
     CharacterRead,
     ShotRead,
     UseAssetInProjectRequest,
 )
-from app.services.file_cleaner import STATIC_DIR
+from app.services.file_cleaner import save_validated_image_upload
+from app.services.revision import assert_expected_revision, commit_versioned
 
 router = APIRouter()
 
@@ -25,25 +26,7 @@ router = APIRouter()
 @router.post("/upload-image", response_model=dict)
 async def upload_asset_image(file: UploadFile = File(...)):
     """上传资产图片到 /static/assets/ 目录，返回 URL 路径"""
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Only image files are accepted")
-
-    assets_dir = STATIC_DIR / "assets"
-    assets_dir.mkdir(parents=True, exist_ok=True)
-
-    ext = file.content_type.split("/")[-1]
-    if ext == "jpeg":
-        ext = "jpg"
-    filename = f"{uuid4().hex[:12]}.{ext}"
-    dest = assets_dir / filename
-
-    content = await file.read()
-    if len(content) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Image must be under 10MB")
-
-    dest.write_bytes(content)
-
-    url_path = f"/static/assets/{filename}"
+    url_path = await save_validated_image_upload(file, subdir="assets")
     return {"url": url_path}
 
 
@@ -146,13 +129,35 @@ async def get_asset(asset_id: int, session: AsyncSession = SessionDep):
     return AssetRead.model_validate(asset)
 
 
+@router.patch("/{asset_id}", response_model=AssetRead)
+@router.put("/{asset_id}", response_model=AssetRead)
+async def update_asset(
+    asset_id: int,
+    payload: AssetUpdate,
+    session: AsyncSession = SessionDep,
+):
+    asset = await session.get(Asset, asset_id)
+    if not asset:
+        raise HTTPException(status_code=404, detail="Asset not found")
+    data = payload.model_dump(exclude_unset=True)
+    data.pop("expected_revision", None)
+    assert_expected_revision(asset, payload.expected_revision, entity="asset")
+    for k, v in data.items():
+        setattr(asset, k, v)
+    asset.updated_at = utcnow()
+    session.add(asset)
+    await commit_versioned(session, asset, entity="asset")
+    await session.refresh(asset)
+    return AssetRead.model_validate(asset)
+
+
 @router.delete("/{asset_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_asset(asset_id: int, session: AsyncSession = SessionDep):
     asset = await session.get(Asset, asset_id)
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     await session.delete(asset)
-    await session.commit()
+    await commit_versioned(session, asset, entity="asset")
     return None
 
 

@@ -74,7 +74,7 @@ describe("WorkflowInspector", () => {
 			/>,
 		);
 
-		await user.click(screen.getByRole("button", { name: "生成" }));
+		await user.click(screen.getByRole("tab", { name: "生成" }));
 
 		expect(screen.getByText("生成运行中，结构写入操作已锁定。")).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: /批准/ })).toBeDisabled();
@@ -85,13 +85,13 @@ describe("WorkflowInspector", () => {
 		renderWithClient(<WorkflowInspector projectId={15} selectedNode={characterNode()} structureLocked={false} />);
 
 		for (const name of ["概览", "属性", "生成", "历史"]) {
-			expect(screen.getByRole("button", { name })).toBeInTheDocument();
+			expect(screen.getByRole("tab", { name })).toBeInTheDocument();
 		}
 		// 和卡片同一个词：卡片是「待确认」，这里也是
 		expect(screen.getByText("待确认")).toBeInTheDocument();
 		expect(screen.queryByText("审阅状态")).toBeNull();
 
-		await user.click(screen.getByRole("button", { name: "属性" }));
+		await user.click(screen.getByRole("tab", { name: "属性" }));
 		expect(screen.getByRole("button", { name: "保存" })).toBeInTheDocument();
 	});
 
@@ -105,21 +105,20 @@ describe("WorkflowInspector", () => {
 		const user = userEvent.setup();
 		renderWithClient(<WorkflowInspector projectId={15} selectedNode={characterNode()} structureLocked atGate />);
 
-		await user.click(screen.getByRole("button", { name: "生成" }));
+		await user.click(screen.getByRole("tab", { name: "生成" }));
 		expect(screen.getByRole("note")).toHaveTextContent("提修改意见");
 		expect(screen.queryByText(/结构写入操作已锁定/)).toBeNull();
 		const redo = screen.getByRole("button", { name: "重新生成当前角色" });
 		expect(redo).toBeDisabled();
-		expect(redo.parentElement).toHaveAttribute("title", expect.stringContaining("确认后可单独重做"));
 
-		await user.click(screen.getByRole("button", { name: "属性" }));
+		await user.click(screen.getByRole("tab", { name: "属性" }));
 		expect(screen.getByRole("button", { name: "保存" })).not.toBeDisabled();
 	});
 
 	it("while running, properties stay locked", async () => {
 		const user = userEvent.setup();
 		renderWithClient(<WorkflowInspector projectId={15} selectedNode={characterNode()} structureLocked />);
-		await user.click(screen.getByRole("button", { name: "生成" }));
+		await user.click(screen.getByRole("tab", { name: "生成" }));
 		expect(screen.getByRole("note")).toHaveTextContent("生成运行中");
 	});
 
@@ -134,7 +133,7 @@ describe("WorkflowInspector", () => {
 		});
 		renderWithClient(<WorkflowInspector projectId={15} selectedNode={characterNode()} structureLocked={false} />);
 
-		await user.click(screen.getByRole("button", { name: "历史" }));
+		await user.click(screen.getByRole("tab", { name: "历史" }));
 		expect(screen.getByText("1 次")).toBeInTheDocument();
 		await user.click(screen.getByRole("button", { name: "对比生成版本" }));
 		expect(seen).toHaveBeenCalledWith({ entityType: "character", entityId: 1 });
@@ -145,7 +144,7 @@ describe("WorkflowInspector", () => {
 		const user = userEvent.setup();
 		vi.spyOn(versionsApi, "list").mockResolvedValue({ entity_type: "character", entity_id: 1, versions: [{ id: 1, entity_type: "character", entity_id: 1, version: 1, snapshot: { name: "阿一", description: "主角" }, trigger: "generation", created_at: "" }] });
 		renderWithClient(<WorkflowInspector projectId={15} selectedNode={characterNode()} structureLocked={false} />);
-		await user.click(screen.getByRole("button", { name: "历史" }));
+		await user.click(screen.getByRole("tab", { name: "历史" }));
 		expect(await screen.findByText("只有一个版本，重新生成或修改后才能对比。")).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "对比生成版本" })).toBeDisabled();
 	});

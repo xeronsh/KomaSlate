@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 
 from app.services.version_service import VersionService, character_snapshot, shot_snapshot
-from tests.factories import create_character, create_project, create_shot
+from tests.factories import create_character, create_project, create_shot, read_outbox_events
 
 versions = VersionService()
 
@@ -16,8 +16,8 @@ async def _snapshot_shot(session, shot):
     return version
 
 
-def _events(ws_manager, kind):
-    return [event["data"] for _, event in ws_manager.events if event["type"] == kind]
+async def _events(session, kind):
+    return [e["data"] for e in await read_outbox_events(session, kind)]
 
 
 @pytest.mark.asyncio
@@ -113,12 +113,12 @@ async def test_rollback_shot_restores_fields_and_marks_the_cut_stale(async_clien
     await test_session.refresh(project)
     assert shot.description == "good take"
     assert project.status == "superseded"
-    assert _events(ws_manager, "shot_updated")[0]["shot"]["description"] == "good take"
-    assert _events(ws_manager, "project_updated")[0]["project"]["status"] == "superseded"
-    assert _events(ws_manager, "version_rollback") == [
+    assert (await _events(test_session, "shot_updated"))[0]["shot"]["description"] == "good take"
+    assert (await _events(test_session, "project_updated"))[0]["project"]["status"] == "superseded"
+    assert await _events(test_session, "version_rollback") == [
         {"entity_type": "shot", "entity_id": shot.id, "from_version": 2, "to_version": 1}
     ]
-    assert _events(ws_manager, "version_created")[-1]["version"] == 3
+    assert (await _events(test_session, "version_created"))[-1]["version"] == 3
 
 
 @pytest.mark.asyncio
@@ -147,10 +147,10 @@ async def test_rollback_character_clears_the_shots_that_used_it(async_client, te
     assert character.description == "black"
     assert (with_crow.image_url, with_crow.video_url) == (None, None)
     assert without.image_url == "http://test.com/shot.png"
-    assert [e["shot"]["id"] for e in _events(ws_manager, "shot_updated")] == [with_crow.id]
-    created = _events(ws_manager, "version_created")
+    assert [e["shot"]["id"] for e in await _events(test_session, "shot_updated")] == [with_crow.id]
+    created = await _events(test_session, "version_created")
     assert {"entity_type": "shot", "entity_id": with_crow.id, "version": 1, "trigger": "rollback"} in created
-    assert _events(ws_manager, "character_updated")[0]["character"]["description"] == "black"
+    assert (await _events(test_session, "character_updated"))[0]["character"]["description"] == "black"
 
 
 @pytest.mark.asyncio

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { canvasEvents } from "~/components/canvas/canvasEvents";
+import { ConfirmModal } from "~/components/ui/ConfirmModal";
+import { Input } from "~/components/ui/Input";
 import { assetsApi, charactersApi, getStaticUrl, shotsApi, universesApi, versionsApi } from "~/services/api";
 import { removeCharacterFromCache, removeShotFromCache, upsertCharacterInCache, upsertShotInCache } from "~/query/applyServerEvent";
 import { toast } from "~/utils/toast";
@@ -19,6 +21,7 @@ export function GenerationSection({
 	universeId = null,
 	multiShotIds = [],
 	compact = false,
+	onActionDone,
 }: {
 	projectId: number;
 	node: ComicWorkflowNode;
@@ -29,13 +32,17 @@ export function GenerationSection({
 	multiShotIds?: number[];
 	/** 右键菜单里用：省掉说明文字 */
 	compact?: boolean;
+	/** 动作触发完成后的回调（例如关闭右键浮层） */
+	onActionDone?: () => void;
 }) {
 	const queryClient = useQueryClient();
 	const [busy, setBusy] = useState<string | null>(null);
+	const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 	// 单镜微调指令：只作用于这一次重做，成功后清空
 	const [feedback, setFeedback] = useState("");
 	useEffect(() => {
 		setFeedback("");
+		setConfirmDeleteOpen(false);
 	}, [projectId, node.kind, node.entityId]);
 	const writeDisabled = structureLocked || Boolean(busy);
 
@@ -92,6 +99,7 @@ export function GenerationSection({
 							src: videoUrl,
 							title: "最终成片",
 						});
+						onActionDone?.();
 					}}
 				/>
 				<p className="m-0 text-xs text-ink-muted">
@@ -103,8 +111,9 @@ export function GenerationSection({
 
 	const entityId = node.entityId;
 
-	const approve = () =>
-		runAction("approve", async () => {
+	const approve = () => {
+		onActionDone?.();
+		return runAction("approve", async () => {
 			if (node.kind === "character") {
 				const updated = await charactersApi.approve(entityId);
 				upsertCharacterInCache(queryClient, updated.project_id, updated);
@@ -114,9 +123,11 @@ export function GenerationSection({
 			}
 			toast.success({ title: "审阅", message: "已批准" });
 		});
+	};
 
-	const regenerate = (type: "image" | "video" = "image") =>
-		runAction(type === "image" ? "regenerate" : "regenerate-video", async () => {
+	const regenerate = (type: "image" | "video" = "image") => {
+		onActionDone?.();
+		return runAction(type === "image" ? "regenerate" : "regenerate-video", async () => {
 			if (node.kind === "character") {
 				await charactersApi.regenerate(entityId);
 			} else {
@@ -140,10 +151,12 @@ export function GenerationSection({
 				message: "任务已启动，仅影响选中实体",
 			});
 		});
+	};
 
 	// 版本切换：回到上一版本身也会记成新版本，所以再点一次就切回来
-	const swapToPrevious = () =>
-		runAction("previous", async () => {
+	const swapToPrevious = () => {
+		onActionDone?.();
+		return runAction("previous", async () => {
 			const kind = node.kind === "character" ? "character" : "shot";
 			const { versions } = await versionsApi.list(projectId, kind, entityId);
 			const target = previousVersion(versions);
@@ -154,9 +167,11 @@ export function GenerationSection({
 			await versionsApi.rollback(kind, entityId, target.version);
 			toast.success({ title: "已换回上一版", message: `内容来自 v${target.version}，再点一次可切回` });
 		});
+	};
 
-	const addToAssets = () =>
-		runAction("asset", async () => {
+	const addToAssets = () => {
+		onActionDone?.();
+		return runAction("asset", async () => {
 			if (node.kind === "character") {
 				await assetsApi.createFromCharacter(entityId);
 			} else {
@@ -164,9 +179,11 @@ export function GenerationSection({
 			}
 			toast.success({ title: "资产库", message: "已保存" });
 		});
+	};
 
-	const promoteToUniverse = () =>
-		runAction("promote", async () => {
+	const promoteToUniverse = () => {
+		onActionDone?.();
+		return runAction("promote", async () => {
 			if (!universeId || node.kind !== "character") return;
 			await universesApi.promoteCharacter(universeId, entityId);
 			queryClient.invalidateQueries({ queryKey: ["universe", universeId] });
@@ -175,9 +192,11 @@ export function GenerationSection({
 				message: "共享角色库已更新，后续章节可沿用",
 			});
 		});
+	};
 
-	const syncToUniverse = () =>
-		runAction("sync", async () => {
+	const syncToUniverse = () => {
+		onActionDone?.();
+		return runAction("sync", async () => {
 			if (node.kind !== "character") return;
 			await universesApi.syncCharacter(entityId);
 			if (universeId) {
@@ -188,11 +207,10 @@ export function GenerationSection({
 				message: "共享角色圣经版本 +1",
 			});
 		});
+	};
 
-	const deleteNode = () =>
+	const confirmDelete = () =>
 		runAction("delete", async () => {
-			const confirmed = window.confirm(deleteMessage(node));
-			if (!confirmed) return;
 			if (node.kind === "character") {
 				await charactersApi.delete(entityId);
 				removeCharacterFromCache(queryClient, projectId, entityId);
@@ -200,6 +218,8 @@ export function GenerationSection({
 				await shotsApi.delete(entityId);
 				removeShotFromCache(queryClient, projectId, entityId);
 			}
+			setConfirmDeleteOpen(false);
+			onActionDone?.();
 			toast.success({ title: "删除", message: "已删除" });
 		});
 
@@ -226,16 +246,14 @@ export function GenerationSection({
 			/>
 			{node.kind === "shot" ? (
 				<>
-					<label className="block">
-						<span className="mb-1 block label text-ink-muted">单镜微调指令（可选）</span>
-						<input
-							className="input-doodle w-full px-2 py-1 text-sm"
-							value={feedback}
-							placeholder="如：改用仰拍、加强逆光"
-							disabled={writeDisabled}
-							onChange={(event) => setFeedback(event.target.value)}
-						/>
-					</label>
+					<Input
+						density="compact"
+						label="单镜微调指令（可选）"
+						value={feedback}
+						placeholder="如：改用仰拍、加强逆光"
+						disabled={writeDisabled}
+						onChange={(event) => setFeedback(event.target.value)}
+					/>
 					<ActionButton
 						icon="refresh-cw"
 						label={`重做首帧 · ${shotCellLabel}`}
@@ -301,9 +319,23 @@ export function GenerationSection({
 					danger
 					disabledReason={structureLocked ? lockReason(atGate) : undefined} disabled={writeDisabled}
 					loading={busy === "delete"}
-					onClick={deleteNode}
+					onClick={() => setConfirmDeleteOpen(true)}
 				/>
 			</div>
+			<ConfirmModal
+				isOpen={confirmDeleteOpen}
+				onClose={() => {
+					setConfirmDeleteOpen(false);
+					onActionDone?.();
+				}}
+				onConfirm={confirmDelete}
+				title={node.kind === "character" ? "删除角色" : "删除镜头"}
+				message={deleteMessage(node)}
+				confirmText="删除"
+				cancelText="取消"
+				variant="danger"
+				isLoading={busy === "delete"}
+			/>
 		</ActionStack>
 	);
 }

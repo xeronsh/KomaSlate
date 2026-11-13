@@ -119,3 +119,53 @@ class TestExportService:
     def test_load_pil_image_invalid(self, service):
         result = service._load_pil_image(b"not-an-image")
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_export_pdf_escapes_xml_characters(self, service, monkeypatch, tmp_path):
+        """BE-07: ReportLab Paragraph escapes XML chars (<Hero>&\"Dialogue\") without SAX errors."""
+        import app.services.export_service as exp_mod
+        from app.models.project import Project, Shot
+
+        monkeypatch.setattr(exp_mod, "EXPORTS_DIR", tmp_path)
+        project = Project(
+            id=1,
+            title="<Title>&\"Test\"",
+            style="anime",
+            summary="<Hero>&\"Summary\" with <tag>",
+        )
+        shot = Shot(
+            id=1,
+            project_id=1,
+            order=1,
+            description="desc",
+            dialogue='<Hero>&"Dialogue"',
+        )
+        url = await service.export_pdf(project, [shot], [])
+        assert url.startswith("/static/exports/")
+        pdf_file = tmp_path / url.removeprefix("/static/exports/")
+        assert pdf_file.is_file() and pdf_file.stat().st_size > 0
+
+    @pytest.mark.asyncio
+    async def test_export_editorial_pack_streams_files(self, service, monkeypatch, tmp_path):
+        """BE-07: editorial pack streams local files via ZipFile.write without dict buffer."""
+        import zipfile
+        import app.services.export_service as exp_mod
+        from app.models.project import Project, Shot
+
+        static_dir = tmp_path / "static"
+        exports_dir = static_dir / "exports"
+        videos_dir = static_dir / "videos"
+        videos_dir.mkdir(parents=True)
+        clip = videos_dir / "clip1.mp4"
+        clip.write_bytes(b"MP4STREAM" * 100)
+
+        monkeypatch.setattr(exp_mod, "EXPORTS_DIR", exports_dir)
+        monkeypatch.setattr(exp_mod, "get_local_path", lambda u: clip if u == "/static/videos/clip1.mp4" else None)
+
+        project = Project(id=2, title="Stream", style="anime")
+        shot = Shot(id=10, project_id=2, order=1, description="s1", video_url="/static/videos/clip1.mp4")
+        url = await service.export_editorial_pack(project, [shot], [])
+        zip_path = exports_dir / url.removeprefix("/static/exports/")
+        with zipfile.ZipFile(zip_path) as zf:
+            assert "shots/01_shot_10_clip.mp4" in zf.namelist()
+            assert zf.read("shots/01_shot_10_clip.mp4") == b"MP4STREAM" * 100

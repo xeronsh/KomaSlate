@@ -5,7 +5,7 @@ import pytest
 
 from app.services import run_lifecycle
 
-from tests.factories import create_character, create_project, create_shot
+from tests.factories import create_character, create_project, create_shot, read_outbox_events
 
 
 @pytest.mark.asyncio
@@ -48,9 +48,10 @@ async def test_reorder_project_shots_updates_orders_atomically(
 
     list_res = await async_client.get(f"/api/v1/projects/{project.id}/shots")
     assert [shot["id"] for shot in list_res.json()] == [third.id, first.id, second.id]
-    assert ws_manager.events[-1][0] == project.id
-    assert ws_manager.events[-1][1]["type"] == "shots_reordered"
-    assert [shot["id"] for shot in ws_manager.events[-1][1]["data"]["shots"]] == [
+    events = await read_outbox_events(test_session, "shots_reordered")
+    assert events[-1]["project_id"] == project.id
+    assert events[-1]["type"] == "shots_reordered"
+    assert [shot["id"] for shot in events[-1]["data"]["shots"]] == [
         third.id,
         first.id,
         second.id,
@@ -83,11 +84,12 @@ async def test_reorder_project_shots_marks_existing_final_video_superseded(
     await test_session.refresh(project)
     assert project.video_url == "http://test.com/final.mp4"
     assert project.status == "superseded"
-    assert [event[1]["type"] for event in ws_manager.events[-2:]] == [
+    events = await read_outbox_events(test_session)
+    assert [event["type"] for event in events[-2:]] == [
         "shots_reordered",
         "project_updated",
     ]
-    assert ws_manager.events[-1][1]["data"]["project"]["status"] == "superseded"
+    assert events[-1]["data"]["project"]["status"] == "superseded"
 
 
 @pytest.mark.asyncio
@@ -146,6 +148,10 @@ async def test_update_shot(async_client, test_session, method):
     data = res.json()
     assert data["description"] == "New description"
     assert data["prompt"] == "New prompt"
+    # BE-05: PATCH /shots/{id} persists shot_updated to engine_run_events outbox
+    events = await read_outbox_events(test_session, "shot_updated")
+    assert events and events[-1]["data"]["shot"]["id"] == shot.id
+    assert events[-1]["seq"] >= 1
 
 
 @pytest.mark.asyncio
@@ -492,3 +498,76 @@ async def test_validate_shot_unknown_character_ids(async_client, test_session):
     res = await async_client.post(f"/api/v1/shots/{shot.id}/approve")
     assert res.status_code == 400
     assert "Unknown character_ids" in res.json()["error"]["message"]
+
+
+@pytest.mark.asyncio
+async def test_mcp_update_shot_enforces_cas_and_outbox(
+    test_session, shared_session_maker, async_client
+):
+    from app.mcp.server import handle_jsonrpc_message
+
+    project = await create_project(test_session)
+    shot = await create_shot(test_session, project_id=project.id, description="Initial")
+
+    res_read = await handle_jsonrpc_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "resources/read",
+            "params": {"uri": f"komaslate://nodes/shot/{shot.id}"},
+        },
+        session_maker=shared_session_maker,
+        readonly_session_maker=shared_session_maker,
+    )
+    assert "Initial" in res_read["result"]["contents"][0]["text"]
+
+    # Stale expected_revision is rejected with CONCURRENT_MODIFICATION
+    stale_call = await handle_jsonrpc_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 2,
+            "method": "tools/call",
+            "params": {
+                "name": "update_shot",
+                "arguments": {
+                    "shot_id": shot.id,
+                    "fields": {"description": "Bad"},
+                    "expected_revision": shot.revision + 5,
+                },
+            },
+        },
+        session_maker=shared_session_maker,
+        readonly_session_maker=shared_session_maker,
+    )
+    assert stale_call["result"]["isError"] is True
+    assert "CONCURRENT_MODIFICATION" in stale_call["result"]["content"][0]["text"]
+
+    # Valid expected_revision updates shot and writes shot_updated to outbox
+    ok_call = await handle_jsonrpc_message(
+        {
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {
+                "name": "update_shot",
+                "arguments": {
+                    "shot_id": shot.id,
+                    "fields": {"description": "Via MCP"},
+                    "expected_revision": shot.revision,
+                },
+            },
+        },
+        session_maker=shared_session_maker,
+        readonly_session_maker=shared_session_maker,
+    )
+    assert not ok_call["result"].get("isError")
+    events = await read_outbox_events(test_session, "shot_updated")
+    assert events[-1]["data"]["shot"]["description"] == "Via MCP"
+
+    # Workbench state & CLI tools endpoints respond cleanly
+    wb = await async_client.get(f"/api/v1/projects/{project.id}/workbench/state")
+    assert wb.status_code == 200
+    assert len(wb.json()["stages"]) == 15
+    tools = await async_client.get("/api/v1/cli/tools")
+    assert tools.status_code == 200
+    assert any(t["name"] == "komaslate" for t in tools.json()["tools"])

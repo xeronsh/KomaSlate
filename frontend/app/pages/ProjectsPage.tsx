@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ButtonLink } from "~/components/ui/ButtonLink";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TopBar } from "~/components/layout/TopBar";
 import { Button } from "~/components/ui/Button";
+import { Checkbox } from "~/components/ui/Checkbox";
 import { EmptyState as SharedEmptyState } from "~/components/ui/EmptyState";
 import { PageBody, PageShell } from "~/components/layout/PageShell";
 import { PageContent, PageHeader } from "~/components/layout/PageHeader";
@@ -217,12 +218,11 @@ export function ProjectsPage() {
 				>
 					<div className="flex flex-col gap-2 p-2 sm:flex-row sm:items-center sm:justify-between">
 						<label className="touch-target flex cursor-pointer select-none items-center gap-2 px-1.5 text-xs font-semibold text-ink-muted">
-							<input
-								type="checkbox"
+							<Checkbox
+								size="sm"
 								checked={allSelected}
-								onChange={(event) => handleToggleSelectAll(event.target.checked)}
+								onCheckedChange={(checked) => handleToggleSelectAll(checked === true)}
 								disabled={visibleProjects.length === 0}
-								className="checkbox checkbox-sm"
 							/>
 							<span>全选</span>
 						</label>
@@ -384,7 +384,7 @@ const PAGE_SIZE = 20;
 const ROW_CLASS = "grid min-h-20 items-start gap-x-2 gap-y-1 px-2 py-3 sm:items-center sm:gap-3 sm:px-3 sm:py-4 ";
 const HEADER_CLASS = "hidden border-b border-line bg-paper-200/70 py-1.5 label text-ink-muted sm:grid sm:gap-3 sm:px-3 ";
 
-function ProjectRow({
+const ProjectRow = memo(function ProjectRow({
 	project,
 	selecting,
 	selected,
@@ -405,12 +405,11 @@ function ProjectRow({
 		<article className={ROW_CLASS + " transition-colors duration-fast hover:bg-paper-200/55 " + (selecting ? "grid-cols-[auto_minmax(0,1fr)_auto] " + ROW_COLS_SELECTING : "grid-cols-[minmax(0,1fr)_auto] " + ROW_COLS)}>
 			{selecting ? (
 			<label className="touch-target flex cursor-pointer items-center justify-center rounded-md hover:bg-paper-200">
-				<input
-					type="checkbox"
+				<Checkbox
+					size="sm"
 					aria-label={`选择项目 ${project.title}`}
 					checked={selected}
-					onChange={(event) => onSelectedChange(event.target.checked)}
-					className="checkbox checkbox-sm"
+					onCheckedChange={(checked) => onSelectedChange(checked === true)}
 				/>
 			</label>
 			) : null}
@@ -464,7 +463,7 @@ function ProjectRow({
 			</IconButton>
 		</article>
 	);
-}
+});
 
 /**
  * 骨架行：与 ProjectRow 同结构（同网格、同字号行盒、同胶囊和按钮尺寸），文字透明、

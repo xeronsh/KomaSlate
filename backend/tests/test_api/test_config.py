@@ -292,8 +292,18 @@ async def test_test_connection_rejects_unsafe_base_url(async_client):
         },
     )
 
-    assert res.status_code == 400
+    assert res.status_code == 422
     assert "不安全的 URL" in res.json()["error"]["message"]
+
+    endpoint_res = await async_client.post(
+        "/api/v1/config/test-connection",
+        json={
+            "service": "llm",
+            "config_overrides": {"TEXT_ENDPOINT": "http://169.254.169.254/latest"},
+        },
+    )
+    assert endpoint_res.status_code == 422
+    assert "不安全的 URL" in endpoint_res.json()["error"]["message"]
 
 
 @pytest.mark.asyncio
@@ -531,7 +541,7 @@ async def test_test_connection_allows_saved_loopback_url(monkeypatch, async_clie
         "/api/v1/config/test-connection",
         json={"service": "llm", "config_overrides": {"TEXT_BASE_URL": "http://127.0.0.1:11434/v1"}},
     )
-    assert rejected.status_code == 400
+    assert rejected.status_code == 422
     assert "请先保存配置" in rejected.json()["error"]["message"]
 
 
@@ -632,9 +642,10 @@ async def test_sensitive_key_detection(async_client, test_session):
 
 
 @pytest.mark.asyncio
-async def test_provider_surface_prefers_database_values_over_env(
+async def test_provider_surface_prefers_env_over_database_values(
     monkeypatch, tmp_path, async_client, test_session
 ):
+    """P0-3: Process Env > .env > DB configitem > Default."""
     monkeypatch.setenv(
         "ENV_FILE",
         _write_env_file(
@@ -644,20 +655,16 @@ async def test_provider_surface_prefers_database_values_over_env(
                 "TEXT_MODEL": "env-text-model",
                 "IMAGE_API_KEY": "env-image-key",
                 "IMAGE_MODEL": "env-image-model",
-                "VIDEO_API_KEY": "env-video-key",
-                "VIDEO_MODEL": "env-video-model",
             },
         ),
     )
+    for k in ("TEXT_API_KEY", "TEXT_MODEL", "IMAGE_API_KEY", "IMAGE_MODEL", "VIDEO_API_KEY", "VIDEO_MODEL"):
+        monkeypatch.delenv(k, raising=False)
 
     await create_config_item(
         test_session, key="TEXT_API_KEY", value="db-text-key", is_sensitive=True
     )
     await create_config_item(test_session, key="TEXT_MODEL", value="db-text-model")
-    await create_config_item(
-        test_session, key="IMAGE_API_KEY", value="db-image-key", is_sensitive=True
-    )
-    await create_config_item(test_session, key="IMAGE_MODEL", value="db-image-model")
     await create_config_item(
         test_session, key="VIDEO_API_KEY", value="db-video-key", is_sensitive=True
     )
@@ -667,23 +674,14 @@ async def test_provider_surface_prefers_database_values_over_env(
     assert res.status_code == 200
     data = {item["key"]: item for item in res.json()}
 
-    for key, raw_value in {
-        "TEXT_API_KEY": "db-text-key",
-        "TEXT_MODEL": "db-text-model",
-        "IMAGE_API_KEY": "db-image-key",
-        "IMAGE_MODEL": "db-image-model",
-        "VIDEO_API_KEY": "db-video-key",
-        "VIDEO_MODEL": "db-video-model",
-    }.items():
-        assert data[key]["source"] == "db"
-        if key.endswith("_API_KEY"):
-            assert data[key]["is_sensitive"] is True
-            assert data[key]["is_masked"] is True
-            assert raw_value not in data[key]["value"]
-        else:
-            assert data[key]["is_sensitive"] is False
-            assert data[key]["is_masked"] is False
-            assert data[key]["value"] == raw_value
+    assert data["TEXT_API_KEY"]["source"] == "env"
+    assert data["TEXT_API_KEY"]["is_masked"] is True
+    assert "env-text-key" not in data["TEXT_API_KEY"]["value"]
+    assert data["TEXT_MODEL"]["source"] == "env"
+    assert data["TEXT_MODEL"]["value"] == "env-text-model"
+    assert data["VIDEO_API_KEY"]["source"] == "db"
+    assert data["VIDEO_MODEL"]["source"] == "db"
+    assert data["VIDEO_MODEL"]["value"] == "db-video-model"
 
 
 @pytest.mark.asyncio
@@ -744,8 +742,8 @@ async def test_test_connection_does_not_require_admin_token(
 
 
 @pytest.mark.asyncio
-async def test_update_configs_no_admin_token_initial_setup(test_session, ws_manager, monkeypatch):
-    """配置更新在未设置 admin_token 时不需要认证（首次设置场景）"""
+async def test_update_configs_empty_admin_token_returns_403(test_session, ws_manager, monkeypatch):
+    """P1-2 / BE-06: ADMIN_TOKEN 为空时拒绝配置写入与敏感读取（403）。"""
     settings = Settings(database_url="sqlite+aiosqlite:///:memory:")
     settings.admin_token = ""
 
@@ -767,15 +765,17 @@ async def test_update_configs_no_admin_token_initial_setup(test_session, ws_mana
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # No X-Admin-Token header — should succeed because admin_token not configured
-        res = await client.put(
+        res_put = await client.put(
             "/api/v1/config",
             json={"configs": {"ADMIN_TOKEN": "my-secret-token"}},
         )
+        res_reveal = await client.post(
+            "/api/v1/config/reveal",
+            json={"key": "TEXT_API_KEY"},
+        )
 
-    assert res.status_code == 200
-    data = res.json()
-    assert data["updated"] >= 1
+    assert res_put.status_code == 403
+    assert res_reveal.status_code == 403
 
 
 @pytest.mark.asyncio
@@ -851,15 +851,14 @@ async def test_update_configs_admin_token_bootstrap(test_session, ws_manager, mo
 
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        # Step 1: No admin token configured, can save without header
+        # Step 1: When admin_token is empty, unauthenticated config write is refused with 403
         res = await client.put(
             "/api/v1/config",
             json={"configs": {"ADMIN_TOKEN": "new-bootstrap-token", "LLM_API_KEY": "sk-test"}},
         )
-        assert res.status_code == 200
-        assert res.json()["updated"] >= 2
+        assert res.status_code == 403
 
-        # Step 2: Now admin token is configured — subsequent requests need the header
+        # Step 2: Once admin token is configured on the server, matching header succeeds
         settings.admin_token = "new-bootstrap-token"
 
         # Without header → 403

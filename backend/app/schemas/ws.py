@@ -4,6 +4,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from app.generated.events_contract import DomainEventType
 from .project import (
     CharacterRead,
     ProjectProviderSettingsRead,
@@ -13,45 +14,7 @@ from .project import (
 )
 
 
-WsEventType = Literal[
-    "connected",
-    "pong",
-    "echo",
-    "error",
-    "run_started",
-    "run_progress",
-    "run_message",
-    "agent_thinking",
-    "llm_stream",
-    "run_completed",
-    "run_failed",
-    "run_awaiting_confirm",
-    "run_confirmed",
-    "run_feedback",
-    "run_cancelled",
-    "character_created",
-    "character_updated",
-    "character_deleted",
-    "shot_created",
-    "shot_updated",
-    "shots_reordered",
-    "shot_deleted",
-    # Kept for backward compatibility; current outline writes usually emit
-    # project_updated, but stale clients/tests may still send outline_updated.
-    "outline_updated",
-    "project_updated",
-    "data_cleared",
-    "critique_result",
-    "bible_updated",
-    "version_created",
-    "version_rollback",
-    "project_restored",
-    "audio_generated",
-    "export_completed",
-    "consistency_eval_completed",
-    "chat_message",
-    "chat_status",
-]
+WsEventType = DomainEventType
 
 
 class RunProgressEventData(BaseModel):

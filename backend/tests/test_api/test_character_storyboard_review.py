@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from tests.factories import create_character, create_project, create_shot
+from tests.factories import create_character, create_project, create_shot, read_outbox_events
 
 
 @pytest.mark.asyncio
@@ -50,8 +50,9 @@ async def test_character_update_and_approve_freezes_primary_reference(
     assert repatch_body["approved_image_url"] == "http://test.com/final.png"
     assert repatch_body["image_url"] == "http://test.com/new-draft.png"
 
-    assert ws_manager.events[-1][1]["type"] == "character_updated"
-    assert ws_manager.events[-1][1]["data"]["character"]["approval_state"] == "superseded"
+    events = await read_outbox_events(test_session, "character_updated")
+    assert events[-1]["type"] == "character_updated"
+    assert events[-1]["data"]["character"]["approval_state"] == "superseded"
 
 
 @pytest.mark.asyncio
@@ -104,8 +105,9 @@ async def test_shot_update_and_approve_freezes_bound_cast_and_intent(
     assert repatch_body["approved_camera"] == "wide"
     assert repatch_body["character_ids"] == [hero.id]
 
-    assert ws_manager.events[-1][1]["type"] == "shot_updated"
-    assert ws_manager.events[-1][1]["data"]["shot"]["approval_state"] == "superseded"
+    events = await read_outbox_events(test_session, "shot_updated")
+    assert events[-1]["type"] == "shot_updated"
+    assert events[-1]["data"]["shot"]["approval_state"] == "superseded"
 
 
 @pytest.mark.asyncio
@@ -172,7 +174,8 @@ async def test_websocket_payloads_report_current_review_state(
     await async_client.post(f"/api/v1/characters/{character.id}/approve")
     await async_client.post(f"/api/v1/shots/{shot.id}/approve")
 
-    assert ws_manager.events[-2][1]["data"]["character"]["approval_state"] == "approved"
-    assert ws_manager.events[-2][1]["data"]["character"]["approved_at"] is not None
-    assert ws_manager.events[-1][1]["data"]["shot"]["approval_state"] == "approved"
-    assert ws_manager.events[-1][1]["data"]["shot"]["approved_at"] is not None
+    events = await read_outbox_events(test_session)
+    assert events[-2]["data"]["character"]["approval_state"] == "approved"
+    assert events[-2]["data"]["character"]["approved_at"] is not None
+    assert events[-1]["data"]["shot"]["approval_state"] == "approved"
+    assert events[-1]["data"]["shot"]["approved_at"] is not None

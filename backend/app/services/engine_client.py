@@ -7,6 +7,7 @@ import logging
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 from pathlib import Path
@@ -21,11 +22,15 @@ logger = logging.getLogger("KomaSlate.engine_client")
 
 ENGINE_START_TIMEOUT_S = 20.0
 ENGINE_STOP_TIMEOUT_S = 5.0
+MAX_ENGINE_LOG_BYTES = 50 * 1024 * 1024
 _ENGINE_DIR = Path(__file__).resolve().parents[3] / "engine"
 _BACKEND_DIR = Path(__file__).resolve().parents[2]
 _ENGINE_START_LOCK = asyncio.Lock()
 _ENGINE_PROCESS: subprocess.Popen[bytes] | None = None
 _ENGINE_LOG_HANDLE: BinaryIO | None = None
+_ENGINE_PID_FILE: Path | None = None
+_HTTP_CLIENT: httpx.AsyncClient | None = None
+_HTTP_CLIENT_LOOP: asyncio.AbstractEventLoop | None = None
 
 
 class EngineUnavailableError(RuntimeError):
@@ -65,6 +70,31 @@ def engine_db_path(database_url: str) -> str | None:
     return str(path.resolve())
 
 
+def _get_http_client() -> httpx.AsyncClient:
+    """Return a loop-scoped singleton AsyncClient for loopback engine calls."""
+    global _HTTP_CLIENT, _HTTP_CLIENT_LOOP
+    loop = asyncio.get_running_loop()
+    if (
+        _HTTP_CLIENT is None
+        or _HTTP_CLIENT.is_closed
+        or _HTTP_CLIENT_LOOP is not loop
+        or _HTTP_CLIENT_LOOP.is_closed()
+    ):
+        _HTTP_CLIENT = httpx.AsyncClient(timeout=10.0)
+        _HTTP_CLIENT_LOOP = loop
+    return _HTTP_CLIENT
+
+
+async def _close_http_client() -> None:
+    global _HTTP_CLIENT, _HTTP_CLIENT_LOOP
+    client, _HTTP_CLIENT, _HTTP_CLIENT_LOOP = _HTTP_CLIENT, None, None
+    if client is not None and not client.is_closed:
+        try:
+            await client.aclose()
+        except Exception:  # noqa: BLE001
+            pass
+
+
 def _close_engine_log() -> None:
     global _ENGINE_LOG_HANDLE
     if _ENGINE_LOG_HANDLE is not None:
@@ -72,6 +102,41 @@ def _close_engine_log() -> None:
             _ENGINE_LOG_HANDLE.close()
         finally:
             _ENGINE_LOG_HANDLE = None
+
+
+def _remove_engine_pid() -> None:
+    global _ENGINE_PID_FILE
+    if _ENGINE_PID_FILE is not None:
+        try:
+            _ENGINE_PID_FILE.unlink(missing_ok=True)
+        except OSError:
+            pass
+        finally:
+            _ENGINE_PID_FILE = None
+
+
+def _rotate_engine_log(log_path: Path) -> None:
+    try:
+        if log_path.exists() and log_path.stat().st_size >= MAX_ENGINE_LOG_BYTES:
+            backup = log_path.with_suffix(".log.1")
+            log_path.replace(backup)
+    except OSError:
+        pass
+
+
+def _signal_process_tree(process: Any, sig: int) -> None:
+    """Signal the entire session process group for real Popen children."""
+    if isinstance(process, subprocess.Popen) and hasattr(os, "killpg"):
+        try:
+            pgid = os.getpgid(process.pid)
+            os.killpg(pgid, sig)
+            return
+        except (ProcessLookupError, PermissionError, OSError):
+            pass
+    if sig == signal.SIGTERM:
+        process.terminate()
+    else:
+        process.kill()
 
 
 async def shutdown_engine() -> None:
@@ -82,31 +147,35 @@ async def shutdown_engine() -> None:
     _ENGINE_PROCESS = None
     if process is None:
         _close_engine_log()
+        _remove_engine_pid()
+        await _close_http_client()
         return
 
     if process.poll() is None:
         logger.info("stopping owned engine sidecar (pid=%s)", process.pid)
-        process.terminate()
+        _signal_process_tree(process, signal.SIGTERM)
         try:
             await asyncio.to_thread(process.wait, ENGINE_STOP_TIMEOUT_S)
         except subprocess.TimeoutExpired:
             logger.warning("engine sidecar did not terminate in time; killing pid=%s", process.pid)
-            process.kill()
+            _signal_process_tree(process, signal.SIGKILL)
             try:
                 await asyncio.to_thread(process.wait, ENGINE_STOP_TIMEOUT_S)
             except subprocess.TimeoutExpired:
                 logger.error("engine sidecar still alive after kill (pid=%s)", process.pid)
     _close_engine_log()
+    _remove_engine_pid()
+    await _close_http_client()
 
 
 async def engine_health(base_url: str) -> dict[str, Any] | None:
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            res = await client.get(f"{base_url}/health")
-            if res.status_code != 200:
-                return None
-            payload = res.json()
-            return payload if isinstance(payload, dict) else None
+        client = _get_http_client()
+        res = await client.get(f"{base_url}/health", timeout=2.0)
+        if res.status_code != 200:
+            return None
+        payload = res.json()
+        return payload if isinstance(payload, dict) else None
     except Exception:  # noqa: BLE001 - health probe intentionally degrades to unavailable
         return None
 
@@ -122,7 +191,7 @@ def _assert_engine_compatible(health: dict[str, Any]) -> None:
 
 async def ensure_engine_running(base_url: str, database_url: str, static_dir: Path) -> None:
     """Ensure one compatible engine exists; spawn and own it when necessary."""
-    global _ENGINE_PROCESS, _ENGINE_LOG_HANDLE
+    global _ENGINE_PROCESS, _ENGINE_LOG_HANDLE, _ENGINE_PID_FILE
 
     health = await engine_health(base_url)
     if health is not None:
@@ -167,6 +236,7 @@ async def ensure_engine_running(base_url: str, database_url: str, static_dir: Pa
 
             log_path = Path(db_path).parent / "engine.log"
             log_path.parent.mkdir(parents=True, exist_ok=True)
+            _rotate_engine_log(log_path)
             _ENGINE_LOG_HANDLE = log_path.open("ab", buffering=0)
             command = [node, str(tsx_cli), str(entry)]
             logger.info("starting owned workflow engine: %s", " ".join(command))
@@ -176,8 +246,11 @@ async def ensure_engine_running(base_url: str, database_url: str, static_dir: Pa
                 env=env,
                 stdout=_ENGINE_LOG_HANDLE,
                 stderr=subprocess.STDOUT,
-                start_new_session=False,
+                start_new_session=True,
             )
+            pid_path = Path(db_path).parent / "engine.pid"
+            pid_path.write_text(str(_ENGINE_PROCESS.pid), encoding="utf-8")
+            _ENGINE_PID_FILE = pid_path
 
         deadline = asyncio.get_running_loop().time() + ENGINE_START_TIMEOUT_S
         while asyncio.get_running_loop().time() < deadline:
@@ -200,11 +273,11 @@ async def ensure_engine_running(base_url: str, database_url: str, static_dir: Pa
 
 async def engine_active_run_ids(base_url: str) -> set[int]:
     try:
-        async with httpx.AsyncClient(timeout=2.0) as client:
-            res = await client.get(f"{base_url}/runs")
-            if res.status_code != 200:
-                return set()
-            payload = res.json()
+        client = _get_http_client()
+        res = await client.get(f"{base_url}/runs", timeout=2.0)
+        if res.status_code != 200:
+            return set()
+        payload = res.json()
     except Exception:  # noqa: BLE001 - probe failure means no confirmed process-local runner
         return set()
     runs = payload.get("runs") if isinstance(payload, dict) else None
@@ -300,8 +373,8 @@ async def engine_start_run(
     if target_shot_ids:
         payload["target_shot_ids"] = list(target_shot_ids)
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            res = await client.post(f"{base_url}/runs", json=payload)
+        client = _get_http_client()
+        res = await client.post(f"{base_url}/runs", json=payload, timeout=10.0)
     except httpx.HTTPError as exc:
         raise EngineUnavailableError(f"engine start failed: {exc}") from exc
     if res.status_code != 202:
@@ -311,10 +384,10 @@ async def engine_start_run(
 
 async def engine_resume_run(base_url: str, *, project_id: int, run_id: int) -> dict[str, Any]:
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            res = await client.post(
-                f"{base_url}/runs/{run_id}/resume", json={"project_id": project_id}
-            )
+        client = _get_http_client()
+        res = await client.post(
+            f"{base_url}/runs/{run_id}/resume", json={"project_id": project_id}, timeout=10.0
+        )
     except httpx.HTTPError as exc:
         raise EngineUnavailableError(f"engine resume failed: {exc}") from exc
     if res.status_code != 202:
@@ -324,13 +397,12 @@ async def engine_resume_run(base_url: str, *, project_id: int, run_id: int) -> d
 
 async def engine_cancel_run(base_url: str, run_id: int) -> None:
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            res = await client.post(f"{base_url}/runs/{run_id}/cancel")
+        client = _get_http_client()
+        res = await client.post(f"{base_url}/runs/{run_id}/cancel", timeout=10.0)
     except httpx.HTTPError as exc:
         raise EngineUnavailableError(f"engine cancel failed: {exc}") from exc
     if res.status_code != 202:
         _raise_engine_response_error("cancel", res)
-
 
 
 async def engine_chat(
@@ -342,10 +414,36 @@ async def engine_chat(
     """
     url = f"{base_url}/chat/{project_id}" + (f"/{action}" if action else "")
     try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            res = await (client.get(url) if body is None and not action else client.post(url, json=body or {}))
+        client = _get_http_client()
+        res = await (
+            client.get(url, timeout=10.0)
+            if body is None and not action
+            else client.post(url, json=body or {}, timeout=10.0)
+        )
     except httpx.HTTPError as exc:
         raise EngineUnavailableError(f"engine chat failed: {exc}") from exc
+    try:
+        payload = res.json()
+    except ValueError:
+        payload = {}
+    return res.status_code, payload if isinstance(payload, dict) else {}
+
+
+async def engine_proxy_json(
+    base_url: str,
+    method: str,
+    path: str,
+    body: dict[str, Any] | None = None,
+    *,
+    timeout: float = 5.0,
+) -> tuple[int, dict[str, Any]]:
+    """Forward a gateway query/control request to the engine sidecar."""
+    url = f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+    try:
+        client = _get_http_client()
+        res = await client.request(method.upper(), url, json=body, timeout=timeout)
+    except httpx.HTTPError as exc:
+        raise EngineUnavailableError(f"engine request failed: {exc}") from exc
     try:
         payload = res.json()
     except ValueError:

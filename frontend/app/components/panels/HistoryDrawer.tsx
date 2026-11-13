@@ -1,7 +1,9 @@
-import { useState, useCallback } from "react";
+import { memo, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { projectsApi } from "~/services/api";
+import { useAutoAnimate } from "~/components/ui/AutoAnimate";
 import { Button } from "~/components/ui/Button";
+import { Checkbox } from "~/components/ui/Checkbox";
 import { SvgIcon } from "~/components/ui/SvgIcon";
 import { ConfirmModal } from "~/components/ui/ConfirmModal";
 import { Dialog } from "~/components/ui/Dialog";
@@ -47,7 +49,7 @@ function statusCls(status: string) {
 	return map[status] || "bg-paper-100/80 text-ink-muted border-line";
 }
 
-function ProjectRow({
+const ProjectRow = memo(function ProjectRow({
 	project,
 	isSelected,
 	onToggle,
@@ -79,11 +81,11 @@ function ProjectRow({
 			}`}
 		>
 			<label className="cursor-pointer pt-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-				<input
-					type="checkbox"
+				<Checkbox
+					size="xs"
 					checked={isSelected}
-					onChange={(e) => onToggle(e.target.checked)}
-					className="checkbox checkbox-xs"
+					aria-label={`选择项目 ${project.title || "未命名项目"}`}
+					onCheckedChange={(checked) => onToggle(checked === true)}
 				/>
 			</label>
 			<div className="flex-1 min-w-0">
@@ -140,10 +142,11 @@ function ProjectRow({
 			)}
 		</div>
 	);
-}
+});
 
 export function HistoryDrawer({ open, onClose, onNavigate }: HistoryDrawerProps) {
 	const queryClient = useQueryClient();
+	const [listRef] = useAutoAnimate<HTMLDivElement>();
 	const [selectedIds, setSelectedIds] = useState<number[]>([]);
 	const [deleteTarget, setDeleteTarget] = useState<number[] | null>(null);
 	const [renamingId, setRenamingId] = useState<number | null>(null);
@@ -233,7 +236,7 @@ export function HistoryDrawer({ open, onClose, onNavigate }: HistoryDrawerProps)
 				onClose={onClose}
 				variant="sheet-right"
 				labelledBy="history-drawer-title"
-				className="w-72"
+				className="flex w-72 max-w-full flex-col"
 			>
 				<div className="flex items-center justify-between border-b border-line px-2.5 py-2">
 					<div className="flex items-center gap-1.5">
@@ -245,33 +248,30 @@ export function HistoryDrawer({ open, onClose, onNavigate }: HistoryDrawerProps)
 							{projects?.length ?? 0}
 						</span>
 					</div>
-					<Button
-						variant="ghost"
-						size="sm"
-						className="!h-7 !min-h-7 !px-1"
+					<IconButton
+						size="xs"
 						onClick={onClose}
 						aria-label="关闭项目历史"
 					>
 						<SvgIcon name="x" size={14} />
-					</Button>
+					</IconButton>
 				</div>
 
 				{projects && projects.length > 0 && (
 					<div className="flex items-center gap-2 border-b border-line px-2.5 py-1.5 text-xs">
-						<label className="flex cursor-pointer select-none items-center gap-1">
-							<input
-								type="checkbox"
+						<label className="flex cursor-pointer select-none items-center gap-1.5">
+							<Checkbox
+								size="xs"
 								checked={allSelected}
-								onChange={(e) => handleToggleSelectAll(e.target.checked)}
-								className="checkbox checkbox-xs"
+								onCheckedChange={(checked) => handleToggleSelectAll(checked === true)}
 							/>
 							<span className="text-ink-muted">全选</span>
 						</label>
 						{hasSelection && (
 							<Button
 								variant="ghost"
-								size="sm"
-								className="flex !h-6 !min-h-6 items-center gap-1 whitespace-nowrap !px-1.5 text-xs text-error-fg"
+								size="xs"
+								className="whitespace-nowrap text-error-fg"
 								onClick={handleBatchDelete}
 							>
 								<SvgIcon name="trash-2" size={12} />
@@ -282,10 +282,8 @@ export function HistoryDrawer({ open, onClose, onNavigate }: HistoryDrawerProps)
 				)}
 
 				<div
-					className="overflow-y-auto px-1.5 py-1"
-					style={{
-						height: `calc(100dvh - ${hasSelection || (projects && projects.length > 0) ? 88 : 48}px)`,
-					}}
+					ref={listRef}
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 py-1"
 				>
 					{!projects || projects.length === 0 ? (
 						<div className="py-8 text-center text-xs text-ink-muted">

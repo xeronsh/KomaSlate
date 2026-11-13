@@ -56,4 +56,17 @@ describe("InspectorPanel", () => {
 		await userEvent.keyboard("{Escape}");
 		expect(onOpenChange).toHaveBeenCalledWith(false);
 	});
+
+	it("renders as a non-floating docked sidebar and omits the floating pill when docked", () => {
+		const { rerender } = render(
+			<InspectorPanel {...base} selectedNode={shot} open={false} docked />,
+		);
+		expect(screen.queryByRole("button", { name: "展开检查器" })).toBeNull();
+		expect(screen.queryByRole("complementary", { name: "检查器" })).toBeNull();
+
+		rerender(<InspectorPanel {...base} selectedNode={shot} open docked />);
+		const aside = screen.getByRole("complementary", { name: "检查器" });
+		expect(aside.className).not.toContain("absolute");
+		expect(aside).toHaveClass("shrink-0", "border-l");
+	});
 });

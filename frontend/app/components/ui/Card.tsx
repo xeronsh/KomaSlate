@@ -32,11 +32,7 @@ export function Card({
     >
       {title && (
         <h3 className="mb-2 flex items-center gap-1.5 text-md font-bold">
-          {typeof title === "string" ? (
-            <span className="underline-sketch">{title}</span>
-          ) : (
-            title
-          )}
+          {title}
         </h3>
       )}
       {children}

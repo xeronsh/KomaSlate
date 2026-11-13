@@ -1,8 +1,8 @@
-import { clsx } from "clsx";
 import { AssistantChat } from "~/components/chat/AssistantChat";
 import { ChatPanel } from "~/components/chat/ChatPanel";
 import { IconButton } from "~/components/ui/IconButton";
 import { PlainButton } from "~/components/ui/PlainButton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/Tabs";
 import { InboxPanel, type InboxActions } from "./InboxPanel";
 import type { InboxItem } from "./inboxItems";
 import { SvgIcon } from "~/components/ui/SvgIcon";
@@ -24,7 +24,7 @@ interface AgentPanelProps {
 
 /**
  * Agent 面板：浮在画布左侧（360px），默认展开，可收成胶囊。
- * 三个页签：助手对话、活动流、待处理；资产在画布工具条，宇宙时间线在 Inspector 的项目视图。
+ * 三个页签：助手对话、活动流、待处理；采用 Radix Tabs 统一无障碍导航（AUD-UI-08）。
  */
 export function AgentPanel({
 	projectId,
@@ -62,35 +62,36 @@ export function AgentPanel({
 			aria-label="工作流活动"
 			data-shell="agent-panel"
 		>
-			<div className="flex items-center justify-between gap-1 border-b border-line py-1 pl-3 pr-1">
-				<div className="flex items-center gap-1" role="tablist" aria-label="Agent 面板">
-					{(
-						[
-							["chat", "助手"],
-							["activity", "活动"],
-							["inbox", "待处理"],
-						] as const
-					).map(([id, label]) => (
-						<PlainButton
-							key={id}
-							role="tab"
-							id={`agent-tab-${id}`}
-							aria-selected={tab === id}
-							aria-controls={`agent-tabpanel-${id}`}
-							className={clsx(
-								"inline-flex touch-target-dense items-center gap-1 rounded-md px-2 text-sm font-semibold transition-colors duration-fast",
-								tab === id ? "bg-primary/10 text-primary" : "text-ink-muted hover:text-ink",
-							)}
-							onClick={() => onTabChange(id)}
-						>
-							{label}
-							{id === "inbox" && pendingCount > 0 ? (
-								<span className="rounded-full bg-primary px-1.5 text-xs text-primary-content">{pendingCount}</span>
-							) : null}
-						</PlainButton>
-					))}
-				</div>
-				<IconButton
+			<Tabs
+				value={tab}
+				onValueChange={(value) => onTabChange(value as AgentPanelTab)}
+				className="flex min-h-0 flex-1 flex-col overflow-hidden"
+			>
+				<div className="flex items-center justify-between gap-1 border-b border-line py-1 pl-3 pr-1">
+					<TabsList variant="pill" aria-label="Agent 面板">
+						{(
+							[
+								["chat", "助手"],
+								["activity", "活动"],
+								["inbox", "待处理"],
+							] as const
+						).map(([id, label]) => (
+							<TabsTrigger
+								key={id}
+								value={id}
+								variant="pill"
+								id={`agent-tab-${id}`}
+							>
+								{label}
+								{id === "inbox" && pendingCount > 0 ? (
+									<span className="rounded-full bg-primary px-1.5 text-xs text-primary-content">
+										{pendingCount}
+									</span>
+								) : null}
+							</TabsTrigger>
+						))}
+					</TabsList>
+					<IconButton
 						className="text-ink-muted hover:text-ink"
 						onClick={() => onCollapsedChange(true)}
 						aria-label="收起活动面板"
@@ -99,25 +100,33 @@ export function AgentPanel({
 					>
 						<SvgIcon name="chevrons-left" size={14} />
 					</IconButton>
-			</div>
-			<div
-				className="flex min-h-0 flex-1 flex-col overflow-hidden"
-				role="tabpanel"
-				id={`agent-tabpanel-${tab}`}
-				aria-labelledby={`agent-tab-${tab}`}
-			>
-				{tab === "inbox" ? (
+				</div>
+				<TabsContent
+					value="inbox"
+					className="flex min-h-0 flex-1 flex-col overflow-hidden"
+					id="agent-tabpanel-inbox"
+				>
 					<InboxPanel items={inboxItems} actions={inboxActions} />
-				) : tab === "chat" ? (
+				</TabsContent>
+				<TabsContent
+					value="chat"
+					className="flex min-h-0 flex-1 flex-col overflow-hidden"
+					id="agent-tabpanel-chat"
+				>
 					<AssistantChat projectId={projectId} />
-				) : (
+				</TabsContent>
+				<TabsContent
+					value="activity"
+					className="flex min-h-0 flex-1 flex-col overflow-hidden"
+					id="agent-tabpanel-activity"
+				>
 					<ChatPanel
 						projectId={projectId}
 						onCancel={onCancel}
 						isGenerating={isGenerating}
 					/>
-				)}
-			</div>
+				</TabsContent>
+			</Tabs>
 		</aside>
 	);
 }

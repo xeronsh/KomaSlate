@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "~/components/ui/Button";
+import { ConfirmModal } from "~/components/ui/ConfirmModal";
 import { Dialog } from "~/components/ui/Dialog";
 import { Select } from "~/components/ui/Select";
 import { SvgIcon } from "~/components/ui/SvgIcon";
@@ -55,7 +56,7 @@ function versionLabel(version: ArtifactVersion): string {
 	return `v${version.version} · ${TRIGGER_LABEL[version.trigger] ?? version.trigger}`;
 }
 
-function VersionColumn({ title, snapshot, changed }: { title: string; snapshot?: Snapshot; changed: Set<string> }) {
+const VersionColumn = memo(function VersionColumn({ title, snapshot, changed }: { title: string; snapshot?: Snapshot; changed: Set<string> }) {
 	const imageUrl = getStaticUrl(snapshot?.image_url as string | null | undefined);
 	const videoUrl = getStaticUrl(snapshot?.video_url as string | null | undefined);
 	return (
@@ -101,7 +102,7 @@ function VersionColumn({ title, snapshot, changed }: { title: string; snapshot?:
 			</div>
 		</section>
 	);
-}
+});
 
 function diffText(field: string, value: unknown): string {
 	if (field === "image_url") return blank(value) ? "没有图" : "有图（见上方对比）";
@@ -109,7 +110,7 @@ function diffText(field: string, value: unknown): string {
 	return valueToText(value);
 }
 
-function DiffRow({ diff }: { diff: FieldDiff }) {
+const DiffRow = memo(function DiffRow({ diff }: { diff: FieldDiff }) {
 	return (
 		<li className="rounded-sm border border-line bg-paper-100 p-2 text-xs">
 			<div className="mb-1 font-semibold">{LABELS[diff.field] || diff.field}</div>
@@ -125,7 +126,7 @@ function DiffRow({ diff }: { diff: FieldDiff }) {
 			</div>
 		</li>
 	);
-}
+});
 
 export function VersionCompareDrawer({
 	open,
@@ -168,6 +169,7 @@ export function VersionCompareDrawer({
 	const versions = versionsQuery.data?.versions ?? [];
 	const [leftVersion, setLeftVersion] = useState<number | null>(null);
 	const [rightVersion, setRightVersion] = useState<number | null>(null);
+	const [rollbackConfirmOpen, setRollbackConfirmOpen] = useState(false);
 	const currentSnapshot = useMemo(
 		() =>
 			(entities as unknown as Snapshot[]).find((entity) => entity.id === selectedEntityId),
@@ -211,12 +213,13 @@ export function VersionCompareDrawer({
 	};
 
 	return (
+		<>
 		<Dialog
 			open={open}
 			onClose={onClose}
 			variant="sheet-right"
 			labelledBy="version-compare-title"
-			className="w-full max-w-5xl"
+			className="flex w-full max-w-5xl flex-col overflow-x-hidden"
 		>
 			<div className="sticky top-0 z-panel flex items-center gap-2 border-b border-line bg-paper-100 px-3 py-2">
 				<SvgIcon name="clock-3" size={16} />
@@ -323,9 +326,7 @@ export function VersionCompareDrawer({
 								disabled={!effectiveLeft || rollbackMutation.isPending}
 								onClick={() => {
 									if (!effectiveLeft) return;
-									if (window.confirm(`回滚到版本 v${effectiveLeft}？后续版本不会删除。`)) {
-										rollbackMutation.mutate(effectiveLeft);
-									}
+									setRollbackConfirmOpen(true);
 								}}
 							>
 								回滚到左侧版本
@@ -335,5 +336,22 @@ export function VersionCompareDrawer({
 				)}
 			</div>
 		</Dialog>
+		<ConfirmModal
+			isOpen={rollbackConfirmOpen}
+			onClose={() => setRollbackConfirmOpen(false)}
+			onConfirm={() => {
+				if (!effectiveLeft) return;
+				rollbackMutation.mutate(effectiveLeft, {
+					onSuccess: () => setRollbackConfirmOpen(false),
+				});
+			}}
+			title="回滚版本"
+			message={`回滚到版本 v${effectiveLeft ?? ""}？后续版本不会删除。`}
+			confirmText="确认回滚"
+			cancelText="取消"
+			variant="warning"
+			isLoading={rollbackMutation.isPending}
+		/>
+		</>
 	);
 }

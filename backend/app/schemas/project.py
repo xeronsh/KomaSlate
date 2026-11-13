@@ -376,6 +376,7 @@ class AgentRunRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    revision: int = 1
     project_id: int
     status: RunStatus
     current_agent: str | None
@@ -450,6 +451,15 @@ class GateFeedbackRequest(BaseModel):
     content: str = Field(min_length=1)
     entity_type: Literal["character", "shot"] | None = None
     entity_ids: list[int] | None = None
+    expected_revision: int | None = Field(default=None, ge=1)
+
+
+class GateConfirmRequest(BaseModel):
+    expected_revision: int | None = Field(default=None, ge=1)
+
+
+class CancelRunRequest(BaseModel):
+    expected_revision: int | None = Field(default=None, ge=1)
 
 
 class GateConfirmAcceptedResponse(BaseModel):
@@ -500,10 +510,20 @@ class UseAssetInProjectRequest(BaseModel):
     project_id: int
 
 
+class AssetUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = None
+    image_url: str | None = None
+    metadata_json: str | None = None
+    tags: str | None = None
+    expected_revision: int | None = Field(default=None, ge=1)
+
+
 class AssetRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
+    revision: int = 1
     name: str
     asset_type: str
     description: str | None

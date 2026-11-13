@@ -4,6 +4,8 @@
  * Each stage mutates the shared DB and emits contract events through the
  * PipelineEmitter. LLM text flows through the prompts in prompts.ts.
  */
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { PROMPTS } from "../prompts.js";
 import type { PipelineEmitter } from "../pipeline/emitter.js";
 import {
@@ -33,14 +35,29 @@ import {
   type ResolvedStylePrompt,
 } from "../style.js";
 import type { AiOperation } from "../ai-operation.js";
-import { BackendWorker } from "../backend-worker.js";
+import { BackendWorker, type CliProcessEvent } from "../backend-worker.js";
 import { progressForStage, type StageId } from "../contract.js";
+import { cascadeShotInvalidation } from "../invalidation.js";
+import { assertSafeMediaPath } from "../mcp/sandbox.js";
 
 export function targetCheckpointStage(
   kind: "character_image" | "shot_image" | "shot_video",
   id: number,
 ): string {
   return `target:${kind}:${id}`;
+}
+
+function createPooledWorker(ctx: StageContext): BackendWorker {
+  return new BackendWorker(ctx.signal, {
+    pooled: true,
+    onCliEvent: (ev: CliProcessEvent) => {
+      try {
+        ctx.emitter.emit?.(ev.type, ev.payload);
+      } catch {
+        // Non-critical telemetry; never interrupt pipeline execution.
+      }
+    },
+  });
 }
 
 export interface CompletionInfo {
@@ -359,6 +376,7 @@ function planBasePayload(ctx: StageContext, task: "characters" | "shots"): Recor
       style: project.style,
       status: project.status,
       summary: project.summary,
+      visual_bible: project.visual_bible ?? null,
       target_shot_count: project.target_shot_count ?? null,
       character_hints: parseJsonColumn(project.character_hints, [] as string[]),
       skill_id: project.skill_id ?? null,
@@ -366,6 +384,7 @@ function planBasePayload(ctx: StageContext, task: "characters" | "shots"): Recor
     task,
     mode: "full",
     approved_outline: parseJsonColumn(project.story_outline, null as unknown),
+    visual_bible: project.visual_bible ?? null,
     approved_characters: characters.map((c) => ({ id: c.id, name: c.name, description: c.description })),
     existing_state: {
       characters: characters.map((c) => ({ id: c.id, name: c.name, description: c.description })),
@@ -687,7 +706,7 @@ export async function runRenderCharacters(ctx: StageContext): Promise<void> {
   await ctx.emitter.sendMessage("render", "开始生成角色形象图…", { progress: 0, isLoading: true });
   const total = pending.length;
   let index = 0;
-  const worker = new BackendWorker(ctx.signal);
+  const worker = createPooledWorker(ctx);
   try {
     for (const character of pending) {
       index += 1;
@@ -723,7 +742,16 @@ export async function runRenderCharacters(ctx: StageContext): Promise<void> {
       const imageUrl = await ctx.media.generateImageUrl({ prompt });
       let faceEmbedding: string | null = null;
       try {
-        const embedding = await worker.faceEmbedding(await ctx.media.readImageBytes(imageUrl));
+        let embeddingInput: Buffer | string;
+        if (imageUrl.startsWith("/static/")) {
+          const candidate = join(ctx.mediaSettings.staticDir, imageUrl.slice("/static/".length));
+          embeddingInput = existsSync(candidate)
+            ? assertSafeMediaPath(candidate, [ctx.mediaSettings.staticDir])
+            : await ctx.media.readImageBytes(imageUrl);
+        } else {
+          embeddingInput = await ctx.media.readImageBytes(imageUrl);
+        }
+        const embedding = await worker.faceEmbedding(embeddingInput);
         if (embedding) faceEmbedding = JSON.stringify(embedding);
       } catch (error) {
         if (ctx.signal.aborted) throw error;
@@ -842,9 +870,11 @@ export async function runRenderShots(ctx: StageContext): Promise<void> {
   const byId = new Map(characters.map((c) => [c.id, c]));
   const visualBible = ctx.shared.getProject(ctx.projectId)?.visual_bible ?? null;
   let index = 0;
-  const worker = new BackendWorker(ctx.signal);
+  const pendingRedrawIds = new Set(shots.map((item) => item.id));
+  const worker = createPooledWorker(ctx);
   try {
     for (const shot of shots) {
+      pendingRedrawIds.delete(shot.id);
       index += 1;
       ctx.emitter.sendProgress("render", "render_shots", "shot_images_approval", index / shots.length);
       // Keyframes chain: shot N is drawn from shot N-1's keyframe (read live,
@@ -941,13 +971,8 @@ export async function runRenderShots(ctx: StageContext): Promise<void> {
           shot.revision,
         );
         ctx.checkpointTarget("shot_image", shot.id);
-        const project = ctx.shared.getProject(ctx.projectId);
-        if (project?.video_url && project.status !== "superseded") {
-          ctx.shared.updateProject(ctx.projectId, { status: "superseded" });
-          ctx.emitter.projectUpdated({ status: "superseded" });
-        }
-        return {
-          shot: shotReadPayload({
+        ctx.emitter.shotUpdated(
+          shotReadPayload({
             ...shot,
             image_url: imageUrl,
             video_url: null,
@@ -957,7 +982,16 @@ export async function runRenderShots(ctx: StageContext): Promise<void> {
             review_note: null,
             revision: shot.revision + 1,
           }),
-        };
+        );
+        cascadeShotInvalidation(ctx.shared, ctx.emitter, ctx.projectId, ctx.runId, shot.id, {
+          excludeShotIds: pendingRedrawIds,
+        });
+        const project = ctx.shared.getProject(ctx.projectId);
+        if (project?.video_url && project.status !== "superseded") {
+          ctx.shared.updateProject(ctx.projectId, { status: "superseded" });
+          ctx.emitter.projectUpdated({ status: "superseded" });
+        }
+        return null;
       });
     }
   } finally {
@@ -1355,7 +1389,7 @@ export async function runComposeVideos(ctx: StageContext): Promise<void> {
   const defaultDuration =
     ctx.mediaSettings.videoProvider === "doubao" ? ctx.mediaSettings.doubaoVideoDuration : 5;
   let index = 0;
-  const worker = new BackendWorker(ctx.signal);
+  const worker = createPooledWorker(ctx);
   try {
     for (const shot of shots) {
       index += 1;
@@ -1563,7 +1597,7 @@ export async function runComposeMerge(ctx: StageContext): Promise<void> {
   const voices: Array<{ url: string; offset: number }> = [];
   const moodTexts: string[] = [];
   let filmOffset = 0;
-  const worker = new BackendWorker(ctx.signal);
+  const worker = createPooledWorker(ctx);
   try {
     for (const shot of shots) {
       const live = ctx.shared.getLiveShot(shot.id);
@@ -1676,7 +1710,7 @@ export async function runComposeMerge(ctx: StageContext): Promise<void> {
   }
   let mergedUrl = await ctx.media.mergeVideos(videoUrls);
   if (bgm) {
-    const bgmWorker = new BackendWorker(ctx.signal);
+    const bgmWorker = createPooledWorker(ctx);
     try {
       const track = await bgmWorker.bgmTrack({
         texts: moodTexts.filter(Boolean),

@@ -593,7 +593,7 @@ async def test_upload_reference_image(async_client, test_session):
 
 @pytest.mark.asyncio
 async def test_upload_reference_image_rejects_non_image(async_client, test_session):
-    """Reject non-image file types."""
+    """Reject non-image file types and SVG XSS payloads."""
     project = await create_project(test_session)
 
     res = await async_client.post(
@@ -603,6 +603,18 @@ async def test_upload_reference_image_rejects_non_image(async_client, test_sessi
 
     assert res.status_code == 400
     assert "Only image files" in res.json()["error"]["message"]
+
+    svg_res = await async_client.post(
+        f"/api/v1/projects/{project.id}/upload-reference",
+        files={"file": ("xss.svg", b'<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>', "image/svg+xml")},
+    )
+    assert svg_res.status_code == 400
+
+    spoofed_res = await async_client.post(
+        f"/api/v1/projects/{project.id}/upload-reference",
+        files={"file": ("fake.png", b"<svg onload=alert(1)>", "image/png")},
+    )
+    assert spoofed_res.status_code == 400
 
 
 @pytest.mark.asyncio

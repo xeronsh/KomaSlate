@@ -59,7 +59,7 @@ async def test_init_db_marks_unleased_active_runs_recoverable(test_session, test
         await test_session.execute(select(AgentRun).where(AgentRun.status == "failed"))
     ).scalars().all()
     assert {run.id for run in failed} == {run_queued.id, run_running.id}
-    assert all(run.error == "Execution lease expired; run is safe to resume" for run in failed)
+    assert all(run.error == "Execution lease expired" for run in failed)
 
     done = (
         await test_session.execute(select(AgentRun).where(AgentRun.status == "succeeded"))

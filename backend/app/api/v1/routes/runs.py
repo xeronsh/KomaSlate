@@ -5,13 +5,20 @@ import time
 from datetime import datetime
 from typing import Any, Literal, cast
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Body, HTTPException, status
 from fastapi.responses import JSONResponse
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import InstrumentedAttribute
 
-from app.api.deps import SessionDep, SettingsDep, WsManagerDep, get_or_404, require_run_id
+from app.api.deps import (
+    ReadonlySessionDep,
+    SessionDep,
+    SettingsDep,
+    WsManagerDep,
+    get_or_404,
+    require_run_id,
+)
 from app.config import Settings
 from app.db.utils import as_naive_utc, utcnow
 from app.exceptions import AppException, BusinessError
@@ -21,8 +28,10 @@ from app.models.message import Message
 from app.models.project import Project, Shot
 from app.schemas.project import (
     AgentRunRead,
+    CancelRunRequest,
     CancelRunResponse,
     GateConfirmAcceptedResponse,
+    GateConfirmRequest,
     GateFeedbackAcceptedResponse,
     GateFeedbackRequest,
     GenerateRequest,
@@ -34,6 +43,8 @@ from app.schemas.project import (
     RestoreVersionResponse,
     RunTimingRead,
 )
+from app.services.event_outbox import emit_project_event
+from app.services.revision import assert_expected_revision, commit_versioned
 from app.services.run_timing import build_run_timing
 from app.services.engine_client import (
     EngineConflictError,
@@ -74,7 +85,7 @@ _TERMINAL_RUN_STATUS_TUPLE = ("cancelled", "succeeded", "failed")
 EXECUTOR_GONE_ERROR = "Engine restarted; the executor that owned this run is gone; run is safe to resume"
 LEASE_EXPIRED_ERROR = (
     "执行中断（引擎租约过期），已完成的步骤都保留着，可以点继续"
-    "（Execution lease missing or expired; run is safe to resume）"
+    "（Execution lease expired; run is safe to resume）"
 )
 
 # A suspended box (or VM pause) freezes the engine's heartbeat while the wall clock
@@ -268,16 +279,16 @@ async def _restore_previous_version(
                 content=project_restored_text(reason),
             )
         )
+        await emit_project_event(
+            session,
+            project_id=run.project_id,
+            run_id=run.id or 0,
+            event_type="project_restored",
+            payload={"project_id": run.project_id, "run_id": run.id, "reason": reason},
+        )
+    del ws
     await session.commit()
     await session.refresh(run)
-    if changed and ws is not None:
-        await ws.send_event(
-            run.project_id,
-            {
-                "type": "project_restored",
-                "data": {"project_id": run.project_id, "run_id": run.id, "reason": reason},
-            },
-        )
     return changed
 
 
@@ -302,6 +313,53 @@ async def _settle_stopped_run(
     if latest is None or latest.status != "cancelled":
         return
     await _restore_previous_version(session=session, ws=ws, run=latest, reason="stopped")
+
+
+async def _inspect_active_candidate(
+    *,
+    settings: Settings,
+    run: AgentRun | None,
+) -> tuple[AgentRun | None, AgentRun | None]:
+    """Read-only check of an active-status candidate without mutating the database."""
+    if run is None:
+        return None, None
+
+    engine_ids = await engine_active_run_ids(settings.engine_url)
+    executor_gone = False
+    if run.id in engine_ids:
+        return run, None
+    if _has_live_lease(run):
+        if not await engine_owner_gone(settings.engine_url, run.lease_owner):
+            return run, None
+        executor_gone = True
+
+    cancelled = run.cancel_requested_at is not None
+    if not cancelled and not executor_gone and run.lease_token and _clock_jump.in_grace():
+        return run, None
+
+    # Build a transient view without touching the DB session.
+    projected = AgentRun(
+        id=run.id,
+        project_id=run.project_id,
+        status="cancelled" if cancelled else "failed",
+        current_agent=run.current_agent,
+        progress=run.progress,
+        error=None if cancelled else EXECUTOR_GONE_ERROR if executor_gone else LEASE_EXPIRED_ERROR,
+        resource_type=run.resource_type,
+        resource_id=run.resource_id,
+        provider_snapshot=run.provider_snapshot,
+        workflow_version=run.workflow_version,
+        execution_attempt=run.execution_attempt,
+        context_snapshot=run.context_snapshot,
+        cancel_requested_at=run.cancel_requested_at,
+        awaiting_payload=run.awaiting_payload,
+        gate_feedback=run.gate_feedback,
+        started_at=run.started_at,
+        revision=run.revision,
+        created_at=run.created_at,
+        updated_at=run.updated_at,
+    )
+    return None, projected
 
 
 async def _reconcile_active_candidate(
@@ -390,10 +448,46 @@ async def _new_run(
 @router.get("/projects/{project_id}/runs/current", response_model=RecoveryControlRead | None)
 async def get_current_run(
     project_id: int,
+    session: AsyncSession = ReadonlySessionDep,
+    settings: Settings = SettingsDep,
+) -> RecoveryControlRead | None:
+    """Purely read-only view of the project's active or recoverable run."""
+    await get_or_404(session, Project, project_id)
+
+    candidate = await _latest_run_for_project(session, project_id, _ACTIVE_RUN_STATUSES)
+    active_run, projected_recoverable = await _inspect_active_candidate(
+        settings=settings,
+        run=candidate,
+    )
+    if active_run is not None:
+        return await build_recovery_control_surface(
+            session=session,
+            database_url=settings.database_url,
+            run=active_run,
+            state="active",
+        )
+
+    latest_terminal = await _latest_run_for_project(session, project_id, _TERMINAL_RUN_STATUS_TUPLE)
+    resumable_run = _surface_recoverable(
+        projected_recoverable if projected_recoverable is not None else latest_terminal
+    )
+    if resumable_run is not None:
+        return await build_recovery_control_surface(
+            session=session,
+            database_url=settings.database_url,
+            run=resumable_run,
+            state="recoverable",
+        )
+    return None
+
+
+@router.post("/projects/{project_id}/runs/reconcile", response_model=RecoveryControlRead | None)
+async def reconcile_project_runs(
+    project_id: int,
     session: AsyncSession = SessionDep,
     settings: Settings = SettingsDep,
-    ws: ConnectionManager = WsManagerDep,
 ) -> RecoveryControlRead | None:
+    """Explicit write endpoint to reconcile stale leases and settle stopped runs."""
     await get_or_404(session, Project, project_id)
 
     candidate = await _latest_run_for_project(session, project_id, _ACTIVE_RUN_STATUSES)
@@ -410,10 +504,8 @@ async def get_current_run(
             state="active",
         )
 
-    # One read of the latest terminal run serves both the stop settlement and the
-    # recoverable surface (this endpoint is polled; it used to load it twice).
     latest_terminal = await _latest_run_for_project(session, project_id, _TERMINAL_RUN_STATUS_TUPLE)
-    await _settle_stopped_run(session=session, ws=ws, project_id=project_id, latest=latest_terminal)
+    await _settle_stopped_run(session=session, ws=None, project_id=project_id, latest=latest_terminal)
     resumable_run = _surface_recoverable(
         newly_recoverable if newly_recoverable is not None else latest_terminal
     )
@@ -572,12 +664,14 @@ async def resume_run(
 )
 async def cancel_run(
     run_id: int,
+    payload: CancelRunRequest | None = Body(default=None),
     session: AsyncSession = SessionDep,
     settings: Settings = SettingsDep,
-    ws: ConnectionManager = WsManagerDep,
 ):
     """Persist cancellation intent; terminal state belongs to the executor."""
     run = await get_or_404(session, AgentRun, run_id)
+    if payload is not None and payload.expected_revision is not None:
+        assert_expected_revision(run, payload.expected_revision, entity="agentrun")
     if run.status == "failed":
         # 取消 on an interrupted run dismisses it: it stops being offered as
         # resumable and a regenerate that broke puts the previous version back.
@@ -592,25 +686,27 @@ async def cancel_run(
                 lease_owner=None,
                 lease_token=None,
                 lease_expires_at=None,
+                revision=AgentRun.revision + 1,
             )
         )
         await session.commit()
         if dismissed.rowcount != 1:
             return CancelRunResponse(status="no_active_run")
         await session.refresh(run)
-        await _restore_previous_version(session=session, ws=ws, run=run, reason="dismissed")
-        await ws.send_event(
-            run.project_id,
-            {
-                "type": "run_cancelled",
-                "data": {
-                    "run_id": run_id,
-                    "project_id": run.project_id,
-                    "cancelled_count": 1,
-                    "run_ids": [run_id],
-                },
+        await _restore_previous_version(session=session, ws=None, run=run, reason="dismissed")
+        await emit_project_event(
+            session,
+            project_id=run.project_id,
+            run_id=run_id,
+            event_type="run_cancelled",
+            payload={
+                "run_id": run_id,
+                "project_id": run.project_id,
+                "cancelled_count": 1,
+                "run_ids": [run_id],
             },
         )
+        await session.commit()
         return CancelRunResponse(status="cancelled", cancelled=1, run_ids=[run_id])
     if run.status in _TERMINAL_RUN_STATUSES:
         return CancelRunResponse(status="no_active_run")
@@ -620,7 +716,7 @@ async def cancel_run(
     run.cancel_requested_at = utcnow()
     run.status = "cancelling"
     session.add(run)
-    await session.commit()
+    await commit_versioned(session, run, entity="agentrun")
 
     # Every run is engine-owned now (ADR 0008), so a run without a live lease
     # has no executor to signal and can be terminalised synchronously.
@@ -628,20 +724,20 @@ async def cancel_run(
         run.status = "cancelled"
         run.awaiting_payload = None
         session.add(run)
-        await session.commit()
-        await _restore_previous_version(session=session, ws=ws, run=run, reason="stopped")
-        await ws.send_event(
-            project_id,
-            {
-                "type": "run_cancelled",
-                "data": {
-                    "run_id": run_id,
-                    "project_id": project_id,
-                    "cancelled_count": 1,
-                    "run_ids": [run_id],
-                },
+        await emit_project_event(
+            session,
+            project_id=project_id,
+            run_id=run_id,
+            event_type="run_cancelled",
+            payload={
+                "run_id": run_id,
+                "project_id": project_id,
+                "cancelled_count": 1,
+                "run_ids": [run_id],
             },
         )
+        await commit_versioned(session, run, entity="agentrun")
+        await _restore_previous_version(session=session, ws=None, run=run, reason="stopped")
         return CancelRunResponse(status="cancelled", cancelled=1, run_ids=[run_id])
 
     # The DB cancellation flag is authoritative, so a transient control-plane
@@ -662,6 +758,7 @@ async def cancel_run(
 )
 async def confirm_gate(
     run_id: int,
+    payload: GateConfirmRequest | None = Body(default=None),
     session: AsyncSession = SessionDep,
 ):
     """Approve the gate a run is waiting at.
@@ -672,8 +769,11 @@ async def confirm_gate(
     from app.services.run_signals import GateFeedbackRejected, approve_gate
 
     run = await get_or_404(session, AgentRun, run_id)
+    expected_revision = payload.expected_revision if payload is not None else None
     try:
-        await approve_gate(run_id, project_id=run.project_id)
+        await approve_gate(
+            run_id, project_id=run.project_id, expected_revision=expected_revision
+        )
     except GateFeedbackRejected as exc:
         raise AppException(message=str(exc), code=exc.code, status_code=status.HTTP_409_CONFLICT) from exc
     return GateConfirmAcceptedResponse(run_id=run_id)
@@ -688,7 +788,6 @@ async def gate_feedback(
     run_id: int,
     payload: GateFeedbackRequest,
     session: AsyncSession = SessionDep,
-    ws: ConnectionManager = WsManagerDep,
 ):
     """Request changes at the gate a run is waiting at.
 
@@ -712,30 +811,11 @@ async def gate_feedback(
             content=content,
             entity_type=payload.entity_type,
             entity_ids=payload.entity_ids,
+            expected_revision=payload.expected_revision,
         )
     except GateFeedbackRejected as exc:
         raise AppException(message=str(exc), code=exc.code, status_code=status.HTTP_409_CONFLICT) from exc
 
-    await session.refresh(run)
-    awaiting = run.awaiting_payload if isinstance(run.awaiting_payload, dict) else {}
-    await ws.send_event(
-        run.project_id,
-        {
-            "type": "run_feedback",
-            "data": {
-                "run_id": run_id,
-                "project_id": run.project_id,
-                "gate": awaiting.get("gate") or run.current_agent,
-                "stage": awaiting.get("current_stage"),
-                "feedback_id": feedback["id"],
-                "round": feedback["round"],
-                "state": "received",
-                "content": content,
-                "entity_type": feedback.get("entity_type"),
-                "entity_ids": feedback.get("entity_ids"),
-            },
-        },
-    )
     return GateFeedbackAcceptedResponse(
         run_id=run_id, feedback_id=str(feedback["id"]), round=feedback.get("round")
     )

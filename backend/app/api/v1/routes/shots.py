@@ -18,6 +18,7 @@ from app.services.run_lifecycle import (
     create_local_run,
     project_updated_event,
 )
+from app.services.event_outbox import emit_project_event
 from app.services.revision import assert_expected_revision, commit_versioned
 from app.ws.manager import ConnectionManager
 
@@ -136,13 +137,16 @@ async def update_shot(
     session.add(shot)
     if character_ids_updated:
         await _sync_shot_character_bindings(session, shot)
+    await session.flush()
+    shot_payload = _shot_read(shot)
+    await emit_project_event(
+        session,
+        project_id=project_id,
+        event_type="shot_updated",
+        payload={"shot": shot_payload},
+    )
     await commit_versioned(session, shot, entity="shot")
     await session.refresh(shot)
-
-    await ws.send_event(
-        project_id,
-        {"type": "shot_updated", "data": {"shot": _shot_read(shot)}},
-    )
     return _shot_read(shot)
 
 
@@ -150,7 +154,6 @@ async def update_shot(
 async def approve_shot(
     shot_id: int,
     session: AsyncSession = SessionDep,
-    ws: ConnectionManager = WsManagerDep,
 ):
     shot = await get_or_404(session, Shot, shot_id)
 
@@ -158,15 +161,17 @@ async def approve_shot(
     await _validate_shot_character_ids(session, shot.project_id, list(shot.character_ids))
     shot.freeze_approval()
     session.add(shot)
+    await session.flush()
+    payload = _shot_read(shot)
+    await emit_project_event(
+        session,
+        project_id=shot.project_id,
+        event_type="shot_updated",
+        payload={"shot": payload},
+    )
     await commit_versioned(session, shot, entity="shot")
     await session.refresh(shot)
-
-    payload = _shot_read(shot)
-    await ws.send_event(
-        shot.project_id,
-        {"type": "shot_updated", "data": {"shot": payload}},
-    )
-    return payload
+    return _shot_read(shot)
 
 
 @router.post(
@@ -197,14 +202,24 @@ async def regenerate_shot(
     # or clip (it marks the project superseded then); a regenerate that fails
     # leaves nothing changed, so it must not mark the film 已过期.
     if payload.type == "image":
-        await ws.send_event(
-            project_id, {"type": "shot_updated", "data": {"shot": _shot_read(shot)}}
+        await emit_project_event(
+            session,
+            project_id=project_id,
+            event_type="shot_updated",
+            payload={"shot": _shot_read(shot)},
         )
         stage = "render_shots"
     else:
         stage = "compose_videos"
 
-    await ws.send_event(project_id, await project_updated_event(session, project))
+    proj_evt = await project_updated_event(session, project)
+    await emit_project_event(
+        session,
+        project_id=project_id,
+        event_type="project_updated",
+        payload=proj_evt["data"],
+    )
+    await session.commit()
 
     result = await create_local_run(
         session,
@@ -227,7 +242,6 @@ async def regenerate_shot(
 async def delete_shot(
     shot_id: int,
     session: AsyncSession = SessionDep,
-    ws: ConnectionManager = WsManagerDep,
 ):
     shot = await get_or_404(session, Shot, shot_id)
 
@@ -241,16 +255,21 @@ async def delete_shot(
         session.add(project)
         cleared_project_video = True
 
-    # 删除数据库记录
+    # 删除数据库记录 + Outbox 事件同事务提交
     await session.delete(shot)
-    await commit_versioned(session, shot, entity="shot")
-
-    # 发送 WebSocket 事件
-    await ws.send_event(project_id, {"type": "shot_deleted", "data": {"shot_id": shot_id}})
+    await emit_project_event(
+        session,
+        project_id=project_id,
+        event_type="shot_deleted",
+        payload={"shot_id": shot_id},
+    )
     if cleared_project_video:
-        await ws.send_event(
-            project_id,
-            {"type": "project_updated", "data": {"project": {"id": project_id, "video_url": None}}},
+        await emit_project_event(
+            session,
+            project_id=project_id,
+            event_type="project_updated",
+            payload={"project": {"id": project_id, "video_url": None}},
         )
+    await commit_versioned(session, shot, entity="shot")
 
     return None

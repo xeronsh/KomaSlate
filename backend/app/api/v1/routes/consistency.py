@@ -44,20 +44,19 @@ async def trigger_consistency_eval(
                 report = await service.evaluate_project_consistency(
                     project, sess, run_id=None
                 )
-                # 发送 WebSocket 事件
-                from app.ws.manager import ws_manager
+                from app.services.event_outbox import emit_project_event
 
-                await ws_manager.send_event(
-                    project.id,
-                    {
-                        "type": "consistency_eval_completed",
-                        "data": {
-                            "project_id": project.id,
-                            "overall_score": report["overall_score"],
-                            "character_count": len(report["character_reports"]),
-                        },
+                await emit_project_event(
+                    sess,
+                    project_id=project.id,
+                    event_type="consistency_eval_completed",
+                    payload={
+                        "project_id": project.id,
+                        "overall_score": report["overall_score"],
+                        "character_count": len(report["character_reports"]),
                     },
                 )
+                await sess.commit()
             except Exception as exc:
                 import logging
 

@@ -6,8 +6,8 @@ import io
 import pytest
 from PIL import Image
 
-from app.api.v1.routes import assets as assets_routes
 from app.models.asset import Asset
+from app.services import file_cleaner
 from tests.factories import create_character, create_project, create_shot
 
 
@@ -143,7 +143,7 @@ async def test_create_asset_missing_type(async_client):
 
 @pytest.mark.asyncio
 async def test_upload_asset_image(async_client, monkeypatch, tmp_path):
-    monkeypatch.setattr(assets_routes, "STATIC_DIR", tmp_path)
+    monkeypatch.setattr(file_cleaner, "STATIC_DIR", tmp_path)
     data, filename, content_type = _make_png_file()
     res = await async_client.post(
         "/api/v1/assets/upload-image",
@@ -331,3 +331,26 @@ async def test_use_asset_not_found(async_client):
         json={"project_id": 1},
     )
     assert res.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_update_asset_enforces_cas_expected_revision(async_client, test_session):
+    asset = Asset(name="Orig", asset_type="character")
+    test_session.add(asset)
+    await test_session.commit()
+    await test_session.refresh(asset)
+    initial_rev = asset.revision
+
+    ok = await async_client.patch(
+        f"/api/v1/assets/{asset.id}",
+        json={"name": "Updated", "expected_revision": initial_rev},
+    )
+    assert ok.status_code == 200
+    assert ok.json()["revision"] == initial_rev + 1
+
+    stale = await async_client.patch(
+        f"/api/v1/assets/{asset.id}",
+        json={"name": "Conflict", "expected_revision": initial_rev},
+    )
+    assert stale.status_code == 409
+    assert stale.json()["error"]["code"] == "CONCURRENT_MODIFICATION"

@@ -45,12 +45,16 @@ async def lifespan(_: FastAPI):
     log.info("lifespan: init_db done")
     try:
         from app.db.session import async_session_maker
+        from app.services.event_outbox import prune_terminal_events
         from app.services.file_cleaner import sweep_managed_media
 
         async with async_session_maker() as session:
             await sweep_managed_media(session)
+            pruned = await prune_terminal_events(session, days=14)
+            if pruned:
+                await session.commit()
     except Exception:
-        log.exception("lifespan: media sweep failed; continuing")
+        log.exception("lifespan: startup maintenance failed; continuing")
     from app.db.session import engine as db_engine
     from app.services.db_change_notifier import db_change_notifier, sqlite_db_path
 
@@ -275,12 +279,12 @@ def create_app() -> FastAPI:
             {"type": event_type, "data": data, "event_id": event_id},
         )
 
-    async def _engine_event_watermark(project_id: int) -> int:
-        from app.db.session import async_session_maker
+    async def _engine_event_watermark(project_id: int) -> int | None:
+        from app.db.session import async_readonly_session_maker
         from sqlalchemy import text
 
         try:
-            async with async_session_maker() as session:
+            async with async_readonly_session_maker() as session:
                 result = await session.execute(
                     text(
                         "SELECT COALESCE(MAX(seq), 0) FROM engine_run_events "
@@ -291,20 +295,20 @@ def create_app() -> FastAPI:
                 return int(result.scalar() or 0)
         except Exception as exc:  # noqa: BLE001
             logger.warning(
-                "event watermark unavailable for project %s; starting at 0: %s",
+                "event watermark unavailable for project %s; preserving existing cursor: %s",
                 project_id,
                 exc,
             )
-            return 0
+            return None
 
     async def _tail_engine_events(
         project_id: int,
         websocket: WebSocket,
         *,
-        after_seq: int,
+        after_seq: int | None,
     ) -> None:
         """Replay/tail durable events to exactly one connection."""
-        from app.db.session import async_session_maker
+        from app.db.session import async_readonly_session_maker
         from app.services.db_change_notifier import db_change_notifier
         from sqlalchemy import text
 
@@ -315,16 +319,33 @@ def create_app() -> FastAPI:
             while True:
                 seen_generation = db_change_notifier.generation
                 queried_at = loop.time()
-                async with async_session_maker() as session:
-                    result = await session.execute(
-                        text(
-                            "SELECT seq, type, payload FROM engine_run_events "
-                            "WHERE project_id = :project_id AND seq > :after_seq "
-                            "ORDER BY seq LIMIT 500"
-                        ),
-                        {"project_id": project_id, "after_seq": last_seq},
+                if last_seq is None:
+                    resolved = await _engine_event_watermark(project_id)
+                    if resolved is None:
+                        await asyncio.sleep(_TAIL_IDLE_POLL_S)
+                        continue
+                    last_seq = resolved
+                try:
+                    async with async_readonly_session_maker() as session:
+                        result = await session.execute(
+                            text(
+                                "SELECT seq, type, payload FROM engine_run_events "
+                                "WHERE project_id = :project_id AND seq > :after_seq "
+                                "ORDER BY seq LIMIT 500"
+                            ),
+                            {"project_id": project_id, "after_seq": last_seq},
+                        )
+                        rows = list(result.all())
+                except Exception as exc:  # noqa: BLE001
+                    # Keep last_seq intact on transient DB errors; never reset to 0.
+                    logger.warning(
+                        "engine event tailer query failed for project %s (keeping seq=%s): %s",
+                        project_id,
+                        last_seq,
+                        exc,
                     )
-                    rows = list(result.all())
+                    await asyncio.sleep(_TAIL_IDLE_POLL_S)
+                    continue
 
                 for seq_raw, type_raw, payload_raw in rows:
                     seq = int(seq_raw)
@@ -388,11 +409,14 @@ def create_app() -> FastAPI:
                     requested_after = max(0, int(raw_after))
                 except ValueError:
                     requested_after = None
-            event_cursor = (
-                min(requested_after, head_cursor)
-                if requested_after is not None
-                else head_cursor
-            )
+            if requested_after is not None:
+                event_cursor: int | None = (
+                    min(requested_after, head_cursor)
+                    if head_cursor is not None
+                    else requested_after
+                )
+            else:
+                event_cursor = head_cursor
             await _send_connection_event(
                 project_id,
                 websocket,

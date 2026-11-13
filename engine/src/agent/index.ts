@@ -100,12 +100,109 @@ function fakeChatModel(): Model<Api> {
   return fakeChat.getModel() as unknown as Model<Api>;
 }
 
-/** Keep the newest messages, starting at a user turn so no tool result is orphaned. */
+/**
+ * Repair orphaned tool calls / tool results in a transcript so LLM providers
+ * never reject the context with HTTP 400.
+ *
+ * (a) Forward repair: an assistant `toolCall` missing its `toolResult` receives
+ *     a synthetic cancelled `toolResult`.
+ * (b) Backward repair: a `toolResult` whose `toolCall` is absent from the
+ *     window is dropped.
+ */
+export function repairOrphanToolCalls(messages: AgentMessage[]): AgentMessage[] {
+  const declaredCalls = new Set<string>();
+  for (const m of messages) {
+    if (m.role === "assistant" && Array.isArray(m.content)) {
+      for (const block of m.content as Array<{ type?: string; id?: string }>) {
+        if (block.type === "toolCall" && block.id) {
+          declaredCalls.add(block.id);
+        }
+      }
+    }
+  }
+
+  const existingResults = new Set<string>();
+  for (const m of messages) {
+    if (m.role === "toolResult" && m.toolCallId) {
+      existingResults.add(m.toolCallId);
+    }
+  }
+
+  const repaired: AgentMessage[] = [];
+  for (const msg of messages) {
+    if (msg.role === "toolResult") {
+      if (!msg.toolCallId || !declaredCalls.has(msg.toolCallId)) {
+        continue;
+      }
+    }
+
+    repaired.push(msg);
+
+    if (msg.role === "assistant" && Array.isArray(msg.content)) {
+      for (const block of msg.content as Array<{ type?: string; id?: string; name?: string }>) {
+        if (block.type === "toolCall" && block.id && !existingResults.has(block.id)) {
+          repaired.push({
+            role: "toolResult",
+            toolCallId: block.id,
+            toolName: block.name ?? "unknown",
+            content: [{ type: "text", text: "操作已取消：引擎已重启或确认已超时。" }],
+            isError: true,
+            timestamp: Date.now(),
+          } as AgentMessage);
+          existingResults.add(block.id);
+        }
+      }
+    }
+  }
+  return repaired;
+}
+
+/** Keep the newest messages, aligned on atomic turn / tool-call-pair boundaries. */
 export function recentContext(messages: AgentMessage[], limit = CONTEXT_MESSAGES): AgentMessage[] {
   if (messages.length <= limit) return messages;
-  const tail = messages.slice(-limit);
-  const start = tail.findIndex((message) => message.role === "user");
-  return start < 0 ? tail : tail.slice(start);
+
+  // Partition into atomic units so an assistant toolCall and its toolResults stay indivisible.
+  const units: Array<{ start: number; isUser: boolean; isOrphanResult: boolean }> = [];
+  let i = 0;
+  while (i < messages.length) {
+    const msg = messages[i]!;
+    if (msg.role === "user") {
+      units.push({ start: i, isUser: true, isOrphanResult: false });
+      i += 1;
+      continue;
+    }
+    if (msg.role === "assistant") {
+      const callIds = new Set<string>();
+      if (Array.isArray(msg.content)) {
+        for (const block of msg.content as Array<{ type?: string; id?: string }>) {
+          if (block.type === "toolCall" && block.id) callIds.add(block.id);
+        }
+      }
+      let j = i + 1;
+      if (callIds.size > 0) {
+        while (j < messages.length) {
+          const next = messages[j]!;
+          if (next.role === "toolResult" && next.toolCallId && callIds.has(next.toolCallId)) {
+            j += 1;
+          } else {
+            break;
+          }
+        }
+      }
+      units.push({ start: i, isUser: false, isOrphanResult: false });
+      i = j;
+      continue;
+    }
+    units.push({ start: i, isUser: false, isOrphanResult: msg.role === "toolResult" });
+    i += 1;
+  }
+
+  const minStart = messages.length - limit;
+  const userUnit = units.find((u) => u.start >= minStart && u.isUser);
+  const safeUnit = userUnit ?? units.find((u) => u.start >= minStart && !u.isOrphanResult);
+  const fallbackUnit = units.find((u) => !u.isOrphanResult) ?? units[units.length - 1];
+  const sliceStart = safeUnit?.start ?? fallbackUnit?.start ?? minStart;
+  return repairOrphanToolCalls(messages.slice(sliceStart));
 }
 
 const textOf = (content: unknown): string =>
@@ -147,10 +244,41 @@ export class ChatAgents {
   private readonly sessions = new Map<number, Agent>();
   private readonly turns = new Map<number, number>();
   private readonly streaming = new Map<number, string>();
-  private readonly pending = new Map<number, { card: ChatConfirm; decide: (approved: boolean) => void }>();
+  private readonly pending = new Map<
+    number,
+    { card: ChatConfirm; toolName: string; decide: (approved: boolean, resolvedBy?: "human" | "timeout" | "recovery") => void }
+  >();
   private readonly labels = new Map<string, string>();
 
-  constructor(private readonly deps: ChatAgentDeps) {}
+  constructor(private readonly deps: ChatAgentDeps) {
+    this.sweepExpiredConfirmations();
+  }
+
+  /** Startup sweep: expire any pending chat confirmations left from a previous process crash. */
+  private sweepExpiredConfirmations(): void {
+    const expired = this.deps.db.expireAllPendingChatConfirmations();
+    if (expired.length === 0) return;
+    const byProject = new Map<number, typeof expired>();
+    for (const row of expired) {
+      const list = byProject.get(row.project_id) ?? [];
+      list.push(row);
+      byProject.set(row.project_id, list);
+    }
+    for (const [projectId, rows] of byProject) {
+      for (const row of rows) {
+        this.deps.db.appendEvent(0, projectId, "chat_confirmation_expired", {
+          project_id: projectId,
+          tool_call_id: row.tool_call_id,
+          tool_name: row.tool_name,
+          expired_count: rows.length,
+          status: "expired",
+          resolved_by: "recovery",
+          resolved_at: row.resolved_at,
+        });
+      }
+      this.emit(projectId, "chat_status", { project_id: projectId, busy: false, text: "", pending: null });
+    }
+  }
 
   /** The saved conversation in UI form. */
   history(projectId: number): ChatItem[] {
@@ -198,11 +326,21 @@ export class ChatAgents {
   confirm(projectId: number, toolCallId: string, approved: boolean): boolean {
     const open = this.pending.get(projectId);
     if (!open || open.card.tool_call_id !== toolCallId) return false;
-    open.decide(approved);
+    open.decide(approved, "human");
     return true;
   }
 
-  private emit(projectId: number, type: "chat_message" | "chat_status", data: object): void {
+  private emit(
+    projectId: number,
+    type:
+      | "chat_message"
+      | "chat_status"
+      | "chat_confirmation_created"
+      | "chat_confirmation_resolved"
+      | "chat_confirmation_expired"
+      | "chat_agent_thought",
+    data: object,
+  ): void {
     const seq = this.deps.db.appendEvent(0, projectId, type, { project_id: projectId, ...data });
     if (type === "chat_status") this.deps.db.compactChatStatus(projectId, seq);
   }
@@ -211,19 +349,68 @@ export class ChatAgents {
     this.emit(projectId, "chat_status", this.status(projectId));
   }
 
-  private ask(projectId: number, card: ChatConfirm, signal?: AbortSignal): Promise<boolean> {
+  private ask(
+    projectId: number,
+    card: ChatConfirm,
+    toolName: string,
+    parametersJson: string,
+    signal?: AbortSignal,
+  ): Promise<boolean> {
     return new Promise((resolve) => {
-      const decide = (approved: boolean) => {
+      let settled = false;
+      const decide = (approved: boolean, resolvedBy: "human" | "timeout" | "recovery" = "human") => {
+        if (settled) return;
+        settled = true;
         clearTimeout(timer);
         signal?.removeEventListener("abort", onAbort);
+        const status = resolvedBy === "human" ? (approved ? "approved" : "rejected") : "expired";
+        const resolved = this.deps.db.resolveChatConfirmation(card.tool_call_id, status, resolvedBy);
+        const resolvedAt = resolved?.resolvedAt ?? new Date().toISOString();
+        if (status === "expired") {
+          this.emit(projectId, "chat_confirmation_expired", {
+            tool_call_id: card.tool_call_id,
+            tool_name: toolName,
+            expired_count: 1,
+            status: "expired",
+            resolved_by: resolvedBy === "timeout" ? "timeout" : "recovery",
+            resolved_at: resolvedAt,
+          });
+        } else {
+          this.emit(projectId, "chat_confirmation_resolved", {
+            tool_call_id: card.tool_call_id,
+            tool_name: toolName,
+            status,
+            resolved_by: resolvedBy,
+            resolved_at: resolvedAt,
+          });
+        }
         this.pending.delete(projectId);
         this.emitStatus(projectId);
         resolve(approved);
       };
-      const onAbort = () => decide(false);
-      const timer = setTimeout(() => decide(false), this.deps.confirmTimeoutMs ?? CONFIRM_TIMEOUT_MS);
+      const onAbort = () => decide(false, "recovery");
+      const timer = setTimeout(
+        () => decide(false, "timeout"),
+        this.deps.confirmTimeoutMs ?? CONFIRM_TIMEOUT_MS,
+      );
       signal?.addEventListener("abort", onAbort, { once: true });
-      this.pending.set(projectId, { card, decide });
+      const { createdAt } = this.deps.db.upsertChatConfirmation({
+        projectId,
+        toolCallId: card.tool_call_id,
+        toolName,
+        toolLabel: card.tool,
+        parametersJson,
+        summary: card.summary,
+      });
+      this.pending.set(projectId, { card, toolName, decide });
+      this.emit(projectId, "chat_confirmation_created", {
+        tool_call_id: card.tool_call_id,
+        tool_name: toolName,
+        tool_label: card.tool,
+        summary: card.summary,
+        status: "pending",
+        created_at: createdAt,
+      });
       this.emitStatus(projectId);
     });
   }
@@ -233,14 +420,27 @@ export class ChatAgents {
     if (existing) return existing;
     const tools = (this.deps.tools ?? chatTools)(projectId, this.deps.api);
     for (const tool of tools) this.labels.set(tool.name, tool.label);
+    const rawMessages = this.deps.db.chatMessages(projectId).map((row) => row.message as AgentMessage);
+    const existingResultIds = new Set(
+      rawMessages
+        .filter((m): m is Extract<AgentMessage, { role: "toolResult" }> => m.role === "toolResult")
+        .map((m) => m.toolCallId),
+    );
+    const repairedMessages = repairOrphanToolCalls(rawMessages);
+    for (const msg of repairedMessages) {
+      if (msg.role === "toolResult" && msg.toolCallId && !existingResultIds.has(msg.toolCallId)) {
+        this.deps.db.appendChatMessage(projectId, msg);
+        existingResultIds.add(msg.toolCallId);
+      }
+    }
     const agent = new Agent({
       initialState: {
         systemPrompt: SYSTEM_PROMPT,
         tools,
-        messages: this.deps.db.chatMessages(projectId).map((row) => row.message as AgentMessage),
+        messages: repairedMessages,
       },
       streamFn: modelStream,
-      transformContext: async (messages) => recentContext(messages),
+      transformContext: async (messages) => repairOrphanToolCalls(recentContext(messages)),
       beforeToolCall: async ({ toolCall, args }, signal) => {
         const tool = tools.find((entry) => entry.name === toolCall.name);
         if (!tool?.confirm) return undefined;
@@ -249,7 +449,9 @@ export class ChatAgents {
           tool: tool.label,
           summary: tool.confirm(args as Record<string, unknown>),
         };
-        if (await this.ask(projectId, card, signal)) return undefined;
+        if (await this.ask(projectId, card, tool.name, JSON.stringify(args ?? {}), signal)) {
+          return undefined;
+        }
         return { block: true, reason: "用户没有确认，这个操作没有执行。" };
       },
       finishTurn: () => {
@@ -261,6 +463,7 @@ export class ChatAgents {
       sessionId: `project-${projectId}`,
     });
     let lastFrame = 0;
+    let lastThoughtFrame = 0;
     agent.subscribe((event) => {
       if (event.type === "agent_start") {
         this.streaming.set(projectId, "");
@@ -270,6 +473,25 @@ export class ChatAgents {
         if (Date.now() - lastFrame >= STREAM_FRAME_MS) {
           lastFrame = Date.now();
           this.emit(projectId, "chat_status", { busy: true, text: this.streaming.get(projectId), pending: null });
+        }
+      } else if (event.type === "message_update" && event.assistantMessageEvent.type === "thinking_delta") {
+        const thinkingText = Array.isArray(event.message.content)
+          ? event.message.content
+              .map((block: { type?: string; thinking?: string }) =>
+                block.type === "thinking" ? (block.thinking ?? "") : "",
+              )
+              .join("")
+          : "";
+        if (Date.now() - lastThoughtFrame >= STREAM_FRAME_MS) {
+          lastThoughtFrame = Date.now();
+          this.emit(projectId, "chat_agent_thought", {
+            agent: "chat_assistant",
+            phase: "reasoning",
+            content: thinkingText,
+            delta: event.assistantMessageEvent.delta,
+            done: false,
+            timestamp: new Date().toISOString(),
+          });
         }
       } else if (event.type === "message_end") {
         this.streaming.set(projectId, "");

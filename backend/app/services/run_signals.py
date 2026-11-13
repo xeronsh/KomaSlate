@@ -13,8 +13,11 @@ import json
 
 from sqlalchemy import select, update
 
+from app.exceptions import ConflictError
 from app.generated.workflow_contract import GRAPH_STAGE_FOR_AGENT as GRAPH_STAGE_FOR_AGENT
 from app.models.agent_run import AgentRun
+from app.services.event_outbox import emit_project_event
+from app.services.revision import CONFLICT_CODE
 
 
 async def _update_run_columns(
@@ -62,6 +65,7 @@ async def submit_gate_feedback(
     content: str,
     entity_type: str | None = None,
     entity_ids: list[int] | None = None,
+    expected_revision: int | None = None,
 ) -> dict:
     """Record "request changes" for the gate a run is waiting at.
 
@@ -88,6 +92,22 @@ async def submit_gate_feedback(
     }
     async with async_session_maker() as session:
         current = await session.get(AgentRun, run_id)
+        if (
+            expected_revision is not None
+            and current is not None
+            and current.project_id == project_id
+            and current.revision != expected_revision
+        ):
+            raise ConflictError(
+                "agentrun was modified concurrently; reload and retry",
+                details={
+                    "entity": "agentrun",
+                    "id": run_id,
+                    "expected_revision": expected_revision,
+                    "current_revision": current.revision,
+                },
+                code=CONFLICT_CODE,
+            )
         awaiting = (
             current.awaiting_payload
             if current is not None and isinstance(current.awaiting_payload, dict)
@@ -100,7 +120,7 @@ async def submit_gate_feedback(
         feedback["round"] = await count_feedback_receipts(session, run_id, stage) + 1
         feedback["stage"] = stage
         feedback["gate"] = gate
-        result = await session.execute(
+        stmt = (
             update(AgentRun)
             .where(AgentRun.id == run_id)
             .where(AgentRun.project_id == project_id)
@@ -108,13 +128,28 @@ async def submit_gate_feedback(
             .where(AgentRun.confirm_requested.is_(False))  # type: ignore[union-attr]
             .where(AgentRun.gate_feedback.is_(None))  # type: ignore[union-attr]
             .where(AgentRun.cancel_requested_at.is_(None))  # type: ignore[union-attr]
-            .values(gate_feedback=feedback)
+        )
+        if expected_revision is not None:
+            stmt = stmt.where(AgentRun.revision == expected_revision)
+        result = await session.execute(
+            stmt.values(gate_feedback=feedback, revision=AgentRun.revision + 1)
         )
         if result.rowcount != 1:
             await session.rollback()
             run = await session.get(AgentRun, run_id)
             if run is None or run.project_id != project_id:
                 raise GateFeedbackRejected("RUN_NOT_FOUND", "运行不存在")
+            if expected_revision is not None and run.revision != expected_revision:
+                raise ConflictError(
+                    "agentrun was modified concurrently; reload and retry",
+                    details={
+                        "entity": "agentrun",
+                        "id": run_id,
+                        "expected_revision": expected_revision,
+                        "current_revision": run.revision,
+                    },
+                    code=CONFLICT_CODE,
+                )
             if run.gate_feedback:
                 raise GateFeedbackRejected(
                     "GATE_FEEDBACK_PENDING", "上一条修改意见还在处理，完成后会回到这个闸门"
@@ -149,6 +184,24 @@ async def submit_gate_feedback(
                 ),
             )
         )
+        await emit_project_event(
+            session,
+            project_id=project_id,
+            run_id=run_id,
+            event_type="run_feedback",
+            payload={
+                "run_id": run_id,
+                "project_id": project_id,
+                "gate": gate,
+                "stage": stage,
+                "feedback_id": feedback["id"],
+                "round": feedback["round"],
+                "state": "received",
+                "content": text,
+                "entity_type": feedback.get("entity_type"),
+                "entity_ids": feedback.get("entity_ids"),
+            },
+        )
         await session.commit()
     return feedback
 
@@ -178,7 +231,9 @@ async def count_feedback_receipts(session, run_id: int, stage: str | None) -> in
     return count
 
 
-async def approve_gate(run_id: int, *, project_id: int) -> None:
+async def approve_gate(
+    run_id: int, *, project_id: int, expected_revision: int | None = None
+) -> None:
     """Approve the gate a run is waiting at (the REST twin of the WS confirm).
 
     Refuses while a "request changes" is still being redone, so a stale click
@@ -187,20 +242,35 @@ async def approve_gate(run_id: int, *, project_id: int) -> None:
     from app.db.session import async_session_maker
 
     async with async_session_maker() as session:
-        result = await session.execute(
+        stmt = (
             update(AgentRun)
             .where(AgentRun.id == run_id)
             .where(AgentRun.project_id == project_id)
             .where(AgentRun.status == "waiting_for_approval")
             .where(AgentRun.gate_feedback.is_(None))  # type: ignore[union-attr]
             .where(AgentRun.cancel_requested_at.is_(None))  # type: ignore[union-attr]
-            .values(confirm_requested=True)
+        )
+        if expected_revision is not None:
+            stmt = stmt.where(AgentRun.revision == expected_revision)
+        result = await session.execute(
+            stmt.values(confirm_requested=True, revision=AgentRun.revision + 1)
         )
         if result.rowcount != 1:
             await session.rollback()
             run = await session.get(AgentRun, run_id)
             if run is None or run.project_id != project_id:
                 raise GateFeedbackRejected("RUN_NOT_FOUND", "运行不存在")
+            if expected_revision is not None and run.revision != expected_revision:
+                raise ConflictError(
+                    "agentrun was modified concurrently; reload and retry",
+                    details={
+                        "entity": "agentrun",
+                        "id": run_id,
+                        "expected_revision": expected_revision,
+                        "current_revision": run.revision,
+                    },
+                    code=CONFLICT_CODE,
+                )
             if run.gate_feedback:
                 raise GateFeedbackRejected(
                     "GATE_FEEDBACK_PENDING", "修改意见还在处理，新版本出来后再确认"

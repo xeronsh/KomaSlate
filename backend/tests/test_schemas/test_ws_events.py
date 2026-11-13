@@ -6,6 +6,7 @@ from typing import get_args
 
 import pytest
 
+from app.generated.events_contract import EVENT_PAYLOAD_MODELS
 from app.schemas.chat import ChatMessageEventData, ChatStatusEventData
 from app.schemas.export import ExportCompletedEventData
 from app.schemas.ws import (
@@ -121,12 +122,16 @@ class TestWsEventSchemaRegistry:
         for etype in all_types:
             if etype in ("connected", "pong", "echo"):
                 continue
-            assert etype in _EVENT_DATA_MODELS, f"{etype} missing from _EVENT_DATA_MODELS"
+            assert (
+                etype in _EVENT_DATA_MODELS or etype in EVENT_PAYLOAD_MODELS
+            ), f"{etype} missing from _EVENT_DATA_MODELS / EVENT_PAYLOAD_MODELS"
 
     def test_backend_and_frontend_ws_event_type_unions_match(self):
-        frontend_types = _frontend_ws_event_types()
+        frontend_contract_types = _frontend_generated_event_types()
         backend_types = set(get_args(WsEventType))
-        assert frontend_types == backend_types
+        assert frontend_contract_types == backend_types
+        # Legacy frontend/app/types/index.ts union remains a strict subset
+        assert _frontend_ws_event_types().issubset(backend_types)
 
     @pytest.mark.parametrize(
         ("event_type", "model"),
@@ -175,6 +180,20 @@ def _frontend_ws_event_types() -> set[str]:
         flags=re.DOTALL,
     )
     assert match is not None, "frontend WsEventType union not found"
+    return set(re.findall(r'"([^"]+)"', match.group("body")))
+
+
+def _frontend_generated_event_types() -> set[str]:
+    contract_file = (
+        Path(__file__).resolve().parents[3] / "frontend" / "app" / "generated" / "eventsContract.ts"
+    )
+    text = contract_file.read_text()
+    match = re.search(
+        r"export\s+const\s+DOMAIN_EVENT_TYPES\s*=\s*\[(?P<body>.*?)\]\s+as\s+const;",
+        text,
+        flags=re.DOTALL,
+    )
+    assert match is not None, "frontend DOMAIN_EVENT_TYPES not found"
     return set(re.findall(r'"([^"]+)"', match.group("body")))
 
 class TestLlmStreamEventData:

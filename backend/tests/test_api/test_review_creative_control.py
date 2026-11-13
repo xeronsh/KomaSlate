@@ -5,7 +5,7 @@ import pytest
 
 from app.services import run_lifecycle
 
-from tests.factories import create_character, create_project, create_shot
+from tests.factories import create_character, create_project, create_shot, read_outbox_events
 
 
 def _stub_engine_dispatch(monkeypatch):
@@ -172,8 +172,8 @@ async def test_character_regenerate_keeps_stale_final_visible(
     assert blocking_shot.video_url == "http://test.com/blocking-shot.mp4"
     assert unrelated_shot.video_url == "http://test.com/unrelated-shot.mp4"
 
-    project_events = [event for _, event in ws_manager.events if event["type"] == "project_updated"]
-    assert project_events, "expected a project_updated websocket event"
+    project_events = await read_outbox_events(test_session, "project_updated")
+    assert project_events, "expected a project_updated outbox event"
     payload = project_events[-1]["data"]["project"]
     assert payload["video_url"] == "http://test.com/final.mp4"
     assert payload["status"] == "superseded"

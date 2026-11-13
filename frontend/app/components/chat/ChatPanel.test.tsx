@@ -63,7 +63,6 @@ function renderChatPanel(isGenerating = false) {
 				gateLabel="规划"
 				awaitingConfirm={runState.awaitingConfirm}
 				onSend={onSendFeedback}
-				onConfirm={onConfirm}
 			/>
 		</>,
 		{ wrapper },
@@ -122,18 +121,19 @@ describe("ChatPanel", () => {
 		expect(screen.getByRole("button", { name: "停止生成" })).toBeInTheDocument();
 	});
 
-	it("sends prompt-bar feedback to confirm while awaiting, without its own approval bar", async () => {
+	it("decouples prompt-bar from gate approval while awaitingConfirm (AUD-UI-16)", async () => {
 		const user = userEvent.setup();
 		seedRunState({ awaitingConfirm: true, awaitingAgent: "plan" });
 
 		renderChatPanel(true);
 
-		// 审批按钮只在收件箱；输入框仍可提交修改意见
+		// 审批按钮只在独立审批门卡片；输入框始终直连助手，不劫持发送
 		expect(screen.queryByRole("button", { name: /通过/ })).not.toBeInTheDocument();
 		await user.type(screen.getByRole("textbox"), "  修改剧情节奏  ");
 		await user.keyboard("{Enter}");
 
-		expect(onConfirm).toHaveBeenLastCalledWith("修改剧情节奏");
+		expect(onConfirm).not.toHaveBeenCalled();
+		expect(onSendFeedback).toHaveBeenLastCalledWith("  修改剧情节奏  ");
 	});
 
 	it("toggles between review and quick mode", async () => {
@@ -147,7 +147,7 @@ describe("ChatPanel", () => {
 		expect(useEditorStore.getState().runMode).toBe("yolo");
 	});
 
-	it("confirms the current gate when switching to quick mode while awaiting confirmation", async () => {
+	it("does not silently confirm an open gate when switching to quick mode", async () => {
 		const user = userEvent.setup();
 		seedRunState({ awaitingConfirm: true, awaitingAgent: "plan" });
 		useEditorStore.getState().setRunMode("manual");
@@ -165,7 +165,7 @@ describe("ChatPanel", () => {
 		await user.click(screen.getByRole("button", { name: "切换自动确认" }));
 
 		expect(useEditorStore.getState().runMode).toBe("yolo");
-		expect(onConfirm).toHaveBeenLastCalledWith(undefined);
+		expect(onConfirm).not.toHaveBeenCalled();
 	});
 
 	it("hides manual confirm bar in auto-confirm mode", () => {

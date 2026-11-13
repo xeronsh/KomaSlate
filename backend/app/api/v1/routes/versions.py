@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import SessionDep, WsManagerDep
+from app.api.deps import SessionDep
 from app.exceptions import ConflictError
 from app.models.project import Character, Project, Shot
 from app.schemas.project import CharacterRead, ShotRead
@@ -16,9 +16,9 @@ from app.schemas.version import (
     VersionDiff,
     VersionListRead,
 )
+from app.services.event_outbox import emit_project_event
 from app.services.revision import CONFLICT_CODE, StaleDataError
 from app.services.version_service import EntityType, VersionService
-from app.ws.manager import ConnectionManager
 
 router = APIRouter()
 version_service = VersionService()
@@ -57,7 +57,6 @@ async def get_version(version_id: int, session: AsyncSession = SessionDep) -> Ar
 async def rollback_version(
     payload: RollbackRequest,
     session: AsyncSession = SessionDep,
-    ws: ConnectionManager = WsManagerDep,
 ) -> RollbackResponse:
     current_versions = await version_service.get_versions(
         session, payload.entity_type, payload.entity_id
@@ -67,7 +66,7 @@ async def rollback_version(
         new_version = await version_service.rollback(
             session, payload.entity_type, payload.entity_id, payload.target_version
         )
-        await session.commit()
+        await session.flush()
     except StaleDataError as exc:
         await session.rollback()
         raise ConflictError(
@@ -75,100 +74,94 @@ async def rollback_version(
             details={"entity": payload.entity_type, "id": payload.entity_id},
             code=CONFLICT_CODE,
         ) from exc
-    await session.refresh(new_version)
 
+    project_id: int | None = None
+    entity: Character | Shot | None = None
     if payload.entity_type == "character":
         entity = await session.get(Character, payload.entity_id)
         if entity is not None:
-            await ws.send_event(
-                entity.project_id,
-                {
-                    "type": "character_updated",
-                    "data": {"character": CharacterRead.model_validate(entity).model_dump(mode="json")},
-                },
+            project_id = entity.project_id
+            await emit_project_event(
+                session,
+                project_id=entity.project_id,
+                event_type="character_updated",
+                payload={"character": CharacterRead.model_validate(entity).model_dump(mode="json")},
             )
             shots = await session.execute(select(Shot).where(Shot.project_id == entity.project_id))
             for shot in shots.scalars():
                 if payload.entity_id in shot.character_ids:
-                    await ws.send_event(
-                        entity.project_id,
-                        {
-                            "type": "shot_updated",
-                            "data": {
-                                "shot": ShotRead.model_validate(shot).model_dump(mode="json")
-                            },
-                        },
+                    await emit_project_event(
+                        session,
+                        project_id=entity.project_id,
+                        event_type="shot_updated",
+                        payload={"shot": ShotRead.model_validate(shot).model_dump(mode="json")},
                     )
                     shot_versions = await version_service.get_versions(
                         session, "shot", int(shot.id)
                     )
                     if shot_versions:
-                        await ws.send_event(
-                            entity.project_id,
-                            {
-                                "type": "version_created",
-                                "data": {
-                                    "entity_type": "shot",
-                                    "entity_id": shot.id,
-                                    "version": shot_versions[0].version,
-                                    "trigger": shot_versions[0].trigger,
-                                },
+                        await emit_project_event(
+                            session,
+                            project_id=entity.project_id,
+                            event_type="version_created",
+                            payload={
+                                "entity_type": "shot",
+                                "entity_id": shot.id,
+                                "version": shot_versions[0].version,
+                                "trigger": shot_versions[0].trigger,
                             },
                         )
-            project_id = entity.project_id
     else:
         entity = await session.get(Shot, payload.entity_id)
         if entity is not None:
-            await ws.send_event(
-                entity.project_id,
-                {
-                    "type": "shot_updated",
-                    "data": {"shot": ShotRead.model_validate(entity).model_dump(mode="json")},
-                },
-            )
             project_id = entity.project_id
+            await emit_project_event(
+                session,
+                project_id=entity.project_id,
+                event_type="shot_updated",
+                payload={"shot": ShotRead.model_validate(entity).model_dump(mode="json")},
+            )
 
-    project = await session.get(Project, project_id) if entity is not None else None
-    if project is not None:
-        await ws.send_event(
-            project_id,
-            {
-                "type": "project_updated",
-                "data": {
-                    "project": {
-                        "id": project_id,
-                        "revision": project.revision,
-                        "status": project.status,
-                        "video_url": project.video_url,
-                    }
-                },
+    project = await session.get(Project, project_id) if project_id is not None else None
+    if project is not None and project_id is not None:
+        await emit_project_event(
+            session,
+            project_id=project_id,
+            event_type="project_updated",
+            payload={
+                "project": {
+                    "id": project_id,
+                    "revision": project.revision,
+                    "status": project.status,
+                    "video_url": project.video_url,
+                }
             },
         )
 
-    await ws.send_event(
-        new_version.project_id,
-        {
-            "type": "version_rollback",
-            "data": {
-                "entity_type": payload.entity_type,
-                "entity_id": payload.entity_id,
-                "from_version": from_version,
-                "to_version": payload.target_version,
-            },
+    await emit_project_event(
+        session,
+        project_id=new_version.project_id,
+        event_type="version_rollback",
+        payload={
+            "entity_type": payload.entity_type,
+            "entity_id": payload.entity_id,
+            "from_version": from_version,
+            "to_version": payload.target_version,
         },
     )
-    await ws.send_event(
-        new_version.project_id,
-        {
-            "type": "version_created",
-            "data": {
-                "entity_type": payload.entity_type,
-                "entity_id": payload.entity_id,
-                "version": new_version.version,
-                "trigger": new_version.trigger,
-            },
+    await emit_project_event(
+        session,
+        project_id=new_version.project_id,
+        event_type="version_created",
+        payload={
+            "entity_type": payload.entity_type,
+            "entity_id": payload.entity_id,
+            "version": new_version.version,
+            "trigger": new_version.trigger,
         },
     )
+    await session.commit()
+    await session.refresh(new_version)
 
     return RollbackResponse(
         success=True,

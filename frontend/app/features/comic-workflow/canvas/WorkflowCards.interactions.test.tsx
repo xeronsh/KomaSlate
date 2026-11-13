@@ -138,8 +138,8 @@ describe("shot card media and tags", () => {
 		expect(screen.getByAltText("S03")).toHaveAttribute("src", getStaticUrl("/static/s3.png"));
 		expect(screen.getByText("6s")).toBeInTheDocument();
 		expect(screen.getByText("3")).toBeInTheDocument();
-		expect(screen.getByTitle("林夏、周舟")).toBeInTheDocument();
-		expect(screen.getByTitle("低角度")).toBeInTheDocument();
+		expect(screen.getByText("林夏、周舟")).toBeInTheDocument();
+		expect(screen.getByText("低角度")).toBeInTheDocument();
 		fireEvent.click(screen.getByRole("button", { name: "预览视频" }));
 		expect(emit).toHaveBeenCalledWith("preview-video", { src: getStaticUrl("/static/s3.mp4"), title: "S03" });
 		unmount();
@@ -165,7 +165,7 @@ describe("shot card media and tags", () => {
 			unmount();
 		}
 		render(<WorkflowCardView node={shotNode({}, { review_status: "failed", review_note: "人物脸不一致" })} />);
-		expect(screen.getByText("未通过")).toHaveAttribute("title", "人物脸不一致");
+		expect(screen.getByText("未通过")).toBeInTheDocument();
 	});
 
 	it("marks selection and status on the card", () => {

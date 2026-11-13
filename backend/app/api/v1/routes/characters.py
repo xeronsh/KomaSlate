@@ -32,6 +32,7 @@ from app.services.creative_control import (
     apply_character_rerun_edits,
     invalidate_character_downstream_outputs,
 )
+from app.services.event_outbox import emit_project_event
 from app.services.revision import assert_expected_revision, commit_versioned
 from app.ws.manager import ConnectionManager
 
@@ -59,13 +60,16 @@ async def update_character(
         setattr(character, k, v)
 
     session.add(character)
+    await session.flush()
+    char_payload = _character_read(character)
+    await emit_project_event(
+        session,
+        project_id=character.project_id,
+        event_type="character_updated",
+        payload={"character": char_payload},
+    )
     await commit_versioned(session, character, entity="character")
     await session.refresh(character)
-
-    await ws.send_event(
-        character.project_id,
-        {"type": "character_updated", "data": {"character": _character_read(character)}},
-    )
     return _character_read(character)
 
 
@@ -73,21 +77,22 @@ async def update_character(
 async def approve_character(
     character_id: int,
     session: AsyncSession = SessionDep,
-    ws: ConnectionManager = WsManagerDep,
 ):
     character = await get_or_404(session, Character, character_id)
 
     character.freeze_approval()
     session.add(character)
+    await session.flush()
+    payload = _character_read(character)
+    await emit_project_event(
+        session,
+        project_id=character.project_id,
+        event_type="character_updated",
+        payload={"character": payload},
+    )
     await commit_versioned(session, character, entity="character")
     await session.refresh(character)
-
-    payload = _character_read(character)
-    await ws.send_event(
-        character.project_id,
-        {"type": "character_updated", "data": {"character": payload}},
-    )
-    return payload
+    return _character_read(character)
 
 
 @router.post(
@@ -128,15 +133,23 @@ async def regenerate_character(
     # engine commits the new image (it marks the project superseded then).
     if payload.description is not None or payload.image_url is not None:
         await invalidate_character_downstream_outputs(session, project, character_id)
+    await session.flush()
+    await emit_project_event(
+        session,
+        project_id=project_id,
+        event_type="character_updated",
+        payload={"character": _character_read(character)},
+    )
+    proj_evt = await project_updated_event(session, project)
+    await emit_project_event(
+        session,
+        project_id=project_id,
+        event_type="project_updated",
+        payload=proj_evt["data"],
+    )
     await commit_versioned(session, character, entity="character")
     await session.refresh(character)
     await session.refresh(project)
-
-    await ws.send_event(
-        project_id,
-        {"type": "character_updated", "data": {"character": _character_read(character)}},
-    )
-    await ws.send_event(project_id, await project_updated_event(session, project))
 
     result = await create_local_run(
         session,
@@ -158,20 +171,20 @@ async def regenerate_character(
 async def delete_character(
     character_id: int,
     session: AsyncSession = SessionDep,
-    ws: ConnectionManager = WsManagerDep,
 ):
     character = await get_or_404(session, Character, character_id)
 
     project_id = character.project_id
 
-    # 删除数据库记录
+    # 删除数据库记录 + Outbox 事件同事务提交
     await session.delete(character)
-    await commit_versioned(session, character, entity="character")
-
-    # 发送 WebSocket 事件
-    await ws.send_event(
-        project_id, {"type": "character_deleted", "data": {"character_id": character_id}}
+    await emit_project_event(
+        session,
+        project_id=project_id,
+        event_type="character_deleted",
+        payload={"character_id": character_id},
     )
+    await commit_versioned(session, character, entity="character")
 
     return None
 
@@ -179,22 +192,21 @@ async def delete_character(
 # ─── Character Bible Routes ─────────────────────────────────────────────────
 
 
-async def _send_bible_updated_event(
-    ws: ConnectionManager,
+async def _emit_bible_updated_event(
+    session: AsyncSession,
     character: Character,
     visual_notes_updated: bool = False,
 ) -> None:
-    """Send bible_updated WebSocket event."""
-    await ws.send_event(
-        character.project_id,
-        {
-            "type": "bible_updated",
-            "data": {
-                "character_id": character.id,
-                "visual_notes": visual_notes_updated,
-                "reference_images_count": len(character.reference_images or []),
-                "has_embedding": bool(character.face_embedding),
-            },
+    """Persist bible_updated event into transactional outbox."""
+    await emit_project_event(
+        session,
+        project_id=character.project_id,
+        event_type="bible_updated",
+        payload={
+            "character_id": character.id,
+            "visual_notes": visual_notes_updated,
+            "reference_images_count": len(character.reference_images or []),
+            "has_embedding": bool(character.face_embedding),
         },
     )
 
@@ -240,7 +252,6 @@ async def update_character_bible(
     character_id: int,
     payload: CharacterBibleUpdate,
     session: AsyncSession = SessionDep,
-    ws: ConnectionManager = WsManagerDep,
 ):
     """Update character bible (visual_notes / reference_images)."""
     character = await get_or_404(session, Character, character_id)
@@ -257,10 +268,9 @@ async def update_character_bible(
         character.reference_images = data["reference_images"]
 
     session.add(character)
+    await _emit_bible_updated_event(session, character, visual_notes_updated=visual_notes_updated)
     await commit_versioned(session, character, entity="character")
     await session.refresh(character)
-
-    await _send_bible_updated_event(ws, character, visual_notes_updated=visual_notes_updated)
 
     assert character.id is not None
     return CharacterBibleRead(
@@ -282,7 +292,6 @@ async def add_reference_image(
     character_id: int,
     payload: ReferenceImageCreate,
     session: AsyncSession = SessionDep,
-    ws: ConnectionManager = WsManagerDep,
 ):
     """Add a reference image URL to the character bible."""
     character = await get_or_404(session, Character, character_id)
@@ -292,10 +301,9 @@ async def add_reference_image(
     character.reference_images = images
 
     session.add(character)
+    await _emit_bible_updated_event(session, character)
     await commit_versioned(session, character, entity="character")
     await session.refresh(character)
-
-    await _send_bible_updated_event(ws, character)
 
     assert character.id is not None
     return CharacterBibleRead(
@@ -317,7 +325,6 @@ async def delete_reference_image(
     character_id: int,
     index: int,
     session: AsyncSession = SessionDep,
-    ws: ConnectionManager = WsManagerDep,
 ):
     """Delete a reference image by index."""
     character = await get_or_404(session, Character, character_id)
@@ -330,9 +337,8 @@ async def delete_reference_image(
     character.reference_images = images
 
     session.add(character)
+    await _emit_bible_updated_event(session, character)
     await commit_versioned(session, character, entity="character")
-
-    await _send_bible_updated_event(ws, character)
 
     return None
 
@@ -344,7 +350,6 @@ async def delete_reference_image(
 async def compute_character_embedding(
     character_id: int,
     session: AsyncSession = SessionDep,
-    ws: ConnectionManager = WsManagerDep,
 ):
     """Manually trigger embedding computation for a character."""
     character = await get_or_404(session, Character, character_id)
@@ -369,8 +374,8 @@ async def compute_character_embedding(
 
     character.face_embedding = _json.dumps(embedding)
     session.add(character)
+    await _emit_bible_updated_event(session, character)
     await commit_versioned(session, character, entity="character")
     await session.refresh(character)
 
-    await _send_bible_updated_event(ws, character)
     return _character_read(character)

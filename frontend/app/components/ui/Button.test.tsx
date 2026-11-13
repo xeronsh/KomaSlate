@@ -22,7 +22,10 @@ describe('Button', () => {
   });
 
   it('applies size styles', () => {
-    const { rerender } = render(<Button size="sm">Small</Button>);
+    const { rerender } = render(<Button size="xs">Extra Small</Button>);
+    expect(screen.getByRole('button')).toHaveClass('h-7', 'text-xs');
+
+    rerender(<Button size="sm">Small</Button>);
     expect(screen.getByRole('button')).toHaveClass('text-sm');
 
     rerender(<Button size="lg">Large</Button>);

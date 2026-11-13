@@ -51,6 +51,20 @@ export interface BeginStageAttemptInput {
   forceNew?: boolean;
 }
 
+export interface ChatConfirmationRow {
+  id: number;
+  project_id: number;
+  tool_call_id: string;
+  tool_name: string;
+  tool_label: string;
+  parameters_json: string;
+  summary: string;
+  status: "pending" | "approved" | "rejected" | "expired";
+  created_at: string;
+  resolved_at: string | null;
+  resolved_by: "human" | "timeout" | "recovery" | null;
+}
+
 const REQUIRED_RUNTIME_TABLES = [
   "engine_run_events",
   "engine_checkpoints",
@@ -65,8 +79,9 @@ export class EngineDatabase {
     if (dbPath !== ":memory:") mkdirSync(dirname(dbPath), { recursive: true });
     this.db = new Database(dbPath);
     this.db.pragma("journal_mode = WAL");
+    this.db.pragma("synchronous = NORMAL");
+    this.db.pragma("busy_timeout = 15000");
     this.db.pragma("foreign_keys = ON");
-    this.db.pragma("busy_timeout = 5000");
     this.assertSchema();
   }
 
@@ -196,6 +211,153 @@ export class EngineDatabase {
       .get(runId) as { stage: string; state_json: string } | undefined;
     if (!row) return null;
     return { stage: row.stage, state: JSON.parse(row.state_json) };
+  }
+
+  getCheckpoint<T = unknown>(runId: number, stage: string): T | null {
+    const row = this.db
+      .prepare("SELECT state_json FROM engine_checkpoints WHERE run_id = ? AND stage = ?")
+      .get(runId, stage) as { state_json: string } | undefined;
+    if (!row) return null;
+    return JSON.parse(row.state_json) as T;
+  }
+
+  hasChatConfirmationTable(): boolean {
+    const row = this.db
+      .prepare("SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'chat_confirmation'")
+      .get() as { ok: number } | undefined;
+    return row?.ok === 1;
+  }
+
+  upsertChatConfirmation(input: {
+    projectId: number;
+    toolCallId: string;
+    toolName: string;
+    toolLabel: string;
+    parametersJson: string;
+    summary: string;
+  }): { createdAt: string } {
+    const createdAt = new Date().toISOString();
+    if (!this.hasChatConfirmationTable()) return { createdAt };
+    this.db
+      .prepare(
+        `INSERT INTO chat_confirmation
+           (project_id, tool_call_id, tool_name, tool_label, parameters_json, summary, status, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, 'pending', ?)
+         ON CONFLICT(tool_call_id) DO UPDATE SET
+           tool_name = excluded.tool_name,
+           tool_label = excluded.tool_label,
+           parameters_json = excluded.parameters_json,
+           summary = excluded.summary,
+           status = 'pending',
+           resolved_at = NULL,
+           resolved_by = NULL`,
+      )
+      .run(
+        input.projectId,
+        input.toolCallId,
+        input.toolName,
+        input.toolLabel,
+        input.parametersJson,
+        input.summary,
+        createdAt,
+      );
+    return { createdAt };
+  }
+
+  resolveChatConfirmation(
+    toolCallId: string,
+    status: "approved" | "rejected" | "expired",
+    resolvedBy: "human" | "timeout" | "recovery",
+  ): { projectId: number; toolName: string; resolvedAt: string } | null {
+    if (!this.hasChatConfirmationTable()) return null;
+    const resolvedAt = new Date().toISOString();
+    const row = this.db
+      .prepare("SELECT project_id, tool_name FROM chat_confirmation WHERE tool_call_id = ?")
+      .get(toolCallId) as { project_id: number; tool_name: string } | undefined;
+    if (!row) return null;
+    const info = this.db
+      .prepare(
+        `UPDATE chat_confirmation
+         SET status = ?, resolved_at = ?, resolved_by = ?
+         WHERE tool_call_id = ? AND status = 'pending'`,
+      )
+      .run(status, resolvedAt, resolvedBy, toolCallId);
+    if (info.changes === 0) return null;
+    return { projectId: row.project_id, toolName: row.tool_name, resolvedAt };
+  }
+
+  pendingChatConfirmation(projectId: number): ChatConfirmationRow | null {
+    if (!this.hasChatConfirmationTable()) return null;
+    return (
+      (this.db
+        .prepare(
+          `SELECT * FROM chat_confirmation
+           WHERE project_id = ? AND status = 'pending'
+           ORDER BY id DESC LIMIT 1`,
+        )
+        .get(projectId) as ChatConfirmationRow | undefined) ?? null
+    );
+  }
+
+  expireAllPendingChatConfirmations(): Array<{
+    project_id: number;
+    tool_call_id: string;
+    tool_name: string;
+    tool_label: string;
+    summary: string;
+    resolved_at: string;
+  }> {
+    if (!this.hasChatConfirmationTable()) return [];
+    const resolvedAt = new Date().toISOString();
+    return this.transaction(() => {
+      const rows = this.db
+        .prepare(
+          `SELECT project_id, tool_call_id, tool_name, tool_label, summary
+           FROM chat_confirmation
+           WHERE status = 'pending'`,
+        )
+        .all() as Array<{
+        project_id: number;
+        tool_call_id: string;
+        tool_name: string;
+        tool_label: string;
+        summary: string;
+      }>;
+      if (rows.length > 0) {
+        this.db
+          .prepare(
+            `UPDATE chat_confirmation
+             SET status = 'expired',
+                 resolved_at = ?,
+                 resolved_by = 'recovery'
+             WHERE status = 'pending'`,
+          )
+          .run(resolvedAt);
+      }
+      return rows.map((row) => ({ ...row, resolved_at: resolvedAt }));
+    });
+  }
+
+  recentProtocolEvents(projectId?: number, limit = 100): RunEventRow[] {
+    const safeLimit = Math.max(1, Math.min(limit, 500));
+    if (typeof projectId === "number" && Number.isFinite(projectId)) {
+      return this.db
+        .prepare(
+          `SELECT seq, run_id, project_id, type, payload, created_at
+           FROM engine_run_events
+           WHERE project_id = ? AND (type LIKE 'mcp_%' OR type LIKE 'cli_%')
+           ORDER BY seq DESC LIMIT ?`,
+        )
+        .all(projectId, safeLimit) as RunEventRow[];
+    }
+    return this.db
+      .prepare(
+        `SELECT seq, run_id, project_id, type, payload, created_at
+         FROM engine_run_events
+         WHERE type LIKE 'mcp_%' OR type LIKE 'cli_%'
+         ORDER BY seq DESC LIMIT ?`,
+      )
+      .all(safeLimit) as RunEventRow[];
   }
 
   /**

@@ -1,7 +1,8 @@
-import { useToastStore } from "~/stores/toast.store";
+import { toast as sonnerToast } from "sonner";
 import type { ToastAction } from "~/types/errors";
 
-interface ToastOptions {
+export interface ToastOptions {
+  id?: string;
   title: string;
   message: string;
   duration?: number;
@@ -9,37 +10,41 @@ interface ToastOptions {
   details?: string;
 }
 
+function toSonnerOptions(options: ToastOptions, defaultDuration: number) {
+  const duration =
+    options.duration === 0 || options.duration === Infinity
+      ? Infinity
+      : (options.duration ?? defaultDuration);
+  const firstAction = options.actions?.[0];
+
+  return {
+    id: options.id,
+    description: options.message,
+    duration,
+    action: firstAction
+      ? {
+          label: firstAction.label,
+          onClick: firstAction.onClick,
+        }
+      : undefined,
+  };
+}
+
 export const toast = {
   success: (options: ToastOptions): string =>
-    useToastStore.getState().addToast({
-      type: "success",
-      duration: options.duration ?? 3000,
-      ...options,
-    }),
+    String(sonnerToast.success(options.title, toSonnerOptions(options, 3000))),
 
   error: (options: ToastOptions): string =>
-    useToastStore.getState().addToast({
-      type: "error",
-      duration: options.duration ?? 5000,
-      ...options,
-    }),
+    String(sonnerToast.error(options.title, toSonnerOptions(options, 5000))),
 
   warning: (options: ToastOptions): string =>
-    useToastStore.getState().addToast({
-      type: "warning",
-      duration: options.duration ?? 4000,
-      ...options,
-    }),
+    String(sonnerToast.warning(options.title, toSonnerOptions(options, 4000))),
 
   info: (options: ToastOptions): string =>
-    useToastStore.getState().addToast({
-      type: "info",
-      duration: options.duration ?? 3000,
-      ...options,
-    }),
+    String(sonnerToast.info(options.title, toSonnerOptions(options, 3000))),
 
   /** 关闭一个还在显示的 Toast（例如进行中的提示被结果替换） */
-  dismiss: (id: string) => {
-    useToastStore.getState().removeToast(id);
+  dismiss: (id?: string) => {
+    sonnerToast.dismiss(id);
   },
 };

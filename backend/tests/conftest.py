@@ -22,10 +22,16 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlmodel import SQLModel
 
-from app.api.deps import get_app_settings, get_db_session, get_ws_manager, require_admin
+from app.api.deps import (
+    get_app_settings,
+    get_db_session,
+    get_readonly_db_session,
+    get_ws_manager,
+    require_admin,
+)
 from app.config import Settings
 from app.main import create_app
-from app.models import agent_run, message, project, style_template  # noqa: F401
+from app.models import agent_run, chat_confirmation, message, project, style_template  # noqa: F401
 
 
 @pytest.fixture(scope="session")
@@ -135,6 +141,7 @@ def _no_real_engine(monkeypatch):
     需要验证派发契约的测试可在自己的 fixture 里覆盖。
     """
     from app.api.v1.routes import runs as generation_routes
+    from app.services import run_lifecycle
 
     async def _ensure(base_url, database_url, static_dir):
         return None
@@ -152,6 +159,8 @@ def _no_real_engine(monkeypatch):
     monkeypatch.setattr(generation_routes, "engine_start_run", _start)
     monkeypatch.setattr(generation_routes, "engine_resume_run", _resume)
     monkeypatch.setattr(generation_routes, "engine_cancel_run", _cancel)
+    monkeypatch.setattr(run_lifecycle, "ensure_engine_running", _ensure)
+    monkeypatch.setattr(run_lifecycle, "engine_start_run", _start)
 
 
 @pytest_asyncio.fixture(scope="function")
@@ -171,6 +180,7 @@ async def app(test_session: AsyncSession, test_settings: Settings, ws_manager: S
         return None
 
     app.dependency_overrides[get_db_session] = override_get_session
+    app.dependency_overrides[get_readonly_db_session] = override_get_session
     app.dependency_overrides[get_app_settings] = override_get_settings
     app.dependency_overrides[get_ws_manager] = override_get_ws
     app.dependency_overrides[require_admin] = override_require_admin

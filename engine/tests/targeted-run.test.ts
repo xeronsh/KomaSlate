@@ -147,13 +147,18 @@ describe("targeted runs", () => {
     const types = edb.eventsForRun(runId).map((e) => e.type);
     expect(types).toContain("run_started");
     expect(types).toContain("run_completed");
-    // Only the scoped shot is updated (its keyframe, then its review status).
+    // The scoped shot got a fresh image; downstream unlocked shot 2 kept its
+    // existing image and was marked unchecked via cascadeShotInvalidation.
     const updated = edb
       .eventsForRun(runId)
       .filter((e) => e.type === "shot_updated")
       .map((e) => (JSON.parse(String(e.payload)) as { shot: { id: number } }).shot.id);
-    expect(new Set(updated)).toEqual(new Set([target.id]));
+    expect(updated[0]).toBe(target.id);
+    expect(types).toContain("shot_invalidation_cascaded");
     expect(after.find((s) => s.id === target.id)?.image_url).toContain("/static/managed-v1/");
+    const downstream = after.find((s) => s.id !== target.id);
+    expect(downstream?.image_url).toBe("/static/images/s2.svg");
+    expect(downstream?.review_status).toBe("unchecked");
     edb.close();
   }, 60000);
 });

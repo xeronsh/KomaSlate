@@ -1,11 +1,12 @@
 import { MenuButton, MenuItem, MenuLink } from "~/components/ui/Menu";
-import { BUTTON_BASE, BUTTON_VARIANTS, Button } from "~/components/ui/Button";
+import { buttonClass, Button } from "~/components/ui/Button";
+import { Tooltip } from "~/components/ui/Tooltip";
 import {
 	type StudioStatus,
 	studioStatusDotClass,
 	studioStatusText,
 } from "~/features/comic-workflow/state/deriveStudioStatus";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useState } from "react";
 import { PlainButton } from "~/components/ui/PlainButton";
 import { SvgIcon } from "~/components/ui/SvgIcon";
 import { WORKFLOW_STEPS } from "~/utils/workflowSteps";
@@ -61,14 +62,11 @@ interface StudioControlsProps {
 	previousDownloadUrl?: string | null;
 }
 
-const chromeBtn =
-	"gap-1 !px-2 text-xs";
-
 /**
  * Top-bar centre for the workbench: one status pill (opens the inbox) and the
  * run actions. The old stage row is gone; the pill names the stage instead.
  */
-export function StudioControls({
+export const StudioControls = memo(function StudioControls({
 	isGenerating,
 	studioStatus,
 	awaitingConfirm,
@@ -117,7 +115,7 @@ export function StudioControls({
 			工作台状态：{pillText}
 		</span>
 		{/* <sm 顶栏放不下：移动端的状态与重试在 MobileWorkbenchPreview 里 */}
-		<div className="hidden min-w-0 items-center gap-1.5 sm:flex" data-shell="studio-controls">
+		<div className="hidden min-w-0 max-w-full items-center gap-1.5 sm:flex" data-shell="studio-controls">
 
 			<PlainButton
 				className={`touch-target-dense inline-flex min-w-0 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold tabular-nums transition-colors duration-fast ${
@@ -225,8 +223,8 @@ export function StudioControls({
 				{isGenerating ? (
 					<Button
 						variant="ghost"
-						size="sm"
-						className={`${chromeBtn} text-error-fg`}
+						size="xs"
+						className="text-error-fg"
 						onClick={onCancel}
 					>
 						<SvgIcon name="stop" size={14} />
@@ -234,12 +232,10 @@ export function StudioControls({
 					</Button>
 				) : null}
 				{showMainGenerate && onGenerate ? (
-					// 禁用的按钮收不到 hover：原因挂在外层，悬停也能看到
-					<span className="inline-flex" title={generateDisabledReason}>
+					<Tooltip content={generateDisabledReason}>
 						<Button
 							variant={finished ? "secondary" : "primary"}
-							size="sm"
-							className={chromeBtn}
+							size="xs"
 							onClick={onGenerate}
 							disabled={generateDisabled || generatePending}
 							aria-busy={generatePending}
@@ -261,7 +257,7 @@ export function StudioControls({
 								{generateDisabledReason}
 							</span>
 						) : null}
-					</span>
+					</Tooltip>
 				) : null}
 				{finished && downloadUrl ? (
 					<a
@@ -270,7 +266,7 @@ export function StudioControls({
 						// 成片在另一个源上：新标签打开，工作台留在原处
 						target="_blank"
 						rel="noopener"
-						className={`${BUTTON_BASE} ${BUTTON_VARIANTS.primary} h-8 touch-target-dense ${chromeBtn}`}
+						className={buttonClass({ variant: "primary", size: "xs" })}
 					>
 						<SvgIcon name="download" size={14} />
 						下载成片
@@ -280,4 +276,4 @@ export function StudioControls({
 		</div>
 		</>
 	);
-}
+});

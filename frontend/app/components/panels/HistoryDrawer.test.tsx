@@ -101,7 +101,7 @@ describe("HistoryDrawer", () => {
 	it("selects all projects via 全选 checkbox", async () => {
 		renderDrawer();
 		const allCheckbox = await screen.findByText("全选");
-		fireEvent.click(allCheckbox.closest("label")!.querySelector("input")!);
+		fireEvent.click(allCheckbox.closest("label")!.querySelector('[role="checkbox"]')!);
 		const checkboxes = screen.getAllByRole("checkbox");
 		checkboxes.forEach((cb) => expect(cb).toBeChecked());
 	});

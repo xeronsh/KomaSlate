@@ -3,9 +3,10 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { lazy, Suspense } from "react";
 
 import "./styles/globals.css";
-import { ToastContainer } from "./components/toast/ToastContainer";
+import { AppToaster } from "./components/toast/AppToaster";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 import { LoadingOverlay } from "./components/ui/LoadingOverlay";
+import { TooltipProvider } from "./components/ui/Tooltip";
 import { appQueryClient } from "./query/client";
 import { useSettingsStore } from "./stores/settingsStore";
 
@@ -37,32 +38,34 @@ export function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={appQueryClient}>
-        <BrowserRouter>
-          {/* Viewport host: pages fill this; no document scroll */}
-          <div
-            className="relative h-full max-h-dvh overflow-hidden bg-paper-100"
-            data-shell="app-root"
-          >
-            <Suspense
-              fallback={
-                <LoadingOverlay text="加载中…" className="fixed inset-0 z-toast" />
-              }
+        <TooltipProvider>
+          <BrowserRouter>
+            {/* Viewport host: pages fill this; no document scroll */}
+            <div
+              className="relative h-full max-h-dvh overflow-hidden bg-paper-100"
+              data-shell="app-root"
             >
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/projects" element={<ProjectsPage />} />
-                <Route path="/project/new" element={<Navigate to="/" replace />} />
-                <Route path="/project/:id" element={<ProjectPage />} />
-                <Route path="/projects/:id" element={<ProjectPage />} />
-                <Route path="/universes" element={<UniversesPage />} />
-                <Route path="/universes/:universeId" element={<UniverseDetailPage />} />
-                {StateColorsSheet ? <Route path="/dev/state-colors" element={<StateColorsSheet />} /> : null}
-              </Routes>
-            </Suspense>
-          </div>
-          <SettingsModalHost />
-          <ToastContainer />
-        </BrowserRouter>
+              <Suspense
+                fallback={
+                  <LoadingOverlay text="加载中…" className="fixed inset-0 z-toast" />
+                }
+              >
+                <Routes>
+                  <Route path="/" element={<HomePage />} />
+                  <Route path="/projects" element={<ProjectsPage />} />
+                  <Route path="/project/new" element={<Navigate to="/" replace />} />
+                  <Route path="/project/:id" element={<ProjectPage />} />
+                  <Route path="/projects/:id" element={<ProjectPage />} />
+                  <Route path="/universes" element={<UniversesPage />} />
+                  <Route path="/universes/:universeId" element={<UniverseDetailPage />} />
+                  {StateColorsSheet ? <Route path="/dev/state-colors" element={<StateColorsSheet />} /> : null}
+                </Routes>
+              </Suspense>
+            </div>
+            <SettingsModalHost />
+            <AppToaster />
+          </BrowserRouter>
+        </TooltipProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

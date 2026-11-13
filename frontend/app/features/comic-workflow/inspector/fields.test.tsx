@@ -1,6 +1,7 @@
 import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { ActionButton, FormShell, SaveButton, TextInput } from "./fields";
+import { Input } from "~/components/ui/Input";
+import { ActionButton, FormShell, SaveButton } from "./fields";
 
 describe("ActionButton", () => {
 	it("renders a danger action as red text on a quiet background, never red on red", () => {
@@ -16,7 +17,7 @@ describe("FormShell auto-save", () => {
 		return (
 			<>
 				<FormShell disabled={false} dirty={dirty} onAutoSave={onAutoSave}>
-					<TextInput label="名称" value="x" onChange={vi.fn()} />
+					<Input label="名称" value="x" onChange={vi.fn()} />
 					<SaveButton disabled={false} loading={false} onClick={vi.fn()} />
 				</FormShell>
 				<input aria-label="外部" />

@@ -39,7 +39,8 @@ from app.services.run_lifecycle import (
     create_local_run,
     project_updated_event,
 )
-from app.services.file_cleaner import get_local_path
+from app.services.event_outbox import emit_project_event
+from app.services.file_cleaner import get_local_path, save_validated_image_upload
 from app.services.project_deletion import delete_project_by_id, delete_projects_by_ids
 from app.services.revision import assert_expected_revision, commit_versioned
 from app.services.provider_resolution import resolve_project_provider_settings_async
@@ -291,30 +292,8 @@ async def upload_reference_image(
     file: UploadFile = File(...),
     session: AsyncSession = SessionDep,
 ):
-    import uuid
-    from pathlib import Path
-
     project = await get_or_404(session, Project, project_id)
-
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Only image files are accepted")
-
-    ref_dir = Path(__file__).parent.parent.parent / "static" / "references"
-    ref_dir.mkdir(parents=True, exist_ok=True)
-
-    ext = file.content_type.split("/")[-1]
-    if ext == "jpeg":
-        ext = "jpg"
-    filename = f"{uuid.uuid4().hex[:12]}.{ext}"
-    dest = ref_dir / filename
-
-    content = await file.read()
-    if len(content) > 10 * 1024 * 1024:
-        raise HTTPException(status_code=400, detail="Image must be under 10MB")
-
-    dest.write_bytes(content)
-
-    url_path = f"/static/references/{filename}"
+    url_path = await save_validated_image_upload(file, subdir="references")
 
     images = list(project.reference_images or [])
     images.append(url_path)
@@ -394,7 +373,7 @@ async def reorder_shots(
         project.status = "superseded"
         session.add(project)
 
-    await commit_versioned(session, project, entity="project")
+    await session.flush()
 
     ordered_res = await session.execute(
         select(Shot).where(shot_project_id_col == project_id).order_by(shot_order_col.asc())
@@ -402,28 +381,27 @@ async def reorder_shots(
     ordered_shots = list(ordered_res.scalars().all())
     shot_payload = [ShotRead.model_validate(shot).model_dump(mode="json") for shot in ordered_shots]
 
-    await ws.send_event(
-        project_id,
-        {
-            "type": "shots_reordered",
-            "data": {"project_id": project_id, "shots": shot_payload},
-        },
+    await emit_project_event(
+        session,
+        project_id=project_id,
+        event_type="shots_reordered",
+        payload={"project_id": project_id, "shots": shot_payload},
     )
     if project.video_url:
-        await ws.send_event(
-            project_id,
-            {
-                "type": "project_updated",
-                "data": {
-                    "project": {
-                        "id": project_id,
-                        "revision": project.revision,
-                        "status": project.status,
-                        "video_url": project.video_url,
-                    },
+        await emit_project_event(
+            session,
+            project_id=project_id,
+            event_type="project_updated",
+            payload={
+                "project": {
+                    "id": project_id,
+                    "revision": project.revision,
+                    "status": project.status,
+                    "video_url": project.video_url,
                 },
             },
         )
+    await commit_versioned(session, project, entity="project")
 
     return ShotReorderRead(shots=[ShotRead.model_validate(shot) for shot in ordered_shots])
 
@@ -475,10 +453,16 @@ async def fill_empty_shots(
         stage = "compose_videos"
         resource_type = "shot_fill_video"
 
+    await session.flush()
+    proj_evt = await project_updated_event(session, project)
+    await emit_project_event(
+        session,
+        project_id=project_id,
+        event_type="project_updated",
+        payload=proj_evt["data"],
+    )
     await commit_versioned(session, project, entity="project")
     await session.refresh(project)
-
-    await ws.send_event(project_id, await project_updated_event(session, project))
 
     result = await create_local_run(
         session,

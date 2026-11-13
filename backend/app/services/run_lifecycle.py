@@ -28,7 +28,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.agent_run import AgentRun
 from app.models.project import Project
-from app.services.engine_client import EngineUnavailableError, engine_start_run
+from app.services.engine_client import (
+    EngineUnavailableError,
+    engine_start_run,
+    ensure_engine_running,
+)
+from app.services.file_cleaner import STATIC_DIR
 from app.ws.manager import ConnectionManager
 
 # resource_type 的合法取值（也是细粒度锁的粒度）
@@ -96,14 +101,23 @@ async def create_local_run(
     session: AsyncSession,
     *,
     settings: Any,
-    ws: ConnectionManager,
+    ws: ConnectionManager | None,
     spec: TargetedRunSpec,
 ) -> TargetedRunResult:
     """建 run 并把它派发给引擎 —— 定向 run 的唯一入口。
 
-    状态语义与编排 run 一致：`queued` 表示命令已持久化，`running` 由拿到
-    fencing lease 的引擎设置。这里只落 `queued`，不再预先写 `running`。
+    先确保引擎已就绪；若引擎启动或派发失败，同一事务将 run 标为 failed，
+    避免残留无租约的 queued 行导致后续局部重绘 409 锁死。
     """
+    del ws  # realtime delivery goes through the durable outbox
+    try:
+        await ensure_engine_running(settings.engine_url, settings.database_url, STATIC_DIR)
+    except EngineUnavailableError as exc:
+        raise HTTPException(
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Workflow engine is unavailable: {exc}",
+        ) from exc
+
     run = AgentRun(
         project_id=spec.project_id,
         status="queued",
@@ -132,8 +146,6 @@ async def create_local_run(
 
     run_id = require_run_id(run)
 
-    # 派发失败（引擎不可达）会抛 EngineUnavailableError，由 route 转 503；
-    # run 行保持 queued，调用方可重试 / 由恢复流程接管。
     try:
         await engine_start_run(
             settings.engine_url,
@@ -147,9 +159,16 @@ async def create_local_run(
             user_feedback=spec.user_feedback,
         )
     except EngineUnavailableError as exc:
+        run.status = "failed"
+        run.error = f"Workflow engine dispatch failed: {exc}"
+        run.lease_owner = None
+        run.lease_token = None
+        run.lease_expires_at = None
+        session.add(run)
+        await session.commit()
         raise HTTPException(
             status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Workflow engine is unavailable; run remains queued",
+            detail="Workflow engine is unavailable; run marked failed",
         ) from exc
     await session.refresh(run)
     return TargetedRunResult(run=run)
