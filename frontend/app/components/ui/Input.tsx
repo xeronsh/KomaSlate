@@ -1,38 +1,61 @@
 import { clsx } from "clsx";
-import type { InputHTMLAttributes } from "react";
-import { useId } from "react";
+import { forwardRef, type InputHTMLAttributes } from "react";
+import { Field } from "./Field";
 
-interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
+export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
   error?: string;
+  help?: string;
+  density?: "compact" | "normal";
+  containerClassName?: string;
 }
 
-export function Input({ label, error, className, ...props }: InputProps) {
-  const id = useId();
+export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
+  {
+    label,
+    error,
+    help,
+    density = "normal",
+    className,
+    containerClassName,
+    id,
+    required,
+    "aria-describedby": ariaDescribedBy,
+    ...props
+  },
+  ref,
+) {
+  const compact = density === "compact";
 
   return (
-    <div className="flex flex-col w-full gap-1">
-      {label && (
-        <label htmlFor={id} className="block min-h-0 p-0">
-          <span className="label text-ink">
-            {label}
-          </span>
-        </label>
+    <Field
+      label={label}
+      htmlFor={id}
+      error={error}
+      help={help}
+      required={required}
+      className={containerClassName}
+    >
+      {({ inputId, describedBy }) => (
+        <input
+          ref={ref}
+          id={inputId}
+          required={required}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={
+            [ariaDescribedBy, describedBy].filter(Boolean).join(" ") || undefined
+          }
+          className={clsx(
+            "input-doodle w-full",
+            compact
+              ? "h-8 px-2 py-1 text-sm"
+              : "h-9 touch-target-dense px-2.5 py-1.5 text-base",
+            error && "border-error",
+            className,
+          )}
+          {...props}
+        />
       )}
-      <input
-        id={id}
-        className={clsx(
-          "input-doodle h-9 touch-target-dense w-full px-2.5 py-1.5 text-base",
-          error && "border-error",
-          className,
-        )}
-        {...props}
-      />
-      {error && (
-        <p className="m-0 text-xs text-error-fg" role="alert">
-          {error}
-        </p>
-      )}
-    </div>
+    </Field>
   );
-}
+});

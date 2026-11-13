@@ -24,6 +24,9 @@ dependencies = [
   "reportlab>=4.0",
 ]
 
+[project.scripts]
+komaslate = "app.cli.main:cli"
+
 [dependency-groups]
 dev = [
   "mypy>=1.11.0",

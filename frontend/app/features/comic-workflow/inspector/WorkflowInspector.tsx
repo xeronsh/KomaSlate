@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { EmptyState } from "~/components/ui/EmptyState";
 import { SvgIcon } from "~/components/ui/SvgIcon";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/Tabs";
 import type { ComicWorkflowNode } from "../graph/types";
-import { PlainButton } from "../../../components/ui/PlainButton";
 import { GenerationSection } from "./GenerationSection";
 import { HistorySection } from "./HistorySection";
 import { MultiShotActions } from "./MultiShotActions";
@@ -68,7 +68,8 @@ export function WorkflowInspector({
 			<MultiShotActions
 				projectId={projectId}
 				shotIds={multiShotIds}
-				structureLocked={structureLocked} atGate={atGate}
+				structureLocked={structureLocked}
+				atGate={atGate}
 			/>
 		);
 	}
@@ -76,56 +77,68 @@ export function WorkflowInspector({
 	if (!selectedNode) return null;
 
 	return (
-		<div className="flex h-full min-h-0 flex-col bg-surface" data-shell="inspector">
-			<div className="border-b border-line bg-paper-100/70 px-3 py-2">
+		<div className="flex h-full min-h-0 flex-col bg-paper-100" data-shell="inspector">
+			<div className="border-b border-line px-2 py-1.5">
 				<p className="m-0 label text-ink-muted">{KIND_LABELS[selectedNode.kind]}</p>
-				<h2 className="m-0 truncate text-sm font-bold text-ink" title={selectedNode.title}>
+				<h2 className="m-0 truncate text-sm font-bold" title={selectedNode.title}>
 					{selectedNode.title}
 				</h2>
 				{/* 概览不再重复副标题（如分镜场景），这里两行内说完，全文在 title 里 */}
-				<p className="m-0 mt-0.5 line-clamp-2 text-xs text-ink-muted" title={selectedNode.subtitle}>
+				<p className="m-0 line-clamp-2 text-xs text-ink-muted" title={selectedNode.subtitle}>
 					{selectedNode.subtitle}
 				</p>
 			</div>
 
-			<div className="flex gap-1 border-b border-line px-2 py-1">
-				{(Object.keys(TAB_LABELS) as InspectorTab[]).map((tab) => (
-					<PlainButton
-						key={tab}
-						className={`touch-target-dense flex-1 rounded-md text-xs font-semibold transition-colors duration-fast ${
-							activeTab === tab
-								? "bg-primary/10 text-primary"
-								: "text-ink-muted hover:bg-paper-200/70 hover:text-ink"
-						}`}
-						onClick={() => setActiveTab(tab)}
-					>
-						{TAB_LABELS[tab]}
-					</PlainButton>
-				))}
-			</div>
+			<Tabs
+				value={activeTab}
+				onValueChange={(value) => setActiveTab(value as InspectorTab)}
+				className="flex min-h-0 flex-1 flex-col"
+			>
+				<TabsList variant="segment" aria-label="检查器分区">
+					{(Object.keys(TAB_LABELS) as InspectorTab[]).map((tab) => (
+						<TabsTrigger key={tab} value={tab} variant="segment">
+							{TAB_LABELS[tab]}
+						</TabsTrigger>
+					))}
+				</TabsList>
 
-			<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2.5">
-				{activeTab === "selection" ? (
+				<TabsContent
+					value="selection"
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
+				>
 					<SelectionSection node={selectedNode} />
-				) : null}
-				{activeTab === "properties" ? (
+				</TabsContent>
+				<TabsContent
+					value="properties"
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
+				>
 					<PropertiesSection
 						projectId={projectId}
 						node={selectedNode}
-						structureLocked={structureLocked} atGate={atGate}
+						structureLocked={structureLocked}
+						atGate={atGate}
 					/>
-				) : null}
-				{activeTab === "generation" ? (
+				</TabsContent>
+				<TabsContent
+					value="generation"
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
+				>
 					<GenerationSection
 						projectId={projectId}
 						node={selectedNode}
-						structureLocked={structureLocked} atGate={atGate}
+						structureLocked={structureLocked}
+						atGate={atGate}
 						universeId={universeId}
 						multiShotIds={multiShotIds}
 					/>
-				) : null}
-				{activeTab === "history" ? <HistorySection node={selectedNode} projectId={projectId} /> : null}
-			</div>
+				</TabsContent>
+				<TabsContent
+					value="history"
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2"
+				>
+					<HistorySection node={selectedNode} projectId={projectId} />
+				</TabsContent>
+			</Tabs>
 		</div>
 	);
 }

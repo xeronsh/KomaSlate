@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import type { ReactNode } from "react";
+import { createContext, type ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { canvasEvents } from "~/components/canvas/canvasEvents";
 import { useThemeStore } from "~/stores/themeStore";
@@ -81,6 +81,7 @@ vi.mock("@xyflow/react", async (importOriginal) => {
 });
 
 vi.mock("../WorkflowCards", () => ({
+	WorkflowLodContext: createContext<"macro" | "mid" | "micro">("mid"),
 	WorkflowFrameView: ({ title, draggable }: { title: string; draggable: boolean }) => (
 		<div data-testid="frame" data-draggable={String(draggable)}>{title}</div>
 	),

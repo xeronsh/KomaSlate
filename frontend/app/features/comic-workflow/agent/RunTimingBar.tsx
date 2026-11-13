@@ -1,6 +1,7 @@
 import { useRunNotify, useRunTiming } from "~/hooks/useRunTiming";
 import { PlainButton } from "~/components/ui/PlainButton";
 import { SvgIcon } from "~/components/ui/SvgIcon";
+import { Tooltip } from "~/components/ui/Tooltip";
 import { formatElapsed, formatRemaining } from "~/utils/runTiming";
 import "~/components/ui/icons/workbenchIcons";
 
@@ -29,22 +30,24 @@ export function RunTimingBar({ projectId, inline = false }: { projectId: number;
 			}`}
 			data-testid="run-timing"
 		>
-			<span className="inline-flex min-w-0 items-center gap-1 tabular-nums" title={breakdown || undefined}>
-				<SvgIcon name="clock-3" size={12} className="shrink-0" />
-				{timing.stepSeconds !== null && timing.stepLabel ? (
-					<span data-testid="run-timing-step">
-						本步 {formatElapsed(timing.stepSeconds)}
-						<span aria-hidden="true"> · </span>
-					</span>
-				) : null}
-				<span data-testid="run-timing-total">共 {formatElapsed(timing.overallSeconds)}</span>
-				{remaining ? (
-					<span data-testid="run-timing-remaining">
-						<span aria-hidden="true"> · </span>
-						{timing.atGate ? `确认后还要${remaining}` : `剩余${remaining}`}
-					</span>
-				) : null}
-			</span>
+			<Tooltip content={breakdown || undefined}>
+				<span className="inline-flex min-w-0 items-center gap-1 tabular-nums">
+					<SvgIcon name="clock-3" size={12} className="shrink-0" />
+					{timing.stepSeconds !== null && timing.stepLabel ? (
+						<span data-testid="run-timing-step">
+							本步 {formatElapsed(timing.stepSeconds)}
+							<span aria-hidden="true"> · </span>
+						</span>
+					) : null}
+					<span data-testid="run-timing-total">共 {formatElapsed(timing.overallSeconds)}</span>
+					{remaining ? (
+						<span data-testid="run-timing-remaining">
+							<span aria-hidden="true"> · </span>
+							{timing.atGate ? `确认后还要${remaining}` : `剩余${remaining}`}
+						</span>
+					) : null}
+				</span>
+			</Tooltip>
 			<PlainButton
 				className={`touch-target-dense inline-flex shrink-0 items-center gap-1 rounded-full px-2 text-xs transition-colors duration-fast disabled:cursor-not-allowed ${
 					notify.enabled ? "bg-primary/10 font-semibold text-primary" : "text-ink-muted hover:text-ink"

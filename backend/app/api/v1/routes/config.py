@@ -27,6 +27,17 @@ from app.services.video_vendor_probe import probe_video_vendor
 router = APIRouter()
 
 
+def _is_disallowed_ip(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_reserved
+        or ip.is_multicast
+        or ip.is_unspecified
+    )
+
+
 def _is_safe_url(url: str) -> bool:
     """检查 URL 是否安全（不指向私网/本地）"""
     # 空 URL 视为安全（使用默认值）
@@ -44,16 +55,22 @@ def _is_safe_url(url: str) -> bool:
         # 检查是否是 IP 地址
         try:
             ip = ipaddress.ip_address(parsed.hostname)
-            # 拒绝私网和本地地址
-            if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
+            if _is_disallowed_ip(ip):
                 return False
         except ValueError:
             # 不是 IP 地址，是域名
-            # 拒绝 localhost 相关域名
-            hostname_lower = parsed.hostname.lower()
-            if hostname_lower in {"localhost", "localhost.localdomain"}:
+            hostname_lower = parsed.hostname.lower().rstrip(".")
+            if hostname_lower in {
+                "localhost",
+                "localhost.localdomain",
+                "metadata.google.internal",
+            }:
                 return False
-            if hostname_lower.endswith(".local") or hostname_lower.endswith(".localhost"):
+            if (
+                hostname_lower.endswith(".local")
+                or hostname_lower.endswith(".localhost")
+                or hostname_lower.endswith(".internal")
+            ):
                 return False
 
         return True
@@ -190,17 +207,31 @@ async def test_connection(
                     continue
                 # 不是脱敏值，使用传递的值
                 if value is not None:
-                    # 如果是 URL 字段，检查安全性
-                    if field_name.endswith("_base_url") and isinstance(value, str):
-                        # 已保存的本地地址（例如本机网关）可以原样再测；
-                        # 新填的私网 / 本地地址要先保存，防止借测试接口探测内网。
-                        current = settings_dict.get(field_name)
-                        unchanged = _same_url(value, current if isinstance(current, str) else "")
-                        if not unchanged and not _is_safe_url(value):
-                            raise HTTPException(
-                                status_code=status.HTTP_400_BAD_REQUEST,
-                                detail=f"不安全的 URL: {key}（本地 / 内网地址请先保存配置，再测试连接）",
+                    # 如果是 URL 或 endpoint 字段，执行 SSRF 安全性检查
+                    if isinstance(value, str) and field_name.endswith(("_base_url", "_url", "_endpoint")):
+                        stripped_val = value.strip()
+                        is_relative_static = (
+                            field_name.endswith("_fixture_url")
+                            and stripped_val.startswith("/static/")
+                        )
+                        is_relative_endpoint = (
+                            field_name.endswith("_endpoint")
+                            and stripped_val.startswith("/")
+                            and not stripped_val.startswith("//")
+                            and "://" not in stripped_val
+                        )
+                        if stripped_val and not is_relative_static and not is_relative_endpoint:
+                            # 已保存的本地地址（例如本机网关）可以原样再测；
+                            # 新填的私网 / 本地地址要先保存，防止借测试接口探测内网。
+                            current = settings_dict.get(field_name)
+                            unchanged = _same_url(
+                                stripped_val, current if isinstance(current, str) else ""
                             )
+                            if not unchanged and not _is_safe_url(stripped_val):
+                                raise HTTPException(
+                                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                                    detail=f"不安全的 URL: {key}（本地 / 内网地址请先保存配置，再测试连接）",
+                                )
                     settings_dict[field_name] = value
 
         from app.config import Settings

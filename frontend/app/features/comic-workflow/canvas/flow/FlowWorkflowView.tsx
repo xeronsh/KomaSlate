@@ -25,7 +25,8 @@ import {
 	SHOT_GRID_COLUMNS,
 	type ComicWorkflowLayout,
 } from "../../graph/layoutComicWorkflow";
-import { WorkflowCardView, WorkflowFrameView } from "../WorkflowCards";
+import { WorkflowCardView, WorkflowFrameView, WorkflowLodContext } from "../WorkflowCards";
+import { getSemanticLod } from "~/features/workbench/nodegraph/bezierWires";
 import {
 	ComicCanvasToolbar,
 	type CanvasViewControls,
@@ -154,6 +155,7 @@ function FlowInner({
 }: FlowWorkflowViewProps) {
 	const flow = useReactFlow<WorkflowFlowNode>();
 	const { zoom } = useViewport();
+	const lod = getSemanticLod(zoom);
 	const queryClient = useQueryClient();
 	const theme = useThemeStore((s) => s.theme);
 	const storageKey = `komaslate.flow.frames.${projectId}`;
@@ -450,9 +452,11 @@ function FlowInner({
 	};
 
 	return (
+		<WorkflowLodContext.Provider value={lod}>
 		<div
 			ref={containerRef}
 			className="infinite-canvas-container relative h-full w-full"
+			data-lod={lod}
 			// 侧栏浮在画布上：节点层在侧栏覆盖的区域淡出，不在面板下面压着、也不在面板边上露半截
 			style={
 				{
@@ -559,6 +563,7 @@ function FlowInner({
 				controls={controls}
 			/>
 		</div>
+		</WorkflowLodContext.Provider>
 	);
 }
 

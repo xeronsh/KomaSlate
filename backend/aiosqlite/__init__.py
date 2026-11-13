@@ -229,11 +229,13 @@ def connect(
 
     def _connector() -> sqlite3.Connection:
         # Driver-level autocommit: transactions are explicit (SQLAlchemy emits
-        # BEGIN IMMEDIATE; cross-process writes become short autocommit
-        # statements). Avoids deferred read→write upgrades that fail instantly
-        # with "database is locked" under concurrency.
+        # BEGIN IMMEDIATE for writes / BEGIN DEFERRED for reads). Avoids deferred
+        # read->write upgrades that fail instantly with "database is locked".
         kwargs.setdefault("check_same_thread", False)
-        return sqlite3.connect(loc, **kwargs)
+        kwargs["isolation_level"] = None
+        conn = sqlite3.connect(loc, **kwargs)
+        conn.isolation_level = None
+        return conn
 
     return Connection(_connector)
 

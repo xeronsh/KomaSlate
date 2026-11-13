@@ -1,6 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
+from sqlalchemy import Column, Integer
 from sqlmodel import Field, SQLModel
 
 from app.db.utils import utcnow
@@ -17,5 +18,14 @@ class Asset(SQLModel, table=True):
     metadata_json: Optional[str] = None  # 额外元数据 (color palette, tags, etc.)
     source_project_id: Optional[int] = Field(default=None, foreign_key="project.id")
     tags: Optional[str] = None  # comma-separated tags
+    _revision_col = Column(
+        "revision",
+        Integer,
+        nullable=False,
+        default=1,  # client-side: keeps version_id out of RETURNING paths
+    )
+    revision: int = Field(default=1, ge=1, sa_column=_revision_col)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+
+    __mapper_args__ = {"version_id_col": _revision_col}

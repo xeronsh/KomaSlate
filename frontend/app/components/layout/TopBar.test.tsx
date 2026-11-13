@@ -53,10 +53,10 @@ describe("TopBar", () => {
 
 		expect(container.querySelector("header")).toHaveClass("chrome-row", "px-2");
 		expect(container.querySelector("header")).toHaveAttribute("data-shell", "topbar");
-		// <sm 收紧到 6rem 防止长项目名溢出叠印；sm+ 维持 14rem
+		// <sm 收紧到 5rem 防止 375px 下溢出；sm+ 9rem 留给 768px 居中控件；lg+ 14rem
 		expect(
 			container.querySelector('button[aria-haspopup="listbox"]'),
-		).toHaveClass("max-w-24", "sm:max-w-56");
+		).toHaveClass("max-w-20", "sm:max-w-36", "lg:max-w-56");
 		expect(screen.getAllByRole("navigation", { name: "主导航" }).length).toBeGreaterThan(0);
 		expect(screen.getByRole("button", { name: "切换暗色主题" })).toBeInTheDocument();
 		expect(screen.getByRole("button", { name: "设置" })).toBeInTheDocument();

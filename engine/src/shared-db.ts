@@ -606,8 +606,8 @@ export class SharedDb {
              updated_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
          WHERE id = ?
            AND cancel_requested_at IS NULL
-           AND (status IN ('queued', 'running')
-                OR (status = 'failed' AND error LIKE '%Execution lease missing or expired%'))
+           AND (status IN ('queued', 'running', 'waiting_for_approval')
+                OR (status = 'failed' AND error LIKE '%Execution lease%'))
            AND (lease_token IS NULL OR lease_token = ? OR lease_expires_at IS NULL
                 OR lease_expires_at <= datetime('now'))
            AND NOT EXISTS (

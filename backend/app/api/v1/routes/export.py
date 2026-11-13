@@ -14,6 +14,7 @@ from app.api.deps import SessionDep, SettingsDep, WsManagerDep, get_or_404
 from app.config import Settings
 from app.models.project import Character, Project, Shot
 from app.schemas.export import ExportResponse
+from app.services.event_outbox import emit_project_event
 from app.services.export_service import ExportService
 from app.services.revision import commit_versioned
 from app.ws.manager import ConnectionManager
@@ -157,11 +158,7 @@ async def _run_export_task(
         )
         await _store_export_status(export_resp)
 
-        # 更新项目 exports 列表
-        async with async_session_maker() as session:
-            await _append_project_export(session, project_id, download_url)
-
-        # WebSocket 通知
+        # 更新项目 exports 列表 + Outbox 事件同事务提交
         from app.schemas.export import ExportCompletedEventData
 
         event_data = ExportCompletedEventData(
@@ -170,10 +167,15 @@ async def _run_export_task(
             download_url=download_url,
             status="completed",
         )
-        await ws.send_event(project_id, {
-            "type": "export_completed",
-            "data": event_data.model_dump(),
-        })
+        async with async_session_maker() as session:
+            await emit_project_event(
+                session,
+                project_id=project_id,
+                event_type="export_completed",
+                payload=event_data.model_dump(),
+            )
+            await _append_project_export(session, project_id, download_url)
+        del ws
 
         logger.info(f"Export {export_id} completed: {download_url}")
 
@@ -187,7 +189,7 @@ async def _run_export_task(
         )
         await _store_export_status(export_resp)
 
-        # WebSocket 通知失败
+        # Outbox 通知失败
         from app.schemas.export import ExportCompletedEventData
 
         event_data = ExportCompletedEventData(
@@ -196,10 +198,17 @@ async def _run_export_task(
             status="failed",
             error=str(e),
         )
-        await ws.send_event(project_id, {
-            "type": "export_completed",
-            "data": event_data.model_dump(),
-        })
+        try:
+            async with async_session_maker() as session:
+                await emit_project_event(
+                    session,
+                    project_id=project_id,
+                    event_type="export_completed",
+                    payload=event_data.model_dump(),
+                )
+                await session.commit()
+        except Exception:
+            logger.exception("Failed to emit export failure outbox event")
 
 
 @router.post(

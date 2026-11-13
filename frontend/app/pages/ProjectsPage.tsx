@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { ButtonLink } from "~/components/ui/ButtonLink";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { TopBar } from "~/components/layout/TopBar";
 import { Button } from "~/components/ui/Button";
+import { Checkbox } from "~/components/ui/Checkbox";
 import { EmptyState as SharedEmptyState } from "~/components/ui/EmptyState";
 import { PageBody, PageShell } from "~/components/layout/PageShell";
 import { PageContent, PageHeader } from "~/components/layout/PageHeader";
@@ -186,7 +187,9 @@ export function ProjectsPage() {
 			<PageBody className="workbench-surface">
 				<PageContent className="gap-4 sm:gap-5 sm:py-5">
 				<PageHeader
+					eyebrow="作品库 · 项目"
 					title="项目库"
+					description="继续制作中的分镜工程，或从新想法开始拍摄"
 					// 数据归标题（和宇宙页的「N 个」同一处、同一样式），右侧只放动作
 					meta={visibleProjects.length > 0 ? `${totalCount} 个 · ${completedCount} 部成片` : undefined}
 					actions={
@@ -215,17 +218,16 @@ export function ProjectsPage() {
 				>
 					<div className="flex flex-col gap-2 p-2 sm:flex-row sm:items-center sm:justify-between">
 						<label className="touch-target flex cursor-pointer select-none items-center gap-2 px-1.5 text-xs font-semibold text-ink-muted">
-							<input
-								type="checkbox"
+							<Checkbox
+								size="sm"
 								checked={allSelected}
-								onChange={(event) => handleToggleSelectAll(event.target.checked)}
+								onCheckedChange={(checked) => handleToggleSelectAll(checked === true)}
 								disabled={visibleProjects.length === 0}
-								className="checkbox-doodle"
 							/>
 							<span>全选</span>
 						</label>
 						<div className="flex flex-wrap items-center gap-1.5">
-							<span className="rounded-full border border-line bg-paper-100 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-ink-muted">
+							<span className="border border-line bg-paper-100 px-2 py-0.5 text-xs font-semibold tabular-nums text-ink-muted">
 								{selectedCount > 0
 									? `已选 ${selectedCount}`
 									: "未选择"}
@@ -282,7 +284,7 @@ export function ProjectsPage() {
 												aria-pressed={active}
 												onClick={() => setStatusFilter(key)}
 												className={
-													"press touch-target-dense h-7 rounded-full border px-2.5 text-xs transition-colors duration-fast " +
+													"press touch-target-dense h-7 min-h-7 rounded-full border px-2.5 text-xs transition-colors duration-fast " +
 													(active
 														? "border-primary bg-primary text-primary-content font-bold"
 														: "border-line bg-surface text-ink-muted hover:border-line-strong hover:text-ink")
@@ -319,7 +321,7 @@ export function ProjectsPage() {
 								</div>
 							) : (
 								<>
-									<div className="divide-y divide-line">
+									<div className="divide-y divide-ink/10">
 										{filteredProjects.map((project) => (
 											<ProjectRow
 												key={project.id}
@@ -382,7 +384,7 @@ const PAGE_SIZE = 20;
 const ROW_CLASS = "grid min-h-20 items-start gap-x-2 gap-y-1 px-2 py-3 sm:items-center sm:gap-3 sm:px-3 sm:py-4 ";
 const HEADER_CLASS = "hidden border-b border-line bg-paper-200/70 py-1.5 label text-ink-muted sm:grid sm:gap-3 sm:px-3 ";
 
-function ProjectRow({
+const ProjectRow = memo(function ProjectRow({
 	project,
 	selecting,
 	selected,
@@ -403,12 +405,11 @@ function ProjectRow({
 		<article className={ROW_CLASS + " transition-colors duration-fast hover:bg-paper-200/55 " + (selecting ? "grid-cols-[auto_minmax(0,1fr)_auto] " + ROW_COLS_SELECTING : "grid-cols-[minmax(0,1fr)_auto] " + ROW_COLS)}>
 			{selecting ? (
 			<label className="touch-target flex cursor-pointer items-center justify-center rounded-md hover:bg-paper-200">
-				<input
-					type="checkbox"
+				<Checkbox
+					size="sm"
 					aria-label={`选择项目 ${project.title}`}
 					checked={selected}
-					onChange={(event) => onSelectedChange(event.target.checked)}
-					className="checkbox-doodle"
+					onCheckedChange={(checked) => onSelectedChange(checked === true)}
 				/>
 			</label>
 			) : null}
@@ -462,7 +463,7 @@ function ProjectRow({
 			</IconButton>
 		</article>
 	);
-}
+});
 
 /**
  * 骨架行：与 ProjectRow 同结构（同网格、同字号行盒、同胶囊和按钮尺寸），文字透明、
@@ -484,7 +485,7 @@ function LoadingState() {
 					<span>更新</span>
 					<span className="text-right">操作</span>
 				</div>
-				<div className="divide-y divide-line">
+				<div className="divide-y divide-ink/10">
 					{SKELETON_ROWS.map((width, row) => (
 						<div key={row} className={ROW_CLASS + "grid-cols-[minmax(0,1fr)_auto] " + ROW_COLS}>
 							<div className="min-w-0 py-0.5 pr-2">

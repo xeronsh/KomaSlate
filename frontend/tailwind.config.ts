@@ -92,6 +92,21 @@ export default {
         "ink-faint": "var(--ink-faint)",
         line: "var(--line)",
         "line-strong": "var(--line-strong)",
+        // Option 3 节点连线语义色
+        "wire-stage": "rgb(var(--color-wire-stage) / <alpha-value>)",
+        "wire-gate": "rgb(var(--color-wire-gate) / <alpha-value>)",
+        "wire-agent": "rgb(var(--color-wire-agent) / <alpha-value>)",
+        "wire-mcp-out": "rgb(var(--color-wire-mcp-out) / <alpha-value>)",
+        "wire-cli": "rgb(var(--color-wire-cli) / <alpha-value>)",
+        "wire-mcp-in": "rgb(var(--color-wire-mcp-in) / <alpha-value>)",
+      },
+      keyframes: {
+        "flow-dash": {
+          to: { strokeDashoffset: "-24" },
+        },
+      },
+      animation: {
+        "flow-dash": "flow-dash 1.2s linear infinite",
       },
       fontFamily: {
         sans: "var(--font-sans)",

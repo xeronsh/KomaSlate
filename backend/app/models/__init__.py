@@ -1,4 +1,6 @@
 from app.models.agent_run import AgentMessage, AgentRun
+from app.models.asset import Asset
+from app.models.chat_confirmation import ChatConfirmation
 from app.models.chat_message import ChatMessage
 from app.models.config_item import ConfigItem
 from app.models.export_cache import ExportCache
@@ -11,7 +13,9 @@ from app.models.universe import SharedCharacter, Universe, UniverseProjectLink
 __all__ = [
     "AgentMessage",
     "AgentRun",
+    "Asset",
     "Character",
+    "ChatConfirmation",
     "ChatMessage",
     "ConfigItem",
     "ExportCache",

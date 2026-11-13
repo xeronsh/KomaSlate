@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Combobox } from "~/components/ui/Combobox";
+import { Input } from "~/components/ui/Input";
 import { PlainButton } from "~/components/ui/PlainButton";
+import { Select } from "~/components/ui/Select";
+import { Textarea } from "~/components/ui/Textarea";
 import { charactersApi, projectsApi, shotsApi } from "~/services/api";
 import { upsertCharacterInCache, upsertShotInCache } from "~/query/applyServerEvent";
 import { projectQueryKeys } from "~/query/queryKeys";
 import type { Character, CharacterUpdatePayload, MediaOptions, Project, Shot, ShotUpdatePayload } from "~/types";
 import { toast } from "~/utils/toast";
 import type { ComicWorkflowNode } from "../graph/types";
-import { errorMessage, FormShell, NumberInput, SaveButton, SelectInput, TextArea, TextInput, textOrNull } from "./fields";
+import { errorMessage, FormShell, SaveButton, textOrNull } from "./fields";
 
 /** 属性：可编辑字段。 */
 export function PropertiesSection({
@@ -108,8 +112,20 @@ function ProjectDraftForm({
 			dirty={title !== (project.title ?? "") || story !== (project.story ?? "")}
 			onAutoSave={() => handleSave(true)}
 		>
-			<TextInput label="标题" value={title} onChange={setTitle} />
-			<TextArea label="故事" value={story} onChange={setStory} rows={8} />
+			<Input
+				density="compact"
+				label="标题"
+				value={title}
+				onChange={(event) => setTitle(event.target.value)}
+			/>
+			<Textarea
+				density="compact"
+				label="故事"
+				value={story}
+				onChange={(event) => setStory(event.target.value)}
+				rows={8}
+				className="resize-none"
+			/>
 			<SaveButton disabled={disabled} loading={saving} onClick={() => handleSave()} />
 		</FormShell>
 	);
@@ -165,27 +181,51 @@ function MediaOptionsForm({ projectId, project }: { projectId: number; project: 
 	return (
 		<section className="space-y-2 border-t border-line pt-3" aria-label="成片选项">
 			<h4 className="m-0 text-sm font-semibold">成片选项</h4>
-			<SelectInput
+			<Select
 				label="配音"
+				layout="inline"
+				density="compact"
 				value={toToggle(current.tts)}
-				options={TOGGLE_OPTIONS}
 				disabled={saving}
-				onChange={(value) => save({ tts: fromToggle(value) })}
-			/>
-			<SelectInput<SubtitleChoice>
+				onChange={(event) => save({ tts: fromToggle(event.target.value as Toggle) })}
+			>
+				{TOGGLE_OPTIONS.map(([v, text]) => (
+					<option key={v} value={v}>
+						{text}
+					</option>
+				))}
+			</Select>
+			<Select
 				label="字幕"
+				layout="inline"
+				density="compact"
 				value={current.subtitles ?? "default"}
-				options={SUBTITLE_OPTIONS}
 				disabled={saving}
-				onChange={(value) => save({ subtitles: value === "default" ? null : value })}
-			/>
-			<SelectInput
+				onChange={(event) => {
+					const value = event.target.value as SubtitleChoice;
+					save({ subtitles: value === "default" ? null : value });
+				}}
+			>
+				{SUBTITLE_OPTIONS.map(([v, text]) => (
+					<option key={v} value={v}>
+						{text}
+					</option>
+				))}
+			</Select>
+			<Select
 				label="背景音乐"
+				layout="inline"
+				density="compact"
 				value={toToggle(current.bgm)}
-				options={TOGGLE_OPTIONS}
 				disabled={saving}
-				onChange={(value) => save({ bgm: fromToggle(value) })}
-			/>
+				onChange={(event) => save({ bgm: fromToggle(event.target.value as Toggle) })}
+			>
+				{TOGGLE_OPTIONS.map(([v, text]) => (
+					<option key={v} value={v}>
+						{text}
+					</option>
+				))}
+			</Select>
 			<p className="m-0 text-xs text-ink-muted">「跟随设置」用设置里的默认值；配音服务商在设置 → 配音里选。</p>
 		</section>
 	);
@@ -254,40 +294,43 @@ function CharacterDraftForm({
 			dirty={isDirty(draft, original)}
 			onAutoSave={() => handleSave(true)}
 		>
-			<TextInput
+			<Input
+				density="compact"
 				label="名称"
 				value={draft.name ?? ""}
-				onChange={(value) => setDraft((state) => ({ ...state, name: value }))}
+				onChange={(event) =>
+					setDraft((state) => ({ ...state, name: event.target.value }))
+				}
 			/>
-			<TextArea
+			<Textarea
+				density="compact"
 				label="描述"
 				value={draft.description ?? ""}
-				onChange={(value) =>
-					setDraft((state) => ({ ...state, description: value }))
+				onChange={(event) =>
+					setDraft((state) => ({ ...state, description: event.target.value }))
 				}
 				rows={5}
+				className="resize-none"
 			/>
-			<TextArea
+			<Textarea
+				density="compact"
 				label="视觉笔记"
 				value={draft.visual_notes ?? ""}
-				onChange={(value) =>
-					setDraft((state) => ({ ...state, visual_notes: value }))
+				onChange={(event) =>
+					setDraft((state) => ({ ...state, visual_notes: event.target.value }))
 				}
 				rows={4}
+				className="resize-none"
 			/>
-			<TextInput
+			<Combobox
+				density="compact"
 				label="配音音色"
 				value={draft.voice ?? ""}
-				list="character-voice-options"
+				options={EDGE_VOICES}
 				placeholder="留空自动挑选"
 				help="留空按角色描述自动挑男女老少；用云端配音时填该服务商的音色名。"
-				onChange={(value) => setDraft((state) => ({ ...state, voice: value }))}
+				onValueChange={(value) => setDraft((state) => ({ ...state, voice: value }))}
 			/>
-			<datalist id="character-voice-options">
-				{EDGE_VOICES.map((v) => (
-					<option key={v} value={v} />
-				))}
-			</datalist>
 			<SaveButton disabled={disabled} loading={saving} onClick={() => handleSave()} />
 		</FormShell>
 	);
@@ -384,45 +427,63 @@ function ShotDraftForm({ shot, disabled }: { shot: Shot; disabled: boolean }) {
 			dirty={isDirty(draft, original) || charactersDirty}
 			onAutoSave={() => handleSave(true)}
 		>
-			<TextArea
+			<Textarea
+				density="compact"
 				label="描述"
 				value={draft.description ?? ""}
-				onChange={(value) =>
-					setDraft((state) => ({ ...state, description: value }))
+				onChange={(event) =>
+					setDraft((state) => ({ ...state, description: event.target.value }))
 				}
 				rows={4}
+				className="resize-none"
 			/>
-			<TextInput
+			<Input
+				density="compact"
 				label="场景"
 				value={draft.scene ?? ""}
-				onChange={(value) => setDraft((state) => ({ ...state, scene: value }))}
+				onChange={(event) =>
+					setDraft((state) => ({ ...state, scene: event.target.value }))
+				}
 			/>
-			<TextInput
+			<Input
+				density="compact"
 				label="动作"
 				value={draft.action ?? ""}
-				onChange={(value) => setDraft((state) => ({ ...state, action: value }))}
+				onChange={(event) =>
+					setDraft((state) => ({ ...state, action: event.target.value }))
+				}
 			/>
-			<TextArea
+			<Textarea
+				density="compact"
 				label="对白"
 				value={draft.dialogue ?? ""}
-				onChange={(value) =>
-					setDraft((state) => ({ ...state, dialogue: value }))
+				onChange={(event) =>
+					setDraft((state) => ({ ...state, dialogue: event.target.value }))
 				}
 				rows={3}
+				className="resize-none"
 			/>
 			<div className="grid grid-cols-2 gap-2">
-				<TextInput
+				<Input
+					density="compact"
 					label="机位"
 					value={draft.camera ?? ""}
-					onChange={(value) =>
-						setDraft((state) => ({ ...state, camera: value }))
+					onChange={(event) =>
+						setDraft((state) => ({ ...state, camera: event.target.value }))
 					}
 				/>
-				<NumberInput
+				<Input
+					density="compact"
+					type="number"
+					min="0"
+					step="1"
 					label="时长"
-					value={draft.duration ?? null}
-					onChange={(value) =>
-						setDraft((state) => ({ ...state, duration: value }))
+					value={draft.duration ?? ""}
+					onChange={(event) =>
+						setDraft((state) => ({
+							...state,
+							duration: event.target.value ? Number(event.target.value) : null,
+						}))
 					}
 				/>
 			</div>
@@ -454,19 +515,25 @@ function ShotDraftForm({ shot, disabled }: { shot: Shot; disabled: boolean }) {
 					<p className="m-0 text-xs text-ink-muted">未绑定角色（空镜 / 纯场景镜头）</p>
 				) : null}
 			</section>
-			<TextArea
+			<Textarea
+				density="compact"
 				label="首帧提示词"
 				value={draft.image_prompt ?? ""}
-				onChange={(value) =>
-					setDraft((state) => ({ ...state, image_prompt: value }))
+				onChange={(event) =>
+					setDraft((state) => ({ ...state, image_prompt: event.target.value }))
 				}
 				rows={4}
+				className="resize-none"
 			/>
-			<TextArea
+			<Textarea
+				density="compact"
 				label="视频提示词"
 				value={draft.prompt ?? ""}
-				onChange={(value) => setDraft((state) => ({ ...state, prompt: value }))}
+				onChange={(event) =>
+					setDraft((state) => ({ ...state, prompt: event.target.value }))
+				}
 				rows={4}
+				className="resize-none"
 			/>
 			<SaveButton disabled={disabled} loading={saving} onClick={() => handleSave()} />
 		</FormShell>

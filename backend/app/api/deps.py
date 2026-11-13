@@ -8,7 +8,7 @@ from fastapi import Depends, Header, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import Settings, get_settings
-from app.db.session import get_session
+from app.db.session import get_readonly_session, get_session
 from app.models.agent_run import AgentRun
 from app.ws.manager import ConnectionManager, ws_manager
 
@@ -24,6 +24,11 @@ async def get_db_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
+async def get_readonly_db_session() -> AsyncGenerator[AsyncSession, None]:
+    async for session in get_readonly_session():
+        yield session
+
+
 async def get_ws_manager() -> ConnectionManager:
     return ws_manager
 
@@ -32,8 +37,11 @@ async def require_admin(
     x_admin_token: str | None = Header(default=None, alias="X-Admin-Token"),
 ) -> None:
     settings = get_settings()
-    if not settings.admin_token:
-        return
+    if not settings.admin_token or not settings.admin_token.strip():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin token is not configured",
+        )
     if not x_admin_token or not secrets.compare_digest(x_admin_token, settings.admin_token):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized")
 
@@ -57,5 +65,6 @@ async def get_or_404(
 
 SettingsDep = Depends(get_app_settings)
 SessionDep = Depends(get_db_session)
+ReadonlySessionDep = Depends(get_readonly_db_session)
 WsManagerDep = Depends(get_ws_manager)
 AdminDep = Depends(require_admin)

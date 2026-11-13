@@ -49,6 +49,12 @@ export interface RunCreativeContext {
   [key: string]: unknown;
 }
 
+export interface StructuredJsonSchema {
+  name: string;
+  schema: Record<string, unknown>;
+  strict?: boolean;
+}
+
 export interface LlmRequest {
   system: string;
   prompt: string;
@@ -72,6 +78,19 @@ export interface LlmRequest {
    * text-only model cannot fetch them and invents (or omits) a verdict.
    */
   images?: LlmImageInput[];
+  /**
+   * Optional JSON Schema enforced on OpenAI-compatible providers via
+   * `response_format: { type: "json_schema", ... }`.
+   */
+  schema?: StructuredJsonSchema;
+  /** Enable structured JSON response_format on OpenAI-compatible providers (default true). */
+  structured?: boolean;
+  /** Required top-level keys; missing keys trigger one bounded repair prompt. */
+  requiredFields?: string[];
+  /** Bounded transient retry budget for 429 / 5xx / network errors (default 3). */
+  maxRetries?: number;
+  /** Base backoff delay in ms for transient retries (default 200ms). */
+  retryBaseMs?: number;
   /**
    * Shape check for the structured output of this operation. Returns an error
    * message when the object does not have the shape the caller consumes. Both
@@ -457,7 +476,7 @@ export class TextLlmService {
 
   private async generateOnce(
     req: LlmRequest,
-    opts: { withRunContext?: boolean } = {},
+    opts: { withRunContext?: boolean; disableResponseFormat?: boolean } = {},
   ): Promise<LlmResponse> {
     const images = req.images ?? [];
     // A text model behind a chat-only gateway accepts image blocks and then
@@ -504,6 +523,10 @@ export class TextLlmService {
       messages: [{ role: "user" as const, content, timestamp: Date.now() }],
     };
     const op = req.operation;
+    const responseFormat =
+      !opts.disableResponseFormat && req.structured !== false
+        ? buildStructuredResponseFormat(resolved.key, req.schema)
+        : undefined;
     // One provider span per LLM call, nested under the stage span, carrying the
     // GenAI attributes a trace consumer expects.
     const message = await withProviderSpan(
@@ -521,10 +544,10 @@ export class TextLlmService {
           // `stream()` takes provider options; `reasoning` is only read by
           // `streamSimple()`, so the effort has to go in the provider's field.
           reasoningEffort: resolved.reasoning,
-          onPayload: resolved.model.toLowerCase().startsWith("deepseek")
+          onPayload: responseFormat
             ? (payload) => ({
                 ...(payload as Record<string, unknown>),
-                response_format: { type: "json_object" },
+                response_format: responseFormat,
               })
             : undefined,
           // pi-ai honours AbortSignal itself, so cancellation does not have to
@@ -550,10 +573,19 @@ export class TextLlmService {
       },
     );
     if (message.stopReason === "error") {
+      const errorMessage = message.errorMessage ?? "unknown";
+      // Some OpenAI-compatible proxies reject json_schema or response_format with 400; fall back once.
+      if (
+        responseFormat &&
+        !opts.disableResponseFormat &&
+        /400|response_format|json_schema/i.test(errorMessage)
+      ) {
+        return this.generateOnce(req, { ...opts, disableResponseFormat: true });
+      }
       throw new AiOperationError(
         req.signal?.aborted ? "aborted" : "provider",
         req.operation?.operationId ?? "llm",
-        `llm error: ${message.errorMessage ?? "unknown"}`,
+        `llm error: ${errorMessage}`,
         resolved.key,
       );
     }
@@ -564,6 +596,32 @@ export class TextLlmService {
           .join("")
       : String(message.content ?? "");
     return { text, provider: resolved.key, model: resolved.model };
+  }
+
+  private async generateWithRetry(
+    req: LlmRequest,
+    opts: { withRunContext?: boolean } = {},
+  ): Promise<LlmResponse> {
+    const maxRetries = Math.max(0, req.maxRetries ?? 3);
+    const envBase = Number(process.env.KOMASLATE_LLM_RETRY_BASE_MS);
+    const baseMs = req.retryBaseMs ?? (Number.isFinite(envBase) && envBase >= 0 ? envBase : 200);
+    const signal = req.signal ?? req.operation?.signal;
+
+    for (let attempt = 0; ; attempt += 1) {
+      if (signal?.aborted) {
+        throw new AiOperationError("aborted", req.operation?.operationId ?? "llm", "run cancelled: llm request aborted");
+      }
+      try {
+        return await this.generateOnce(req, opts);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (signal?.aborted || attempt >= maxRetries || !isTransientLlmError(message)) {
+          throw error;
+        }
+        const delayMs = computeBackoffDelayMs(attempt, baseMs);
+        await sleepWithSignal(delayMs, signal, req.operation?.operationId ?? "llm");
+      }
+    }
   }
 
   /**
@@ -577,10 +635,12 @@ export class TextLlmService {
    * pass the same shape check as a first answer would.
    */
   async generate(req: LlmRequest): Promise<LlmResponse> {
-    const first = await withAiActivity(req.operation, "文本生成", () => this.generateOnce(req));
+    const first = await withAiActivity(req.operation, "文本生成", () =>
+      this.generateWithRetry(req),
+    );
     let firstError: unknown;
     try {
-      checkStructuredOutput(parseJsonObjectText(first.text), req.validate);
+      checkStructuredOutput(parseJsonObjectText(first.text), req.validate, req.requiredFields);
       return first;
     } catch (error) {
       firstError = error;
@@ -591,22 +651,26 @@ export class TextLlmService {
       throw new AiOperationError("aborted", req.operation?.operationId ?? "llm", "run cancelled: llm request aborted");
     }
     const repair = await withAiActivity(req.operation, "修复结构化输出", () =>
-      this.generateOnce(
+      this.generateWithRetry(
         {
           system:
             "Repair the supplied model output into one valid JSON object. Preserve the original data and meaning, and keep the original top-level keys. Return only the repaired object itself, with no wrapper, markdown or explanation." +
-            (firstError instanceof StructuredOutputError ? ` The object was rejected because: ${firstError.message}` : ""),
+            (firstError instanceof StructuredOutputError ? ` The object was rejected because: ${firstError.message}` : "") +
+            (req.requiredFields?.length ? ` Required top-level keys: ${req.requiredFields.join(", ")}.` : ""),
           prompt: first.text,
           maxTokens: req.maxTokens ?? DEFAULT_MAX_TOKENS,
           signal: req.signal,
           operation: req.operation,
+          schema: req.schema,
+          maxRetries: req.maxRetries,
+          retryBaseMs: req.retryBaseMs,
         },
         { withRunContext: false },
       ),
     );
     try {
       const parsed = parseJsonObjectText(repair.text);
-      checkStructuredOutput(parsed, req.validate);
+      checkStructuredOutput(parsed, req.validate, req.requiredFields);
       return { ...repair, text: JSON.stringify(parsed) };
     } catch (repairError) {
       const firstMessage = firstError instanceof Error ? firstError.message : String(firstError);
@@ -620,16 +684,79 @@ export class TextLlmService {
 
 export class StructuredOutputError extends Error {}
 
+export function buildStructuredResponseFormat(
+  provider: TextProviderKey,
+  schema?: StructuredJsonSchema,
+): Record<string, unknown> | undefined {
+  if (provider !== "openai") return undefined;
+  if (schema) {
+    return {
+      type: "json_schema",
+      json_schema: {
+        name: schema.name,
+        strict: schema.strict ?? true,
+        schema: schema.schema,
+      },
+    };
+  }
+  return { type: "json_object" };
+}
+
+export function isTransientLlmError(message: string): boolean {
+  return /\b(429|500|502|503|504)\b|rate[_ ]?limit|too many requests|overloaded|temporarily unavailable|ECONNRESET|ETIMEDOUT|EAI_AGAIN|fetch failed/i.test(
+    message,
+  );
+}
+
+export function computeBackoffDelayMs(
+  attempt: number,
+  baseMs = 200,
+  maxMs = 4000,
+  random: () => number = Math.random,
+): number {
+  const exp = baseMs * Math.pow(2, attempt);
+  const jitter = random() * exp * 0.3;
+  return Math.min(maxMs, Math.round(exp + jitter));
+}
+
+function sleepWithSignal(ms: number, signal: AbortSignal | undefined, operationId: string): Promise<void> {
+  if (ms <= 0) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(new AiOperationError("aborted", operationId, "run cancelled: llm request aborted"));
+      return;
+    }
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new AiOperationError("aborted", operationId, "run cancelled: llm request aborted"));
+    };
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
+}
+
 /** Keys a model echoes back when it mistakes the request envelope for the answer. */
 const ECHO_KEYS = ["invalid_output", "run_context"];
 
 function checkStructuredOutput(
   data: Record<string, unknown>,
   validate: LlmRequest["validate"],
+  requiredFields?: string[],
 ): void {
   const echoed = ECHO_KEYS.filter((key) => key in data);
   if (echoed.length) {
     throw new StructuredOutputError(`output echoes the request envelope (${echoed.join(", ")})`);
+  }
+  if (requiredFields?.length) {
+    const missing = requiredFields.filter(
+      (key) => !(key in data) || data[key] === undefined || data[key] === null,
+    );
+    if (missing.length) {
+      throw new StructuredOutputError(`missing required field(s): ${missing.join(", ")}`);
+    }
   }
   const problem = validate?.(data) ?? null;
   if (problem) throw new StructuredOutputError(problem);

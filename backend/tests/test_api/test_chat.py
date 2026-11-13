@@ -105,6 +105,7 @@ async def test_engine_chat_client(monkeypatch):
         return httpx.Response(200, json={"busy": False})
 
     real = httpx.AsyncClient
+    monkeypatch.setattr(engine_client, "_HTTP_CLIENT", None)
     monkeypatch.setattr(
         engine_client.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(handler), **kw)
     )
@@ -116,6 +117,7 @@ async def test_engine_chat_client(monkeypatch):
     def broken(request: httpx.Request) -> httpx.Response:
         raise httpx.ConnectError("refused")
 
+    monkeypatch.setattr(engine_client, "_HTTP_CLIENT", None)
     monkeypatch.setattr(
         engine_client.httpx, "AsyncClient", lambda **kw: real(transport=httpx.MockTransport(broken), **kw)
     )

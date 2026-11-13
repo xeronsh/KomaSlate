@@ -80,6 +80,23 @@ export function installEngineRuntimeSchema(db: SqliteDatabase.Database): void {
     );
     CREATE INDEX IF NOT EXISTS ix_chat_message_project
       ON chat_message (project_id, id);
+
+    -- Migration 0036: persistent chat confirmations.
+    CREATE TABLE IF NOT EXISTS chat_confirmation (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL,
+      tool_call_id TEXT NOT NULL UNIQUE,
+      tool_name TEXT NOT NULL,
+      tool_label TEXT NOT NULL,
+      parameters_json TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+      resolved_at TEXT,
+      resolved_by TEXT
+    );
+    CREATE INDEX IF NOT EXISTS ix_chat_confirmation_project_status
+      ON chat_confirmation (project_id, status);
   `);
 }
 

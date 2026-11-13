@@ -44,6 +44,7 @@ def test_alembic_upgrade_head_rebuilds_blank_database(tmp_path: Path) -> None:
         "agentrun",
         "agentmessage",
         "artifactversion",
+        "chat_confirmation",
         "chat_message",
         "asset",
         "character",
@@ -89,9 +90,11 @@ def test_alembic_upgrade_head_rebuilds_blank_database(tmp_path: Path) -> None:
     rev_engine = create_engine(db_url)
     try:
         rev_inspector = inspect(rev_engine)
-        for table in ("project", "character", "shot"):
+        for table in ("project", "character", "shot", "agentrun", "asset"):
             columns = {column["name"] for column in rev_inspector.get_columns(table)}
             assert "revision" in columns, f"{table} is missing the optimistic-concurrency revision"
+        event_indexes = {idx["name"] for idx in rev_inspector.get_indexes("engine_run_events")}
+        assert "idx_engine_run_events_project_type_seq" in event_indexes
         assert "thread_id" not in {
             column["name"] for column in rev_inspector.get_columns("agentrun")
         }

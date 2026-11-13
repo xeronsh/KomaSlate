@@ -13,6 +13,7 @@ from app.api.v1.routes.skills import router as skills_router
 from app.api.v1.routes.style_templates import router as style_templates_router
 from app.api.v1.routes.universes import router as universes_router
 from app.api.v1.routes.versions import router as versions_router
+from app.api.v1.routes.workbench import router as workbench_router
 
 api_router = APIRouter()
 api_router.include_router(projects_router, prefix="/projects", tags=["projects"])
@@ -28,3 +29,4 @@ api_router.include_router(versions_router, tags=["versions"])
 api_router.include_router(consistency_router, prefix="/projects", tags=["consistency"])
 api_router.include_router(universes_router, prefix="/universes", tags=["universes"])
 api_router.include_router(skills_router)
+api_router.include_router(workbench_router, tags=["workbench"])

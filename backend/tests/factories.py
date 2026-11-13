@@ -175,3 +175,38 @@ async def create_config_item(
     await session.commit()
     await session.refresh(config)
     return config
+
+
+async def read_outbox_events(
+    session: AsyncSession,
+    event_type: str | None = None,
+) -> list[dict]:
+    """Read durable events persisted to ``engine_run_events`` in insertion order."""
+    import json
+    from sqlalchemy import text
+
+    try:
+        rows = (
+            await session.execute(
+                text(
+                    "SELECT seq, run_id, project_id, type, payload "
+                    "FROM engine_run_events ORDER BY seq ASC"
+                )
+            )
+        ).all()
+    except Exception:
+        return []
+    out: list[dict] = []
+    for seq, run_id, project_id, etype, payload_raw in rows:
+        if event_type is not None and etype != event_type:
+            continue
+        out.append(
+            {
+                "seq": seq,
+                "run_id": run_id,
+                "project_id": project_id,
+                "type": etype,
+                "data": json.loads(payload_raw or "{}"),
+            }
+        )
+    return out

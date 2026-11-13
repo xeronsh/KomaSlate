@@ -1,7 +1,9 @@
 /** 检查器各分区共用的小部件。 */
+import { clsx } from "clsx";
 import { type ReactNode, useEffect } from "react";
 import { Button } from "~/components/ui/Button";
 import { SvgIcon } from "~/components/ui/SvgIcon";
+import { Tooltip } from "~/components/ui/Tooltip";
 import { ApiError } from "~/types/errors";
 
 export function errorMessage(error: unknown, fallback: string): string {
@@ -67,24 +69,27 @@ export function ActionButton({
 	danger?: boolean;
 	primary?: boolean;
 	onClick: () => void;
-	/** 禁用时悬停看到的原因（禁用按钮收不到 hover，挂在外层） */
+	/** 禁用时悬停看到的原因（通过 Tooltip 展示） */
 	disabledReason?: string;
 }) {
 	return (
-		<span className="block" title={disabled ? disabledReason : undefined}>
-		<Button
-			// 危险操作用红字的安静按钮（填充红底时红字会看不见）
-			variant={primary && !danger ? "primary" : "ghost"}
-			size="sm"
-			className={`w-full justify-start gap-1.5 text-xs ${danger ? "text-error-fg hover:bg-error/10" : ""}`}
-			disabled={disabled}
-			loading={loading}
-			onClick={onClick}
-		>
-			<SvgIcon name={icon} size={12} />
-			{label}
-		</Button>
-		</span>
+		<Tooltip content={disabled ? disabledReason : undefined} fullWidth>
+			<Button
+				// 危险操作用红字的安静按钮（填充红底时红字会看不见）
+				variant={primary && !danger ? "primary" : "ghost"}
+				size="xs"
+				className={clsx(
+					"w-full justify-start gap-1.5",
+					danger && "text-error-fg hover:bg-error/10",
+				)}
+				disabled={disabled}
+				loading={loading}
+				onClick={onClick}
+			>
+				<SvgIcon name={icon} size={12} />
+				{label}
+			</Button>
+		</Tooltip>
 	);
 }
 
@@ -132,126 +137,6 @@ export function FormShell({
 				</p>
 			) : null}
 		</fieldset>
-	);
-}
-
-export function TextInput({
-	label,
-	value,
-	onChange,
-	list,
-	placeholder,
-	help,
-}: {
-	label: string;
-	value: string;
-	onChange: (value: string) => void;
-	/** datalist id：给出推荐值，仍可自由输入 */
-	list?: string;
-	placeholder?: string;
-	help?: string;
-}) {
-	return (
-		<label className="block">
-			<span className="mb-1 block label text-ink-muted">
-				{label}
-			</span>
-			<input
-				className="input-doodle w-full px-2 py-1 text-sm"
-				value={value}
-				list={list}
-				placeholder={placeholder}
-				autoComplete={list ? "off" : undefined}
-				onChange={(event) => onChange(event.target.value)}
-			/>
-			{help ? <span className="mt-1 block text-xs text-ink-muted">{help}</span> : null}
-		</label>
-	);
-}
-
-export function SelectInput<T extends string>({
-	label,
-	value,
-	options,
-	onChange,
-	disabled,
-}: {
-	label: string;
-	value: T;
-	options: ReadonlyArray<readonly [T, string]>;
-	onChange: (value: T) => void;
-	disabled?: boolean;
-}) {
-	return (
-		<label className="flex items-center justify-between gap-3 text-sm">
-			<span className="label shrink-0 text-ink-muted">{label}</span>
-			<select
-				className="input-doodle min-w-0 px-2 py-1 text-sm"
-				value={value}
-				disabled={disabled}
-				onChange={(event) => onChange(event.target.value as T)}
-			>
-				{options.map(([v, text]) => (
-					<option key={v} value={v}>
-						{text}
-					</option>
-				))}
-			</select>
-		</label>
-	);
-}
-
-export function NumberInput({
-	label,
-	value,
-	onChange,
-}: {
-	label: string;
-	value: number | null;
-	onChange: (value: number | null) => void;
-}) {
-	return (
-		<label className="block">
-			<span className="mb-1 block label text-ink-muted">
-				{label}
-			</span>
-			<input
-				type="number"
-				min="0"
-				step="1"
-				className="input-doodle w-full px-2 py-1 text-sm"
-				value={value ?? ""}
-				onChange={(event) =>
-					onChange(event.target.value ? Number(event.target.value) : null)
-				}
-			/>
-		</label>
-	);
-}
-
-export function TextArea({
-	label,
-	value,
-	rows,
-	onChange,
-}: {
-	label: string;
-	value: string;
-	rows: number;
-	onChange: (value: string) => void;
-}) {
-	return (
-		<label className="block">
-			<span className="mb-1 block label text-ink-muted">
-				{label}
-			</span>
-			<textarea
-				className="input-doodle w-full resize-none px-2 py-1 text-sm"
-				rows={rows}
-				value={value}
-				onChange={(event) => onChange(event.target.value)}
-			/>
-		</label>
 	);
 }
 

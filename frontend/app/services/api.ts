@@ -377,6 +377,11 @@ export const shotsApi = {
 			method: "PUT",
 			body: JSON.stringify(data),
 		}),
+	patch: (id: number, data: ShotUpdatePayload & { image_url?: string | null }) =>
+		fetchApi<Shot>(`/api/v1/shots/${id}`, {
+			method: "PATCH",
+			body: JSON.stringify(data),
+		}),
 	approve: (id: number) =>
 		fetchApi<Shot>(`/api/v1/shots/${id}/approve`, {
 			method: "POST",
@@ -713,4 +718,55 @@ export const universesApi = {
 			`/api/v1/universes/${universeId}/timeline${q}`,
 		);
 	},
+};
+
+export interface McpServerRead {
+	id: string;
+	name: string;
+	transport: string;
+	enabled: boolean;
+	status?: "online" | "offline" | "error";
+	latency_ms?: number | null;
+	policy?: "auto_readonly" | "confirm_writes";
+	tools_count?: number;
+}
+
+export interface CliToolRead {
+	name: string;
+	version: string;
+	description: string;
+	sample_command: string;
+	available?: boolean;
+}
+
+export const mcpApi = {
+	listServers: () =>
+		fetchApi<{ servers: McpServerRead[] }>("/api/v1/mcp/servers"),
+	pingServer: (serverId: string) =>
+		fetchApi<{ ok: boolean; latency_ms?: number | null; error?: string | null }>(
+			`/api/v1/mcp/servers/${encodeURIComponent(serverId)}/ping`,
+			{ method: "POST" },
+		),
+	updatePolicy: (serverId: string, policy: "auto_readonly" | "confirm_writes") =>
+		fetchApi<McpServerRead>(
+			`/api/v1/mcp/servers/${encodeURIComponent(serverId)}/policy`,
+			{ method: "PATCH", body: JSON.stringify({ policy }) },
+		),
+	toggleServer: (serverId: string, enabled: boolean) =>
+		fetchApi<McpServerRead>(
+			`/api/v1/mcp/servers/${encodeURIComponent(serverId)}`,
+			{ method: "PATCH", body: JSON.stringify({ enabled }) },
+		),
+	listCliTools: () =>
+		fetchApi<{ tools: CliToolRead[] }>("/api/v1/cli/tools"),
+	dryRunCli: (toolName: string, command?: string) =>
+		fetchApi<{ exit_code: number; stdout: string; stderr?: string | null; duration_ms?: number }>(
+			"/api/v1/cli/dry-run",
+			{ method: "POST", body: JSON.stringify({ tool: toolName, command }) },
+		),
+	issueHumanAuthToken: (runId: number) =>
+		fetchApi<{ human_auth_token: string; expires_in: number }>(
+			`/api/v1/runs/${runId}/human-auth-token`,
+			{ method: "POST" },
+		),
 };

@@ -7,10 +7,19 @@ from __future__ import annotations
 
 import logging
 import re
+import uuid
 from pathlib import Path
+from typing import TYPE_CHECKING
 
+from fastapi import HTTPException, UploadFile
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+if TYPE_CHECKING:
+    pass
+
+MAX_IMAGE_UPLOAD_BYTES = 10 * 1024 * 1024
+_UPLOAD_CHUNK_BYTES = 64 * 1024
 
 logger = logging.getLogger(__name__)
 
@@ -51,6 +60,79 @@ def get_local_path(url: str) -> Path | None:
         return None
 
     return resolved_path
+
+
+def sniff_image_extension(data: bytes) -> str | None:
+    """Identify safe raster image formats strictly from magic bytes (never SVG)."""
+    if len(data) < 4:
+        return None
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        return "png"
+    if data.startswith(b"\xff\xd8\xff"):
+        return "jpg"
+    if data.startswith((b"GIF87a", b"GIF89a")):
+        return "gif"
+    if len(data) >= 12 and data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+        return "webp"
+    return None
+
+
+async def save_validated_image_upload(
+    file: UploadFile,
+    *,
+    subdir: str,
+    max_bytes: int = MAX_IMAGE_UPLOAD_BYTES,
+) -> str:
+    """Validate an uploaded raster image by magic bytes and save under STATIC_DIR/<subdir>.
+
+    Explicitly blocks SVG / XML payloads (stored XSS risk) and caps streamed reads
+    at ``max_bytes`` before writing to disk.
+    """
+    content_type = (getattr(file, "content_type", None) or "").lower()
+    filename_lower = (getattr(file, "filename", None) or "").lower()
+    if "svg" in content_type or filename_lower.endswith((".svg", ".svgz")):
+        raise HTTPException(status_code=400, detail="SVG images are not allowed")
+    if not content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Only image files are accepted")
+
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        try:
+            chunk = await file.read(_UPLOAD_CHUNK_BYTES)
+        except TypeError:
+            chunk = await file.read()
+            total += len(chunk)
+            if total > max_bytes:
+                raise HTTPException(status_code=400, detail="Image must be under 10MB")
+            chunks.append(chunk)
+            break
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(status_code=400, detail="Image must be under 10MB")
+        chunks.append(chunk)
+
+    content = b"".join(chunks)
+    head_lower = content[:512].lstrip().lower()
+    if b"<svg" in head_lower or head_lower.startswith(b"<?xml"):
+        raise HTTPException(status_code=400, detail="SVG images are not allowed")
+
+    ext = sniff_image_extension(content)
+    if ext is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported or invalid image format (allowed: PNG, JPEG, GIF, WebP)",
+        )
+
+    target_dir = (STATIC_DIR / subdir).resolve()
+    target_dir.relative_to(STATIC_DIR.resolve())
+    target_dir.mkdir(parents=True, exist_ok=True)
+
+    filename = f"{uuid.uuid4().hex[:12]}.{ext}"
+    (target_dir / filename).write_bytes(content)
+    return f"/static/{subdir}/{filename}"
 
 
 # Registered media younger than this is never collected: the engine registers a

@@ -12,7 +12,7 @@ import app.ws.manager as ws_module
 from app.api.v1.routes import consistency as route
 from app.db.utils import utcnow
 from app.models.consistency_report import ConsistencyReport
-from tests.factories import create_project
+from tests.factories import create_project, read_outbox_events
 
 
 def _report_data(project_id: int, score: float) -> dict:
@@ -96,15 +96,10 @@ async def test_trigger_returns_at_once_and_announces_the_score(async_client, tes
     assert res.status_code == 202
     assert res.json() == {"eval_id": 0, "status": "processing"}
     assert seen == [(project.id, True, None)]
-    assert recorder.events == [
-        (
-            project.id,
-            {
-                "type": "consistency_eval_completed",
-                "data": {"project_id": project.id, "overall_score": 87.5, "character_count": 2},
-            },
-        )
-    ]
+    events = await read_outbox_events(test_session, "consistency_eval_completed")
+    assert len(events) == 1
+    assert events[0]["project_id"] == project.id
+    assert events[0]["data"] == {"project_id": project.id, "overall_score": 87.5, "character_count": 2}
 
 
 @pytest.mark.asyncio
@@ -195,3 +190,21 @@ async def test_history_newest_first_and_limited(async_client, test_session):
     assert [r["overall_score"] for r in limited.json()] == [90.0, 70.0]
     assert res.json()[0]["report_data"]["project_id"] == project.id
     assert empty.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_local_static_path_resolution(monkeypatch, tmp_path):
+    """BE-04: ConsistencyEvalService resolves /static/ via file_cleaner.get_local_path and blocks traversal."""
+    from app.services import file_cleaner
+    from app.services.consistency_eval import ConsistencyEvalService
+
+    static_dir = tmp_path / "static"
+    static_dir.mkdir()
+    (static_dir / "test.png").write_bytes(b"PNG_DATA")
+    secret = tmp_path / "secret.png"
+    secret.write_bytes(b"SECRET")
+
+    monkeypatch.setattr(file_cleaner, "STATIC_DIR", static_dir)
+    svc = ConsistencyEvalService()
+    assert await svc._download_image("/static/test.png") == b"PNG_DATA"
+    assert await svc._download_image("/static/../secret.png") is None

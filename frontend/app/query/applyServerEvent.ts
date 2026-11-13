@@ -9,6 +9,7 @@ import type {
   ShotsReorderedEventData,
   WsEvent,
 } from "~/types";
+import type { DomainEventType } from "~/generated/eventsContract";
 import { projectQueryKeys } from "./queryKeys";
 
 function upsertById<T extends { id: number }>(items: T[] | undefined, item: T): T[] | undefined {
@@ -103,7 +104,8 @@ export function applyServerEvent(
   projectId: number,
   event: WsEvent,
 ): void {
-  switch (event.type) {
+  const eventType: DomainEventType | string = event.type;
+  switch (eventType) {
     case "character_created":
     case "character_updated": {
       const character = event.data.character as Character | undefined;
@@ -141,6 +143,30 @@ export function applyServerEvent(
       const id = event.data.shot_id as number | undefined;
       if (id === undefined) return;
       removeShotFromCache(queryClient, projectId, id);
+      return;
+    }
+
+    case "shot_invalidation_cascaded": {
+      const invalidatedIds = Array.isArray(event.data.invalidated_shot_ids)
+        ? new Set(
+            event.data.invalidated_shot_ids.filter(
+              (id): id is number => typeof id === "number",
+            ),
+          )
+        : null;
+      const reason =
+        typeof event.data.reason === "string" && event.data.reason.trim()
+          ? event.data.reason.trim()
+          : "上游分镜重绘，下游关键帧需重新审查";
+      if (!invalidatedIds || invalidatedIds.size === 0) return;
+      queryClient.setQueryData<Shot[]>(projectQueryKeys.shots(projectId), (current) => {
+        if (!current) return current;
+        return current.map((shot) =>
+          invalidatedIds.has(shot.id)
+            ? { ...shot, review_status: "unchecked", review_note: reason }
+            : shot,
+        );
+      });
       return;
     }
 

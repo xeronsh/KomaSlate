@@ -247,3 +247,43 @@ async def test_engine_run_not_found_is_a_404_not_an_outage(engine):
     with pytest.raises(ec.EngineUnavailableError) as other:
         await ec.engine_start_run(engine.url, project_id=1, run_id=2)
     assert not isinstance(other.value, ec.EngineRunNotFoundError)
+
+
+@pytest.mark.asyncio
+async def test_process_group_cleanup_and_log_rotation(monkeypatch, tmp_path):
+    """BE-08: real Popen process group is signalled on shutdown and logs >50MB rotate."""
+    import os
+    import signal
+
+    signals: list[tuple[int, int]] = []
+
+    class FakePopen(subprocess.Popen):
+        def __init__(self):
+            self.pid = 77777
+            self.returncode = None
+
+        def poll(self):
+            return None
+
+        def wait(self, timeout=None):
+            return 0
+
+    proc = FakePopen()
+    pid_file = tmp_path / "engine.pid"
+    pid_file.write_text("77777", encoding="utf-8")
+    monkeypatch.setattr(ec, "_ENGINE_PROCESS", proc)
+    monkeypatch.setattr(ec, "_ENGINE_PID_FILE", pid_file)
+    monkeypatch.setattr(os, "getpgid", lambda pid: pid)
+    monkeypatch.setattr(os, "killpg", lambda pgid, sig: signals.append((pgid, sig)))
+
+    await ec.shutdown_engine()
+    assert signals == [(77777, signal.SIGTERM)]
+    assert not pid_file.exists()
+
+    # Log rotation > 50MB
+    log_file = tmp_path / "engine.log"
+    with log_file.open("wb") as f:
+        f.truncate(ec.MAX_ENGINE_LOG_BYTES)
+    ec._rotate_engine_log(log_file)
+    assert (tmp_path / "engine.log.1").exists()
+    assert not log_file.exists()

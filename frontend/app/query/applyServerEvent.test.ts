@@ -228,4 +228,31 @@ describe("applyServerEvent", () => {
       expect(client.getQueryState(key)?.isInvalidated).toBe(true);
     }
   });
+
+  it("marks downstream shots unchecked on shot_invalidation_cascaded", () => {
+    const client = new QueryClient();
+    client.setQueryData(projectQueryKeys.shots(7), [
+      { ...shot(1, 1), review_status: "passed" as const },
+      { ...shot(2, 2), review_status: "passed" as const },
+      { ...shot(3, 3), review_status: "passed" as const },
+    ]);
+
+    applyServerEvent(client, 7, {
+      type: "shot_invalidation_cascaded",
+      data: {
+        project_id: 7,
+        source_shot_id: 1,
+        invalidated_shot_ids: [2, 3],
+        reason: "第 1 镜重绘后级联失效",
+      },
+    } as unknown as WsEvent);
+
+    const updated = client.getQueryData<Shot[]>(projectQueryKeys.shots(7)) ?? [];
+    expect(updated.find((s) => s.id === 1)?.review_status).toBe("passed");
+    expect(updated.find((s) => s.id === 2)).toMatchObject({
+      review_status: "unchecked",
+      review_note: "第 1 镜重绘后级联失效",
+    });
+    expect(updated.find((s) => s.id === 3)?.review_status).toBe("unchecked");
+  });
 });

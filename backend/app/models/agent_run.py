@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from sqlalchemy import Column, JSON, Text
+from sqlalchemy import Column, Integer, JSON, Text
 from sqlmodel import Field, Relationship, SQLModel
 
 from app.db.utils import utcnow
@@ -60,8 +60,17 @@ class AgentRun(SQLModel, table=True):
     )
     # 引擎开始执行时写一次（naive UTC）；排队时为空。耗时从这里算，不用 created_at
     started_at: Optional[datetime] = None
+    _revision_col = Column(
+        "revision",
+        Integer,
+        nullable=False,
+        default=1,  # client-side: keeps version_id out of RETURNING paths
+    )
+    revision: int = Field(default=1, ge=1, sa_column=_revision_col)
     created_at: datetime = Field(default_factory=utcnow)
     updated_at: datetime = Field(default_factory=utcnow)
+
+    __mapper_args__ = {"version_id_col": _revision_col}
 
     messages: List["AgentMessage"] = Relationship(
         back_populates="run",

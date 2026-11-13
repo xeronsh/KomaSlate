@@ -18,10 +18,12 @@ interface InspectorPanelProps {
 	briefNode?: ComicWorkflowNode | null;
 	open: boolean;
 	onOpenChange: (open: boolean) => void;
+	/** 停靠在画布右侧流式边栏（NodeGraph 模式），避免悬浮遮挡画布工具栏 */
+	docked?: boolean;
 }
 
 /**
- * 检查器：浮在画布右侧（320px），可收成胶囊。
+ * 检查器：默认浮在画布右侧（320px），可收成胶囊；传 docked 时改为流式右侧边栏。
  * 选中即看属性；未选中时回落到项目视图。开合由工作台控制（窄屏与 Agent 面板互斥）。
  */
 export function InspectorPanel({
@@ -34,12 +36,14 @@ export function InspectorPanel({
 	briefNode = null,
 	open,
 	onOpenChange,
+	docked = false,
 }: InspectorPanelProps) {
 	const hasSelection = Boolean(selectedNode) || selectedNodeIds.length > 0;
 	const activeNode = selectedNode ?? briefNode;
 	if (!activeNode && selectedNodeIds.length === 0) return null;
 
 	if (!open) {
+		if (docked) return null;
 		return (
 			<PlainButton
 				className="animate-enter absolute right-3 top-3 z-panel inline-flex touch-target-dense items-center gap-1.5 rounded-full border border-line bg-surface px-3 text-xs font-semibold shadow-panel transition-colors duration-fast hover:border-primary"
@@ -56,7 +60,11 @@ export function InspectorPanel({
 
 	return (
 		<aside
-			className="animate-enter-right absolute bottom-24 right-3 top-3 z-panel flex w-panel-inspector max-w-panel flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-panel"
+			className={
+				docked
+					? "flex h-full min-h-0 w-panel-inspector max-w-panel shrink-0 flex-col overflow-hidden border-l border-line bg-surface"
+					: "animate-enter-right absolute bottom-24 right-3 top-3 z-panel flex w-panel-inspector max-w-panel flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-panel"
+			}
 			aria-label="检查器"
 			data-shell="inspector-panel"
 			onKeyDown={(event) => {

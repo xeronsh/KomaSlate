@@ -149,6 +149,7 @@ describe("useProjectWebSocket", () => {
 
     expect(toastMock.warning).toHaveBeenCalledWith(
       expect.objectContaining({
+        id: "ws-connection-status",
         title: "连接中断",
         duration: 3000,
       })
@@ -160,6 +161,7 @@ describe("useProjectWebSocket", () => {
 
     expect(toastMock.success).toHaveBeenCalledWith(
       expect.objectContaining({
+        id: "ws-connection-status",
         title: "重新连接成功",
       })
     );
@@ -175,8 +177,9 @@ describe("useProjectWebSocket", () => {
 
     expect(toastMock.error).toHaveBeenCalledWith(
       expect.objectContaining({
+        id: "ws-connection-status",
         title: "无法连接到服务器",
-        duration: 0,
+        duration: Infinity,
         actions: expect.arrayContaining([
           expect.objectContaining({ label: "重新连接" }),
         ]),
@@ -231,6 +234,7 @@ describe("useProjectWebSocket", () => {
     expect(toastMock.warning).toHaveBeenCalledTimes(5);
     expect(toastMock.error).toHaveBeenCalledWith(
       expect.objectContaining({
+        id: "ws-connection-status",
         title: "连接失败",
       })
     );

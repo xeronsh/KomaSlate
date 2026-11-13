@@ -1,14 +1,15 @@
-import { useState, useCallback } from "react";
+import { memo, useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { projectsApi } from "~/services/api";
+import { useAutoAnimate } from "~/components/ui/AutoAnimate";
 import { Button } from "~/components/ui/Button";
+import { Checkbox } from "~/components/ui/Checkbox";
 import { SvgIcon } from "~/components/ui/SvgIcon";
 import { ConfirmModal } from "~/components/ui/ConfirmModal";
 import { Dialog } from "~/components/ui/Dialog";
 import { toast } from "~/utils/toast";
 import { ApiError } from "~/types/errors";
 import { cleanupDeletedProjectCaches } from "~/features/projects/deleteProject";
-import { getProjectStatusMeta } from "~/features/projects/statusMeta";
 import { IconButton } from "../../components/ui/IconButton";
 import { PlainButton } from "../../components/ui/PlainButton";
 import { styleLabel } from "~/features/projects/styleCategories";
@@ -19,7 +20,36 @@ interface HistoryDrawerProps {
 	onNavigate?: (projectId: number) => void;
 }
 
-function ProjectRow({
+function statusLabel(status: string) {
+	const map: Record<string, string> = {
+		draft: "草稿",
+		planning: "规划中",
+		processing: "生成中",
+		running: "生成中",
+		failed: "出错",
+		cancelled: "已取消",
+		completed: "已完成",
+		error: "出错",
+		ready: "就绪",
+	};
+	return map[status] || status;
+}
+
+function statusCls(status: string) {
+	const map: Record<string, string> = {
+		draft: "bg-paper-100/80 text-ink-muted border-line",
+		processing: "bg-warning/15 text-warning-fg border-warning/30",
+		planning: "bg-warning/15 text-warning-fg border-warning/30",
+		running: "bg-warning/15 text-warning-fg border-warning/30",
+		failed: "bg-error/15 text-error-fg border-error/30",
+		completed: "bg-success/15 text-success-fg border-success/30",
+		error: "bg-error/15 text-error-fg border-error/30",
+		ready: "bg-paper-100/80 text-ink-muted border-line",
+	};
+	return map[status] || "bg-paper-100/80 text-ink-muted border-line";
+}
+
+const ProjectRow = memo(function ProjectRow({
 	project,
 	isSelected,
 	onToggle,
@@ -43,20 +73,19 @@ function ProjectRow({
 	onRenameChange: (v: string) => void;
 }) {
 	const isRenaming = renamingId === project.id;
-	const status = getProjectStatusMeta(project.status);
 
 	return (
 		<div
-			className={`flex items-start gap-2.5 px-3 py-2.5 transition-colors duration-fast ${
-				isSelected ? "bg-primary/10" : "hover:bg-paper-200/60"
+			className={`flex items-start gap-2 py-2 px-2 rounded-sm transition-colors duration-fast mb-0.5 ${
+				isSelected ? "bg-primary/10" : "hover:bg-paper-200/50"
 			}`}
 		>
 			<label className="cursor-pointer pt-0.5 flex-shrink-0" onClick={(e) => e.stopPropagation()}>
-				<input
-					type="checkbox"
+				<Checkbox
+					size="xs"
 					checked={isSelected}
-					onChange={(e) => onToggle(e.target.checked)}
-					className="checkbox-doodle"
+					aria-label={`选择项目 ${project.title || "未命名项目"}`}
+					onCheckedChange={(checked) => onToggle(checked === true)}
 				/>
 			</label>
 			<div className="flex-1 min-w-0">
@@ -64,7 +93,7 @@ function ProjectRow({
 					<div className="flex items-center gap-1">
 						<input
 							type="text"
-							className="input-doodle h-7 bg-paper-100 px-2 flex-1 min-w-0 text-xs"
+							className="input-doodle bg-paper-100/80 flex-1 min-w-0 text-xs"
 							value={renameValue}
 							onChange={(e) => onRenameChange(e.target.value)}
 							onKeyDown={(e) => {
@@ -76,10 +105,10 @@ function ProjectRow({
 							}}
 							autoFocus
 						/>
-						<IconButton variant="primary" aria-label="确认重命名" onClick={onConfirmRename}>
+						<IconButton variant="primary" aria-label="确认重命名"  onClick={onConfirmRename}>
 							<SvgIcon name="check" size={12} />
 						</IconButton>
-						<IconButton aria-label="取消重命名" onClick={onCancelRename}>
+						<IconButton aria-label="取消重命名"  onClick={onCancelRename}>
 							<SvgIcon name="x" size={12} />
 						</IconButton>
 					</div>
@@ -89,12 +118,12 @@ function ProjectRow({
 						className="w-full text-left"
 					>
 						<div className="flex items-center gap-1.5 mb-0.5">
-							<span className="text-sm font-semibold text-ink truncate flex-1">{project.title || "未命名项目"}</span>
-							<span className={`badge-doodle text-xs px-1.5 py-0.5 ${status.badgeCls}`}>
-								{status.label}
+							<span className="text-sm font-bold truncate flex-1">{project.title || "未命名项目"}</span>
+							<span className={`badge-doodle text-xs px-1.5 py-0.5 ${statusCls(project.status)}`}>
+								{statusLabel(project.status)}
 							</span>
 						</div>
-						<div className="flex items-center gap-2 text-xs tabular-nums text-ink-muted">
+						<div className="flex items-center gap-2 text-xs text-ink-muted">
 							<span>{new Date(project.updated_at).toLocaleDateString("zh-CN")}</span>
 							{project.style && <span>{styleLabel(project.style)}</span>}
 							{project.target_shot_count && <span>{project.target_shot_count} 镜头</span>}
@@ -113,10 +142,11 @@ function ProjectRow({
 			)}
 		</div>
 	);
-}
+});
 
 export function HistoryDrawer({ open, onClose, onNavigate }: HistoryDrawerProps) {
 	const queryClient = useQueryClient();
+	const [listRef] = useAutoAnimate<HTMLDivElement>();
 	const [selectedIds, setSelectedIds] = useState<number[]>([]);
 	const [deleteTarget, setDeleteTarget] = useState<number[] | null>(null);
 	const [renamingId, setRenamingId] = useState<number | null>(null);
@@ -206,45 +236,42 @@ export function HistoryDrawer({ open, onClose, onNavigate }: HistoryDrawerProps)
 				onClose={onClose}
 				variant="sheet-right"
 				labelledBy="history-drawer-title"
-				className="flex w-72 flex-col"
+				className="flex w-72 max-w-full flex-col"
 			>
-				<div className="flex shrink-0 items-center justify-between border-b border-line px-3 py-2.5">
+				<div className="flex items-center justify-between border-b border-line px-2.5 py-2">
 					<div className="flex items-center gap-1.5">
 						<SvgIcon name="clock-3" size={14} className="text-primary" />
 						<h3 id="history-drawer-title" className="m-0 text-sm font-bold">
 							项目历史
 						</h3>
-						<span className="badge-doodle text-xs px-1.5 py-0.5 bg-paper-200 text-ink-muted border-line tabular-nums">
+						<span className="badge-doodle text-xs px-1.5 py-0.5 bg-paper-100/80 text-ink-muted border-line tabular-nums">
 							{projects?.length ?? 0}
 						</span>
 					</div>
-					<Button
-						variant="ghost"
-						size="sm"
-						className="!h-7 !px-1.5"
+					<IconButton
+						size="xs"
 						onClick={onClose}
 						aria-label="关闭项目历史"
 					>
 						<SvgIcon name="x" size={14} />
-					</Button>
+					</IconButton>
 				</div>
 
 				{projects && projects.length > 0 && (
-					<div className="flex shrink-0 items-center justify-between gap-2 border-b border-line bg-paper-200/50 px-3 py-1.5 text-xs">
+					<div className="flex items-center gap-2 border-b border-line px-2.5 py-1.5 text-xs">
 						<label className="flex cursor-pointer select-none items-center gap-1.5">
-							<input
-								type="checkbox"
+							<Checkbox
+								size="xs"
 								checked={allSelected}
-								onChange={(e) => handleToggleSelectAll(e.target.checked)}
-								className="checkbox-doodle"
+								onCheckedChange={(checked) => handleToggleSelectAll(checked === true)}
 							/>
-							<span className="font-medium text-ink-muted">全选</span>
+							<span className="text-ink-muted">全选</span>
 						</label>
 						{hasSelection && (
 							<Button
 								variant="ghost"
-								size="sm"
-								className="flex !h-6 items-center gap-1 whitespace-nowrap !px-1.5 text-xs text-error-fg hover:bg-error-bg"
+								size="xs"
+								className="whitespace-nowrap text-error-fg"
 								onClick={handleBatchDelete}
 							>
 								<SvgIcon name="trash-2" size={12} />
@@ -254,37 +281,38 @@ export function HistoryDrawer({ open, onClose, onNavigate }: HistoryDrawerProps)
 					</div>
 				)}
 
-				<div className="min-h-0 flex-1 overflow-y-auto">
+				<div
+					ref={listRef}
+					className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 py-1"
+				>
 					{!projects || projects.length === 0 ? (
-						<div className="m-3 corner-marks rounded-md border border-dashed border-line bg-paper-100/60 py-8 text-center text-xs text-ink-muted">
+						<div className="py-8 text-center text-xs text-ink-muted">
 							<SvgIcon
 								name="storyboard"
 								size={24}
 								className="mx-auto mb-2 text-ink-faint"
 							/>
-							<p className="m-0 font-semibold text-ink">还没有项目</p>
+							<p className="m-0">还没有项目</p>
 							<p className="m-0 mt-1 text-ink-muted">
 								创建新项目后会出现在这里
 							</p>
 						</div>
 					) : (
-						<div className="divide-y divide-line">
-							{projects.map((p) => (
-								<ProjectRow
-									key={p.id}
-									project={p}
-									isSelected={selectedIds.includes(p.id)}
-									onToggle={(checked) => handleToggleSelect(p.id, checked)}
-									onNavigate={() => handleClick(p.id)}
-									renamingId={renamingId}
-									renameValue={renameValue}
-									onStartRename={() => handleStartRename(p)}
-									onConfirmRename={handleConfirmRename}
-									onCancelRename={() => { setRenamingId(null); setRenameValue(""); }}
-									onRenameChange={setRenameValue}
-								/>
-							))}
-						</div>
+						projects.map((p) => (
+							<ProjectRow
+								key={p.id}
+								project={p}
+								isSelected={selectedIds.includes(p.id)}
+								onToggle={(checked) => handleToggleSelect(p.id, checked)}
+								onNavigate={() => handleClick(p.id)}
+								renamingId={renamingId}
+								renameValue={renameValue}
+								onStartRename={() => handleStartRename(p)}
+								onConfirmRename={handleConfirmRename}
+								onCancelRename={() => { setRenamingId(null); setRenameValue(""); }}
+								onRenameChange={setRenameValue}
+							/>
+						))
 					)}
 				</div>
 			</Dialog>

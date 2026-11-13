@@ -306,16 +306,15 @@ class ConsistencyEvalService:
         # 本地 /static/ 路径
         if image_url.startswith("/static/"):
             try:
-                from pathlib import Path
+                from app.services.file_cleaner import get_local_path
 
-                # 项目根目录下的 static
-                base_dir = Path(__file__).resolve().parents[3]
-                file_path = base_dir / image_url.lstrip("/")
-                if file_path.exists():
+                file_path = get_local_path(image_url)
+                if file_path is not None and file_path.is_file():
                     return file_path.read_bytes()
             except Exception as exc:
                 logger.warning("Failed to read local image %s: %s", image_url, exc)
                 return None
+            return None
 
         # HTTP URL
         if image_url.startswith("http://") or image_url.startswith("https://"):

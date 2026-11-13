@@ -3,12 +3,22 @@ import userEvent from "@testing-library/user-event";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ConfigInput } from "./ConfigInput";
 import { configApi } from "~/services/api";
+import { toast } from "~/utils/toast";
 import type { ConfigItem } from "~/types";
 
 // Mock API
 vi.mock("~/services/api", () => ({
 	configApi: {
 		revealValue: vi.fn(),
+	},
+}));
+
+vi.mock("~/utils/toast", () => ({
+	toast: {
+		error: vi.fn(),
+		success: vi.fn(),
+		warning: vi.fn(),
+		info: vi.fn(),
 	},
 }));
 
@@ -244,7 +254,6 @@ describe("ConfigInput", () => {
 
 	it("显示真实值失败时显示错误", async () => {
 		const user = userEvent.setup();
-		const alertSpy = vi.spyOn(window, "alert").mockImplementation(() => {});
 		const consoleErrorSpy = vi
 			.spyOn(console, "error")
 			.mockImplementation(() => {});
@@ -268,7 +277,10 @@ describe("ConfigInput", () => {
 
 		// 等待错误处理
 		await waitFor(() => {
-			expect(alertSpy).toHaveBeenCalledWith("获取真实值失败，请检查网络连接");
+			expect(toast.error).toHaveBeenCalledWith({
+				title: "获取真实值失败",
+				message: "获取真实值失败，请检查网络连接",
+			});
 		});
 
 		expect(consoleErrorSpy).toHaveBeenCalledWith(
@@ -279,7 +291,6 @@ describe("ConfigInput", () => {
 		// 验证仍显示脱敏值
 		expect(screen.getByDisplayValue("sk-a******key")).toBeInTheDocument();
 
-		alertSpy.mockRestore();
 		consoleErrorSpy.mockRestore();
 	});
 

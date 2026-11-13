@@ -167,7 +167,7 @@ describe("PropertiesSection · character", () => {
 		client.setQueryData(["characters", 3], [character]);
 		api.charactersApi.update.mockResolvedValue({ ...character, name: "林夏", voice: "zh-CN-XiaoyiNeural", revision: 3 });
 		renderNode({ kind: "character", character });
-		expect(document.querySelectorAll("#character-voice-options option")).toHaveLength(6);
+		expect(screen.getByRole("button", { name: "展开候选项" })).toBeInTheDocument();
 		fireEvent.change((screen.getByLabelText(/^配音音色/) as HTMLInputElement), { target: { value: " zh-CN-XiaoyiNeural " } });
 		fireEvent.change(field("描述"), { target: { value: "" } });
 		fireEvent.click(screen.getByRole("button", { name: "保存" }));

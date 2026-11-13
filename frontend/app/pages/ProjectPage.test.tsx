@@ -1,7 +1,16 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import userEvent from '@testing-library/user-event';
+import { useSyncExternalStore } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  globalThis.ResizeObserver = class ResizeObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
 
 import { ProjectPage } from './ProjectPage';
 import { chatApi, projectsApi, runsApi } from '~/services/api';
@@ -104,6 +113,11 @@ const projectDataWithDegradedTextProvider: Project = {
 const emptyCharacters: never[] = [];
 const emptyShots: never[] = [];
 const emptyMessages: never[] = [];
+const storeListeners = new Set<() => void>();
+const notifyStore = () => {
+  for (const l of storeListeners) l();
+};
+
 const storeState: {
   selectedShotId: number | null;
   selectedCharacterId: number | null;
@@ -113,6 +127,22 @@ const storeState: {
   setHighlightedMessage: ReturnType<typeof vi.fn>;
   runMode: string;
   setRunMode: ReturnType<typeof vi.fn>;
+  viewportWidth: number;
+  agentCollapsed: boolean;
+  inspectorOpen: boolean;
+  agentTab: 'chat' | 'activity' | 'inbox';
+  workbenchView: 'nodegraph' | 'storyboard';
+  activeGraphNodeId: string | null;
+  hubDialogOpen: boolean;
+  hubTab: 'outbound' | 'cli' | 'inbound';
+  syncViewportWidth: ReturnType<typeof vi.fn>;
+  setAgentCollapsed: ReturnType<typeof vi.fn>;
+  setInspectorOpen: ReturnType<typeof vi.fn>;
+  setAgentTab: ReturnType<typeof vi.fn>;
+  setWorkbenchView: ReturnType<typeof vi.fn>;
+  setActiveGraphNodeId: ReturnType<typeof vi.fn>;
+  setHubDialogOpen: ReturnType<typeof vi.fn>;
+  setHubTab: ReturnType<typeof vi.fn>;
 } = {
   selectedShotId: null,
   selectedCharacterId: null,
@@ -121,7 +151,62 @@ const storeState: {
   setSelectedCharacter: vi.fn(),
   setHighlightedMessage: vi.fn(),
   runMode: 'manual' as string,
-  setRunMode: vi.fn(),
+  setRunMode: vi.fn((mode: string) => {
+    storeState.runMode = mode;
+    notifyStore();
+  }),
+  viewportWidth: 1024,
+  agentCollapsed: true,
+  inspectorOpen: false,
+  agentTab: 'activity',
+  workbenchView: 'storyboard',
+  activeGraphNodeId: 'agent_core',
+  hubDialogOpen: false,
+  hubTab: 'outbound',
+  syncViewportWidth: vi.fn((width: number, opts?: { initial?: boolean }) => {
+    storeState.viewportWidth = width;
+    if (opts?.initial) {
+      storeState.agentCollapsed = width < 1440;
+      storeState.inspectorOpen = width >= 1280;
+    } else if (width < 1280 && !storeState.agentCollapsed && storeState.inspectorOpen) {
+      storeState.agentCollapsed = true;
+    }
+    notifyStore();
+  }),
+  setAgentCollapsed: vi.fn((collapsed: boolean) => {
+    storeState.agentCollapsed = collapsed;
+    if (!collapsed && storeState.viewportWidth < 1280) {
+      storeState.inspectorOpen = false;
+    }
+    notifyStore();
+  }),
+  setInspectorOpen: vi.fn((open: boolean) => {
+    storeState.inspectorOpen = open;
+    if (open && storeState.viewportWidth < 1280) {
+      storeState.agentCollapsed = true;
+    }
+    notifyStore();
+  }),
+  setAgentTab: vi.fn((tab: 'chat' | 'activity' | 'inbox') => {
+    storeState.agentTab = tab;
+    notifyStore();
+  }),
+  setWorkbenchView: vi.fn((view: 'nodegraph' | 'storyboard') => {
+    storeState.workbenchView = view;
+    notifyStore();
+  }),
+  setActiveGraphNodeId: vi.fn((nodeId: string | null) => {
+    storeState.activeGraphNodeId = nodeId;
+    notifyStore();
+  }),
+  setHubDialogOpen: vi.fn((open: boolean) => {
+    storeState.hubDialogOpen = open;
+    notifyStore();
+  }),
+  setHubTab: vi.fn((tab: 'outbound' | 'cli' | 'inbound') => {
+    storeState.hubTab = tab;
+    notifyStore();
+  }),
 };
 const mutateSpy = vi.fn();
 
@@ -261,11 +346,22 @@ vi.mock('~/hooks/useWebSocket', () => ({
 
 vi.mock('~/stores/editorStore', () => ({
   useEditorStore: Object.assign(
-    (selector?: (state: typeof storeState) => unknown) =>
-      selector ? selector(storeState) : storeState,
+    (selector?: (state: typeof storeState) => unknown) => {
+      useSyncExternalStore(
+        (listener) => {
+          storeListeners.add(listener);
+          return () => storeListeners.delete(listener);
+        },
+        () =>
+          selector
+            ? selector(storeState)
+            : storeState,
+      );
+      return selector ? selector(storeState) : storeState;
+    },
     {
       getState: () => storeState,
-    }
+    },
   ),
 }));
 
@@ -301,6 +397,7 @@ vi.mock('~/query/resyncRunState', () => ({
 }));
 
 vi.mock('~/services/api', () => ({
+  getStaticUrl: (url?: string | null) => (url ? `http://static${url}` : null),
   projectsApi: {
     get: vi.fn(),
     update: vi.fn(),
@@ -310,7 +407,18 @@ vi.mock('~/services/api', () => ({
     startRun: vi.fn(),
     currentRun: vi.fn(),
   },
-  chatApi: { get: vi.fn(), send: vi.fn() },
+  chatApi: { get: vi.fn(), send: vi.fn(), abort: vi.fn(), confirm: vi.fn() },
+  mcpApi: {
+    listServers: vi.fn().mockResolvedValue({ servers: [] }),
+    pingServer: vi.fn(),
+    updatePolicy: vi.fn(),
+    toggleServer: vi.fn(),
+    listCliTools: vi.fn().mockResolvedValue({ tools: [] }),
+    dryRunCli: vi.fn(),
+    issueHumanAuthToken: vi.fn(),
+  },
+  versionsApi: { list: vi.fn(), get: vi.fn(), rollback: vi.fn(), compare: vi.fn() },
+  shotsApi: { update: vi.fn(), patch: vi.fn(), approve: vi.fn(), regenerate: vi.fn(), delete: vi.fn() },
   runsApi: {
     cancel: vi.fn(),
     resume: vi.fn(),
@@ -428,6 +536,12 @@ vi.mock('~/components/settings/SettingsModal', () => ({
 describe('ProjectPage live hydration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    storeState.viewportWidth = typeof window !== 'undefined' ? window.innerWidth : 1024;
+    storeState.agentCollapsed = storeState.viewportWidth < 1440;
+    storeState.inspectorOpen = storeState.viewportWidth >= 1280;
+    storeState.agentTab = 'activity';
+    storeState.workbenchView = 'storyboard';
+    storeState.runMode = 'manual';
     mutationPendingStates = [];
     currentRouteProjectId = '9';
     currentSearchParams = new URLSearchParams();

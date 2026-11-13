@@ -126,6 +126,7 @@ export function useProjectWebSocket(projectId: number | null) {
 			if (wasReconnecting) resyncRunState(projectId, { project: true });
 			if (wasReconnecting) {
 				toast.success({
+					id: "ws-connection-status",
 					title: "重新连接成功",
 					message: "可以继续创作了",
 					duration: 2000,
@@ -177,9 +178,10 @@ export function useProjectWebSocket(projectId: number | null) {
 		ws.onerror = (error) => {
 			if (import.meta.env.DEV) console.error("[WS] 连接错误:", error);
 			toast.error({
+				id: "ws-connection-status",
 				title: "无法连接到服务器",
 				message: "请检查网络连接，或稍后重试",
-				duration: 0,
+				duration: Infinity,
 				actions: [
 					{
 						label: "重新连接",
@@ -199,6 +201,7 @@ export function useProjectWebSocket(projectId: number | null) {
 			if (reconnectAttempts.current < MAX_RECONNECT_ATTEMPTS) {
 				reconnectAttempts.current += 1;
 				toast.warning({
+					id: "ws-connection-status",
 					title: "连接中断",
 					message: `正在重新连接 (尝试 ${reconnectAttempts.current}/${MAX_RECONNECT_ATTEMPTS})`,
 					duration: RECONNECT_DELAY,
@@ -206,9 +209,10 @@ export function useProjectWebSocket(projectId: number | null) {
 				reconnectTimer.current = setTimeout(connect, RECONNECT_DELAY);
 			} else {
 				toast.error({
+					id: "ws-connection-status",
 					title: "连接失败",
 					message: "多次尝试后仍无法连接。请检查网络后刷新页面",
-					duration: 0,
+					duration: Infinity,
 					actions: [
 						{ label: "刷新页面", onClick: () => window.location.reload() },
 					],

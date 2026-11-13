@@ -13,12 +13,18 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from app.api.deps import get_app_settings, get_db_session, get_ws_manager, require_run_id
+from app.api.deps import (
+    get_app_settings,
+    get_db_session,
+    get_readonly_db_session,
+    get_ws_manager,
+    require_run_id,
+)
 from app.api.v1.routes import runs as generation_routes
 from app.main import create_app
 from app.models.agent_run import AgentRun
 from app.schemas.project import ProjectProviderEntry
-from tests.factories import create_project, create_run
+from tests.factories import create_project, create_run, read_outbox_events
 
 class _EngineCalls:
     """Record engine HTTP calls in place of the real sidecar."""
@@ -110,7 +116,10 @@ def closure_app(test_db_engine_sessionmaker, test_settings, ws_manager, monkeypa
     async def override_get_ws():
         return ws_manager
 
+    monkeypatch.setattr("app.db.session.async_session_maker", shared_maker)
+    monkeypatch.setattr("app.db.session.async_readonly_session_maker", shared_maker)
     app.dependency_overrides[get_db_session] = override_get_session
+    app.dependency_overrides[get_readonly_db_session] = override_get_session
     app.dependency_overrides[get_app_settings] = override_get_settings
     app.dependency_overrides[get_ws_manager] = override_get_ws
 
@@ -272,13 +281,15 @@ async def test_cancel_live_run_notifies_engine_and_waits_for_ack(closure_client)
         assert (await session.get(AgentRun, other.id)).status == "queued"
 
     # A queued command has no executor lease yet, so cancellation can complete
-    # synchronously and emits its terminal event from the control plane.
-    ctx["ws"].events.clear()
+    # synchronously and emits its terminal event to the durable outbox.
     res = await client.post(f"/api/v1/runs/{other.id}/cancel")
     assert res.json()["status"] == "cancelled"
     assert res.json()["run_ids"] == [other.id]
-    last_project_id, last_event = ctx["ws"].events[-1]
-    assert last_project_id == project.id
+    async with ctx["session_maker"]() as session:
+        events = await read_outbox_events(session, "run_cancelled")
+    assert events
+    last_event = events[-1]
+    assert last_event["project_id"] == project.id
     assert last_event["type"] == "run_cancelled"
     assert last_event["data"]["cancelled_count"] == 1
 

@@ -1,0 +1,624 @@
+{
+  "events_version": 1,
+  "events": [
+    {
+      "type": "connected",
+      "category": "transport",
+      "durable": false,
+      "description": "WebSocket initial connection acknowledgement",
+      "payload": {
+        "project_id": { "type": "integer" }
+      }
+    },
+    {
+      "type": "pong",
+      "category": "transport",
+      "durable": false,
+      "description": "WebSocket heartbeat pong response",
+      "payload": {}
+    },
+    {
+      "type": "echo",
+      "category": "transport",
+      "durable": false,
+      "description": "WebSocket diagnostic echo response",
+      "payload": {
+        "data": { "type": "unknown", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "error",
+      "category": "transport",
+      "durable": false,
+      "description": "Protocol or request-level error payload",
+      "payload": {
+        "code": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    },
+    {
+      "type": "run_started",
+      "category": "lifecycle",
+      "durable": true,
+      "description": "Workflow run transitioned to active execution",
+      "payload": {
+        "run_id": { "type": "integer" },
+        "project_id": { "type": "integer", "required": false, "nullable": true },
+        "provider_snapshot": { "type": "record", "values": { "type": "unknown" }, "required": false, "nullable": true },
+        "current_stage": { "type": "string", "required": false, "nullable": true },
+        "stage": { "type": "string", "required": false, "nullable": true },
+        "next_stage": { "type": "string", "required": false, "nullable": true },
+        "progress": { "type": "number", "required": false, "default": 0.0, "ge": 0.0, "le": 1.0 },
+        "current_agent": { "type": "string", "required": false, "nullable": true },
+        "recovery_summary": { "type": "record", "values": { "type": "unknown" }, "required": false, "nullable": true },
+        "preserved_stages": { "type": "array", "items": { "type": "string" }, "required": false, "default": [] }
+      }
+    },
+    {
+      "type": "run_progress",
+      "category": "lifecycle",
+      "durable": true,
+      "description": "Workflow stage or sub-step progress update",
+      "payload": {
+        "run_id": { "type": "integer" },
+        "project_id": { "type": "integer", "required": false, "nullable": true },
+        "current_agent": { "type": "string", "required": false, "nullable": true },
+        "current_stage": { "type": "string", "required": false, "nullable": true },
+        "stage": { "type": "string", "required": false, "nullable": true },
+        "next_stage": { "type": "string", "required": false, "nullable": true },
+        "progress": { "type": "number", "ge": 0.0, "le": 1.0 },
+        "recovery_summary": { "type": "record", "values": { "type": "unknown" }, "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "run_message",
+      "category": "workflow",
+      "durable": true,
+      "description": "Structured pipeline activity message",
+      "payload": {
+        "agent": { "type": "string", "required": false, "nullable": true },
+        "role": { "type": "string", "required": false, "nullable": true },
+        "content": { "type": "string", "required": false, "default": "" },
+        "summary": { "type": "string", "required": false, "nullable": true },
+        "progress": { "type": "number", "required": false, "nullable": true, "ge": 0.0, "le": 1.0 },
+        "isLoading": { "type": "boolean", "required": false, "nullable": true },
+        "phase": { "type": "string", "enum": ["reasoning", "decision", "planning", "reviewing"], "required": false, "nullable": true },
+        "details": { "type": "string", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "agent_thinking",
+      "category": "workflow",
+      "durable": true,
+      "description": "Workflow stage reasoning trace",
+      "payload": {
+        "agent": { "type": "string" },
+        "phase": { "type": "string", "enum": ["reasoning", "decision", "planning", "reviewing"] },
+        "content": { "type": "string" },
+        "details": { "type": "string", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "llm_stream",
+      "category": "workflow",
+      "durable": true,
+      "description": "Live compacted snapshot of an in-flight LLM generation",
+      "payload": {
+        "stream_id": { "type": "string" },
+        "agent": { "type": "string" },
+        "status": { "type": "string", "enum": ["streaming", "done", "error"] },
+        "thinking": { "type": "string", "required": false, "default": "" },
+        "text": { "type": "string", "required": false, "default": "" },
+        "chars": { "type": "integer", "required": false, "default": 0, "ge": 0 },
+        "error": { "type": "string", "required": false, "nullable": true },
+        "progress": { "type": "number", "required": false, "nullable": true, "ge": 0.0, "le": 1.0 }
+      }
+    },
+    {
+      "type": "run_completed",
+      "category": "lifecycle",
+      "durable": true,
+      "description": "Workflow run reached completed terminal state",
+      "payload": {
+        "run_id": { "type": "integer", "required": false, "nullable": true },
+        "project_id": { "type": "integer", "required": false, "nullable": true },
+        "current_stage": { "type": "string", "required": false, "nullable": true },
+        "current_agent": { "type": "string", "required": false, "nullable": true },
+        "message": { "type": "string", "required": false, "nullable": true },
+        "video_generation_pending": { "type": "boolean", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "run_failed",
+      "category": "lifecycle",
+      "durable": true,
+      "description": "Workflow run failed",
+      "payload": {
+        "run_id": { "type": "integer", "required": false, "nullable": true },
+        "project_id": { "type": "integer", "required": false, "nullable": true },
+        "error": { "type": "string", "required": false, "nullable": true },
+        "error_code": { "type": "string", "required": false, "nullable": true },
+        "retryable": { "type": "boolean", "required": false, "nullable": true },
+        "agent": { "type": "string", "required": false, "nullable": true },
+        "current_stage": { "type": "string", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "run_awaiting_confirm",
+      "category": "lifecycle",
+      "durable": true,
+      "description": "Workflow run paused at a human-only approval gate",
+      "payload": {
+        "run_id": { "type": "integer" },
+        "project_id": { "type": "integer", "required": false, "nullable": true },
+        "agent": { "type": "string" },
+        "gate": { "type": "string", "required": false, "nullable": true },
+        "current_stage": { "type": "string", "required": false, "nullable": true },
+        "stage": { "type": "string", "required": false, "nullable": true },
+        "next_stage": { "type": "string", "required": false, "nullable": true },
+        "recovery_summary": { "type": "record", "values": { "type": "unknown" } },
+        "preserved_stages": { "type": "array", "items": { "type": "string" }, "required": false, "default": [] },
+        "message": { "type": "string", "required": false, "nullable": true },
+        "completed": { "type": "string", "required": false, "nullable": true },
+        "next_step": { "type": "string", "required": false, "nullable": true },
+        "question": { "type": "string", "required": false, "nullable": true },
+        "auto_mode": { "type": "boolean", "required": false, "nullable": true },
+        "story_outline": { "type": "record", "values": { "type": "unknown" }, "required": false, "nullable": true },
+        "visual_bible": { "type": "string", "required": false, "nullable": true },
+        "feedback": { "type": "record", "values": { "type": "unknown" }, "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "run_confirmed",
+      "category": "lifecycle",
+      "durable": true,
+      "description": "Human approval gate confirmed and execution resumed",
+      "payload": {
+        "run_id": { "type": "integer" },
+        "project_id": { "type": "integer", "required": false, "nullable": true },
+        "agent": { "type": "string" },
+        "gate": { "type": "string", "required": false, "nullable": true },
+        "current_stage": { "type": "string", "required": false, "nullable": true },
+        "stage": { "type": "string", "required": false, "nullable": true },
+        "next_stage": { "type": "string", "required": false, "nullable": true },
+        "recovery_summary": { "type": "record", "values": { "type": "unknown" }, "required": false, "nullable": true },
+        "auto_mode": { "type": "boolean", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "run_feedback",
+      "category": "lifecycle",
+      "durable": true,
+      "description": "Gate feedback receipt and regeneration status",
+      "payload": {
+        "run_id": { "type": "integer" },
+        "project_id": { "type": "integer", "required": false, "nullable": true },
+        "gate": { "type": "string", "required": false, "nullable": true },
+        "stage": { "type": "string", "required": false, "nullable": true },
+        "feedback_id": { "type": "string", "required": false, "nullable": true },
+        "round": { "type": "integer", "required": false, "default": 1, "ge": 1 },
+        "state": { "type": "string", "enum": ["received", "regenerating", "revised", "not_applied", "failed"] },
+        "content": { "type": "string", "required": false, "nullable": true },
+        "reason": { "type": "string", "required": false, "nullable": true },
+        "entity_type": { "type": "string", "required": false, "nullable": true },
+        "entity_ids": { "type": "array", "items": { "type": "integer" }, "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "run_cancelled",
+      "category": "lifecycle",
+      "durable": true,
+      "description": "Workflow run cancelled",
+      "payload": {
+        "run_id": { "type": "integer", "required": false, "nullable": true },
+        "project_id": { "type": "integer", "required": false, "nullable": true },
+        "run_ids": { "type": "array", "items": { "type": "integer" }, "required": false, "nullable": true },
+        "cancelled_count": { "type": "integer", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "character_created",
+      "category": "entity",
+      "durable": true,
+      "description": "Character entity created",
+      "payload": {
+        "character": { "type": "record", "values": { "type": "unknown" } }
+      }
+    },
+    {
+      "type": "character_updated",
+      "category": "entity",
+      "durable": true,
+      "description": "Character entity updated",
+      "payload": {
+        "character": { "type": "record", "values": { "type": "unknown" } }
+      }
+    },
+    {
+      "type": "character_deleted",
+      "category": "entity",
+      "durable": true,
+      "description": "Character entity deleted",
+      "payload": {
+        "character_id": { "type": "integer" }
+      }
+    },
+    {
+      "type": "shot_created",
+      "category": "entity",
+      "durable": true,
+      "description": "Shot entity created",
+      "payload": {
+        "shot": { "type": "record", "values": { "type": "unknown" } }
+      }
+    },
+    {
+      "type": "shot_updated",
+      "category": "entity",
+      "durable": true,
+      "description": "Shot entity updated",
+      "payload": {
+        "shot": { "type": "record", "values": { "type": "unknown" } }
+      }
+    },
+    {
+      "type": "shots_reordered",
+      "category": "entity",
+      "durable": true,
+      "description": "Shots reordered within project",
+      "payload": {
+        "project_id": { "type": "integer" },
+        "shots": { "type": "array", "items": { "type": "record", "values": { "type": "unknown" } } }
+      }
+    },
+    {
+      "type": "shot_deleted",
+      "category": "entity",
+      "durable": true,
+      "description": "Shot entity deleted",
+      "payload": {
+        "shot_id": { "type": "integer" }
+      }
+    },
+    {
+      "type": "shot_invalidation_cascaded",
+      "category": "invalidation",
+      "durable": true,
+      "description": "Keyframes or shots downstream of a modified shot were marked unchecked",
+      "payload": {
+        "project_id": { "type": "integer" },
+        "run_id": { "type": "integer", "required": false, "nullable": true },
+        "source_shot_id": { "type": "integer" },
+        "invalidated_shot_ids": { "type": "array", "items": { "type": "integer" } },
+        "reason": { "type": "string", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "outline_updated",
+      "category": "entity",
+      "durable": true,
+      "description": "Project story outline updated",
+      "payload": {
+        "project_id": { "type": "integer" },
+        "story_outline": { "type": "record", "values": { "type": "unknown" }, "required": false, "nullable": true },
+        "visual_bible": { "type": "string", "required": false, "nullable": true },
+        "outline_approved": { "type": "boolean", "required": false, "default": false }
+      }
+    },
+    {
+      "type": "project_updated",
+      "category": "entity",
+      "durable": true,
+      "description": "Project fields updated",
+      "payload": {
+        "project": { "type": "record", "values": { "type": "unknown" } }
+      }
+    },
+    {
+      "type": "data_cleared",
+      "category": "entity",
+      "durable": true,
+      "description": "Generated project entities cleared before re-run",
+      "payload": {
+        "cleared_types": { "type": "array", "items": { "type": "string" }, "required": false, "default": [] },
+        "start_agent": { "type": "string", "required": false, "nullable": true },
+        "mode": { "type": "string", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "critique_result",
+      "category": "workflow",
+      "durable": true,
+      "description": "Visual critique evaluation result",
+      "payload": {
+        "score": { "type": "number", "ge": 0.0, "le": 10.0 },
+        "dimensions": { "type": "record", "values": { "type": "number" }, "required": false, "default": {} },
+        "issues": { "type": "array", "items": { "type": "string" }, "required": false, "default": [] },
+        "suggestions": { "type": "array", "items": { "type": "string" }, "required": false, "default": [] },
+        "entity_type": { "type": "string", "required": false, "default": "" },
+        "entity_id": { "type": "integer", "required": false, "default": 0 },
+        "will_regenerate": { "type": "boolean", "required": false, "default": false }
+      }
+    },
+    {
+      "type": "bible_updated",
+      "category": "entity",
+      "durable": true,
+      "description": "Character visual bible and embedding updated",
+      "payload": {
+        "character_id": { "type": "integer" },
+        "visual_notes": { "type": "boolean", "required": false, "default": false },
+        "reference_images_count": { "type": "integer", "required": false, "default": 0 },
+        "has_embedding": { "type": "boolean", "required": false, "default": false }
+      }
+    },
+    {
+      "type": "version_created",
+      "category": "entity",
+      "durable": true,
+      "description": "Artifact snapshot version created",
+      "payload": {
+        "entity_type": { "type": "string", "enum": ["character", "shot"] },
+        "entity_id": { "type": "integer" },
+        "version": { "type": "integer" },
+        "trigger": { "type": "string" }
+      }
+    },
+    {
+      "type": "version_rollback",
+      "category": "entity",
+      "durable": true,
+      "description": "Artifact rolled back to previous version",
+      "payload": {
+        "entity_type": { "type": "string", "enum": ["character", "shot"] },
+        "entity_id": { "type": "integer" },
+        "from_version": { "type": "integer" },
+        "to_version": { "type": "integer" }
+      }
+    },
+    {
+      "type": "project_restored",
+      "category": "entity",
+      "durable": true,
+      "description": "Project restored to pre-regeneration snapshot",
+      "payload": {
+        "project_id": { "type": "integer" },
+        "run_id": { "type": "integer" },
+        "reason": { "type": "string", "enum": ["stopped", "dismissed", "restored"] }
+      }
+    },
+    {
+      "type": "audio_generated",
+      "category": "entity",
+      "durable": true,
+      "description": "Shot TTS and BGM generated",
+      "payload": {
+        "shot_id": { "type": "integer" },
+        "tts_url": { "type": "string", "required": false, "nullable": true },
+        "bgm_type": { "type": "string", "required": false, "nullable": true },
+        "duration": { "type": "number", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "export_completed",
+      "category": "export",
+      "durable": true,
+      "description": "Project export job finished",
+      "payload": {
+        "export_id": { "type": "string" },
+        "format": { "type": "string" },
+        "download_url": { "type": "string", "required": false, "nullable": true },
+        "status": { "type": "string", "enum": ["completed", "failed"] },
+        "error": { "type": "string", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "consistency_eval_completed",
+      "category": "consistency",
+      "durable": true,
+      "description": "Character visual consistency evaluation completed",
+      "payload": {
+        "project_id": { "type": "integer" },
+        "overall_score": { "type": "number", "ge": 0.0, "le": 100.0 },
+        "character_count": { "type": "integer", "required": false, "default": 0 }
+      }
+    },
+    {
+      "type": "chat_message",
+      "category": "chat",
+      "durable": true,
+      "description": "Project assistant chat message persisted",
+      "payload": {
+        "project_id": { "type": "integer" },
+        "message": { "type": "record", "values": { "type": "unknown" } }
+      }
+    },
+    {
+      "type": "chat_status",
+      "category": "chat",
+      "durable": true,
+      "description": "Project assistant busy/streaming/pending confirmation state",
+      "payload": {
+        "project_id": { "type": "integer" },
+        "busy": { "type": "boolean" },
+        "text": { "type": "string", "required": false, "default": "" },
+        "pending": { "type": "record", "values": { "type": "unknown" }, "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "chat_confirmation_created",
+      "category": "chat",
+      "durable": true,
+      "description": "Persistent write confirmation card created by chat agent",
+      "payload": {
+        "project_id": { "type": "integer" },
+        "tool_call_id": { "type": "string" },
+        "tool_name": { "type": "string" },
+        "tool_label": { "type": "string" },
+        "summary": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending"], "required": false, "default": "pending" },
+        "created_at": { "type": "string", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "chat_confirmation_resolved",
+      "category": "chat",
+      "durable": true,
+      "description": "Persistent write confirmation card approved or rejected by human",
+      "payload": {
+        "project_id": { "type": "integer" },
+        "tool_call_id": { "type": "string" },
+        "tool_name": { "type": "string" },
+        "status": { "type": "string", "enum": ["approved", "rejected"] },
+        "resolved_by": { "type": "string" },
+        "resolved_at": { "type": "string" }
+      }
+    },
+    {
+      "type": "chat_confirmation_expired",
+      "category": "chat",
+      "durable": true,
+      "description": "Pending chat confirmation card expired on timeout or startup recovery",
+      "payload": {
+        "project_id": { "type": "integer" },
+        "tool_call_id": { "type": "string", "required": false, "nullable": true },
+        "tool_name": { "type": "string", "required": false, "nullable": true },
+        "expired_count": { "type": "integer", "required": false, "nullable": true },
+        "status": { "type": "string", "enum": ["expired"], "required": false, "default": "expired" },
+        "resolved_by": { "type": "string", "enum": ["timeout", "recovery"] },
+        "resolved_at": { "type": "string" }
+      }
+    },
+    {
+      "type": "agent_thought",
+      "category": "chat",
+      "durable": true,
+      "description": "Streaming thought fragment from pi-agent-core chat assistant",
+      "payload": {
+        "project_id": { "type": "integer" },
+        "agent": { "type": "string" },
+        "phase": { "type": "string", "enum": ["reasoning", "decision", "planning", "reviewing"], "required": false, "nullable": true },
+        "content": { "type": "string" },
+        "delta": { "type": "string", "required": false, "nullable": true },
+        "done": { "type": "boolean", "required": false, "default": false },
+        "timestamp": { "type": "string", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "chat_agent_thought",
+      "category": "chat",
+      "durable": true,
+      "description": "Streaming thought fragment alias for workbench gate/queue thought stream",
+      "payload": {
+        "project_id": { "type": "integer" },
+        "agent": { "type": "string" },
+        "phase": { "type": "string", "enum": ["reasoning", "decision", "planning", "reviewing"], "required": false, "nullable": true },
+        "content": { "type": "string" },
+        "delta": { "type": "string", "required": false, "nullable": true },
+        "done": { "type": "boolean", "required": false, "default": false },
+        "timestamp": { "type": "string", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "mcp_server_status",
+      "category": "mcp",
+      "durable": true,
+      "description": "Outbound or inbound MCP server health status update",
+      "payload": {
+        "server_name": { "type": "string" },
+        "direction": { "type": "string", "enum": ["outbound", "inbound"] },
+        "transport": { "type": "string", "enum": ["stdio", "http"] },
+        "status": { "type": "string", "enum": ["connected", "unhealthy", "disconnected"] },
+        "latency_ms": { "type": "number", "required": false, "nullable": true },
+        "error": { "type": "string", "required": false, "nullable": true },
+        "timestamp": { "type": "string", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "mcp_rpc_request",
+      "category": "mcp",
+      "durable": true,
+      "description": "Structured JSON-RPC 2.0 request log emitted by MCP client or server",
+      "payload": {
+        "request_id": { "type": "union", "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+        "server_name": { "type": "string" },
+        "direction": { "type": "string", "enum": ["outbound", "inbound"] },
+        "method": { "type": "string" },
+        "params": { "type": "record", "values": { "type": "unknown" }, "required": false, "nullable": true },
+        "timestamp": { "type": "string" }
+      }
+    },
+    {
+      "type": "mcp_rpc_response",
+      "category": "mcp",
+      "durable": true,
+      "description": "Structured JSON-RPC 2.0 response log emitted by MCP client or server",
+      "payload": {
+        "request_id": { "type": "union", "anyOf": [{ "type": "string" }, { "type": "integer" }] },
+        "server_name": { "type": "string" },
+        "direction": { "type": "string", "enum": ["outbound", "inbound"] },
+        "method": { "type": "string" },
+        "ok": { "type": "boolean" },
+        "latency_ms": { "type": "number", "required": false, "nullable": true },
+        "result": { "type": "unknown", "required": false, "nullable": true },
+        "error": { "type": "record", "values": { "type": "unknown" }, "required": false, "nullable": true },
+        "timestamp": { "type": "string" }
+      }
+    },
+    {
+      "type": "mcp_tool_called",
+      "category": "mcp",
+      "durable": true,
+      "description": "MCP tool execution lifecycle event",
+      "payload": {
+        "server_name": { "type": "string" },
+        "tool_name": { "type": "string" },
+        "direction": { "type": "string", "enum": ["outbound", "inbound"] },
+        "status": { "type": "string", "enum": ["started", "completed", "failed"] },
+        "latency_ms": { "type": "number", "required": false, "nullable": true },
+        "error": { "type": "string", "required": false, "nullable": true },
+        "timestamp": { "type": "string", "required": false, "nullable": true }
+      }
+    },
+    {
+      "type": "cli_process_started",
+      "category": "cli",
+      "durable": true,
+      "description": "External or local CLI tool subprocess spawned",
+      "payload": {
+        "command": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" }, "required": false, "default": [] },
+        "pid": { "type": "integer", "required": false, "nullable": true },
+        "stage": { "type": "string", "required": false, "nullable": true },
+        "timestamp": { "type": "string" }
+      }
+    },
+    {
+      "type": "cli_stdout",
+      "category": "cli",
+      "durable": true,
+      "description": "CLI subprocess stdout/stderr output line",
+      "payload": {
+        "command": { "type": "string" },
+        "stream": { "type": "string", "enum": ["stdout", "stderr"] },
+        "line": { "type": "string" },
+        "pid": { "type": "integer", "required": false, "nullable": true },
+        "timestamp": { "type": "string" }
+      }
+    },
+    {
+      "type": "cli_process_exited",
+      "category": "cli",
+      "durable": true,
+      "description": "CLI subprocess exited",
+      "payload": {
+        "command": { "type": "string" },
+        "exit_code": { "type": "integer" },
+        "duration_ms": { "type": "number", "required": false, "nullable": true },
+        "pid": { "type": "integer", "required": false, "nullable": true },
+        "error": { "type": "string", "required": false, "nullable": true },
+        "timestamp": { "type": "string" }
+      }
+    }
+  ]
+}

@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 import io
 import logging
+from pathlib import Path
 
 import httpx
 from PIL import Image
 
-from app.services.file_cleaner import get_local_path, is_local_file
+from app.services.file_cleaner import STATIC_DIR, get_local_path, is_local_file
 from app.services.face_cropper import (
     compose_face_reference_strip,
     is_face_cropping_available,
@@ -23,18 +25,39 @@ class ImageComposer:
     def __init__(self, max_width: int = 1920, max_height: int = 1080):
         self.max_width = max_width
         self.max_height = max_height
+        self._client: httpx.AsyncClient | None = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        if self._client is None or self._client.is_closed:
+            self._client = httpx.AsyncClient(timeout=30.0)
+        return self._client
+
+    @staticmethod
+    def _resolve_local_file(url: str) -> Path | None:
+        if is_local_file(url):
+            return get_local_path(url)
+        # Zero-copy support for local absolute filesystem paths within STATIC_DIR
+        if url.startswith("/") or (len(url) > 2 and url[1] == ":"):
+            candidate = Path(url).resolve()
+            try:
+                candidate.relative_to(STATIC_DIR.resolve())
+                return candidate
+            except ValueError:
+                return None
+        return None
 
     async def _download_image(self, url: str) -> Image.Image:
-        """下载图片"""
-        if is_local_file(url):
-            local_path = get_local_path(url)
-            if local_path and local_path.exists():
-                return Image.open(local_path).convert("RGB")
+        """下载图片（支持本地零拷贝路径与远端 HTTP URL）"""
+        local_path = self._resolve_local_file(url)
+        if local_path is not None:
+            if local_path.exists():
+                return await asyncio.to_thread(lambda: Image.open(local_path).convert("RGB"))
             raise FileNotFoundError(f"Local image not found: {local_path}")
-        async with httpx.AsyncClient() as client:
-            response = await client.get(url, timeout=30.0)
-            response.raise_for_status()
-            return Image.open(io.BytesIO(response.content)).convert("RGB")
+        client = self._get_client()
+        response = await client.get(url, timeout=30.0)
+        response.raise_for_status()
+        raw = response.content
+        return await asyncio.to_thread(lambda: Image.open(io.BytesIO(raw)).convert("RGB"))
 
     def _resize_to_fit(self, img: Image.Image, max_width: int, max_height: int) -> Image.Image:
         """等比例缩放图片以适应指定尺寸"""

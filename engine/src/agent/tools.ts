@@ -81,12 +81,14 @@ export function readTools(projectId: number, api: BackendFetch): ChatTool[] {
           characters: characters.map((c) => ({
             id: c.id,
             name: c.name,
+            revision: c.revision ?? null,
             has_image: Boolean(c.image_url),
             approval: c.approval_state,
           })),
           shots: shots.map((s) => ({
             id: s.id,
             order: s.order,
+            revision: s.revision ?? null,
             description: clip(s.description),
             has_image: Boolean(s.image_url),
             has_video: Boolean(s.video_url),
@@ -266,16 +268,38 @@ export function writeTools(projectId: number, api: BackendFetch): ChatTool[] {
         image_prompt: Text("画面提示词"),
         dialogue: Text("台词"),
         camera: Text("镜头"),
+        expected_revision: Type.Optional(
+          Type.Integer({ minimum: 1, description: "预期版本号（CAS），不传则读取最新 revision" }),
+        ),
       }),
       confirm: (args) =>
         `修改分镜 #${String(args.shot_id)} 的 ${Object.keys(fields(args, ["description", "image_prompt", "dialogue", "camera"])).join("、")}`,
       execute: exec(async (args: Record<string, unknown>) => {
-        await owned("shots", args.shot_id as number);
-        await api(`/shots/${String(args.shot_id)}`, {
-          method: "PATCH",
-          body: fields(args, ["description", "image_prompt", "dialogue", "camera"]),
-        });
-        return ok({ ok: true });
+        const current = await owned("shots", args.shot_id as number);
+        const expectedRevision =
+          typeof args.expected_revision === "number"
+            ? args.expected_revision
+            : typeof current.revision === "number"
+              ? current.revision
+              : 1;
+        try {
+          await api(`/shots/${String(args.shot_id)}`, {
+            method: "PATCH",
+            body: {
+              ...fields(args, ["description", "image_prompt", "dialogue", "camera"]),
+              expected_revision: expectedRevision,
+            },
+          });
+          return ok({ ok: true });
+        } catch (error) {
+          if (error instanceof BackendError && error.status === 409) {
+            throw new BackendError(
+              409,
+              `分镜 #${String(args.shot_id)} 版本冲突（409 Conflict，预期 revision=${expectedRevision}，已被画布或其他操作修改）。请先调用 get_project_state 重新读取最新内容与 revision 后再重试。`,
+            );
+          }
+          throw error;
+        }
       }),
     },
     {
@@ -287,16 +311,38 @@ export function writeTools(projectId: number, api: BackendFetch): ChatTool[] {
         name: Text("名字"),
         description: Text("描述"),
         visual_notes: Text("外形备注"),
+        expected_revision: Type.Optional(
+          Type.Integer({ minimum: 1, description: "预期版本号（CAS），不传则读取最新 revision" }),
+        ),
       }),
       confirm: (args) =>
         `修改角色 #${String(args.character_id)} 的 ${Object.keys(fields(args, ["name", "description", "visual_notes"])).join("、")}`,
       execute: exec(async (args: Record<string, unknown>) => {
-        await owned("characters", args.character_id as number);
-        await api(`/characters/${String(args.character_id)}`, {
-          method: "PATCH",
-          body: fields(args, ["name", "description", "visual_notes"]),
-        });
-        return ok({ ok: true });
+        const current = await owned("characters", args.character_id as number);
+        const expectedRevision =
+          typeof args.expected_revision === "number"
+            ? args.expected_revision
+            : typeof current.revision === "number"
+              ? current.revision
+              : 1;
+        try {
+          await api(`/characters/${String(args.character_id)}`, {
+            method: "PATCH",
+            body: {
+              ...fields(args, ["name", "description", "visual_notes"]),
+              expected_revision: expectedRevision,
+            },
+          });
+          return ok({ ok: true });
+        } catch (error) {
+          if (error instanceof BackendError && error.status === 409) {
+            throw new BackendError(
+              409,
+              `角色 #${String(args.character_id)} 版本冲突（409 Conflict，预期 revision=${expectedRevision}，已被画布或其他操作修改）。请先调用 get_project_state 重新读取最新内容与 revision 后再重试。`,
+            );
+          }
+          throw error;
+        }
       }),
     },
   ];

@@ -15,12 +15,24 @@
     "e2e:install": "playwright install --with-deps"
   },
   "dependencies": {
+    "@formkit/auto-animate": "^0.10.2",
+    "@radix-ui/react-checkbox": "^1.4.1",
+    "@radix-ui/react-context-menu": "^2.4.1",
+    "@radix-ui/react-popover": "^1.3.1",
+    "@radix-ui/react-radio-group": "^1.5.1",
+    "@radix-ui/react-slider": "^1.6.1",
+    "@radix-ui/react-switch": "^1.4.1",
+    "@radix-ui/react-tabs": "^1.2.1",
+    "@radix-ui/react-tooltip": "^1.4.1",
     "@tanstack/react-query": "^5.62.0",
     "@xyflow/react": "^12.12.0",
+    "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-router-dom": "^7.1.0",
+    "sonner": "^2.0.8",
     "zustand": "^5.0.2"
   },
   "devDependencies": {

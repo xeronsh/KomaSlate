@@ -8,18 +8,63 @@ import json
 import logging
 import os
 import sys
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
+from typing import TextIO
 from urllib.parse import urlsplit
 
 from app.config import get_settings
 from app.services.audio_service import AudioService
 from app.services.character_bible import compute_face_embedding_from_bytes
+from app.services.file_cleaner import STATIC_DIR, get_local_path
 from app.services.image_composer import ImageComposer
 from app.services.tts_providers import default_voice
 from app.services.tts_voices import get_voice_for_character
 
 logger = logging.getLogger(__name__)
+
+_COMPOSER: ImageComposer | None = None
+
+
+def _get_composer() -> ImageComposer:
+    global _COMPOSER
+    if _COMPOSER is None:
+        _COMPOSER = ImageComposer()
+    return _COMPOSER
+
+
+def _allowed_media_roots() -> list[Path]:
+    roots = [STATIC_DIR.resolve()]
+    extra = os.environ.get("ENGINE_STATIC_DIR")
+    if extra:
+        roots.append(Path(extra).resolve())
+    return roots
+
+
+def _resolve_safe_media_path(raw_path: str) -> Path:
+    if raw_path.startswith("/static/"):
+        local = get_local_path(raw_path)
+        if local is not None:
+            return local
+    candidate = Path(raw_path).resolve()
+    for root in _allowed_media_roots():
+        try:
+            candidate.relative_to(root)
+            return candidate
+        except ValueError:
+            continue
+    raise ValueError(f"Security violation: media path outside allowed boundaries: {raw_path}")
+
+
+def _to_static_url(path: Path) -> str:
+    for root in _allowed_media_roots():
+        try:
+            rel = path.resolve().relative_to(root)
+            return f"/static/{rel.as_posix()}"
+        except ValueError:
+            continue
+    return str(path)
 
 
 async def handle(request: object) -> object:
@@ -28,17 +73,34 @@ async def handle(request: object) -> object:
 
     action = request.get("action")
     if action == "face_embedding":
+        local_path_raw = request.get("image_path") or request.get("path")
+        if isinstance(local_path_raw, str) and local_path_raw:
+            safe_path = _resolve_safe_media_path(local_path_raw)
+            data = await asyncio.to_thread(safe_path.read_bytes)
+            return await asyncio.to_thread(compute_face_embedding_from_bytes, data)
         image = request.get("image")
         if not isinstance(image, str):
             return None
-        return compute_face_embedding_from_bytes(base64.b64decode(image, validate=True))
+        raw = base64.b64decode(image, validate=True)
+        return await asyncio.to_thread(compute_face_embedding_from_bytes, raw)
 
-    composer = ImageComposer()
+    composer = _get_composer()
     if action == "character_reference":
         urls = request.get("urls")
         if not isinstance(urls, list) or not urls:
             return None
         image = await composer.compose_character_reference_image(urls)
+        output_path = request.get("output_path")
+        if isinstance(output_path, str) and output_path:
+            dest = _resolve_safe_media_path(output_path)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            await asyncio.to_thread(dest.write_bytes, image)
+            return {"file_path": str(dest), "path": str(dest), "url": _to_static_url(dest)}
+        if request.get("return_path"):
+            dest = (STATIC_DIR / "managed-v1" / f"char-ref-{uuid.uuid4().hex[:12]}.png").resolve()
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            await asyncio.to_thread(dest.write_bytes, image)
+            return {"file_path": str(dest), "path": str(dest), "url": _to_static_url(dest)}
         return base64.b64encode(image).decode("ascii")
 
     if action == "nine_grid_reference":
@@ -51,6 +113,17 @@ async def handle(request: object) -> object:
             next_image_url=request.get("next"),
             character_image_urls=request.get("characters"),
         )
+        output_path = request.get("output_path")
+        if isinstance(output_path, str) and output_path:
+            dest = _resolve_safe_media_path(output_path)
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            await asyncio.to_thread(dest.write_bytes, image)
+            return {"file_path": str(dest), "path": str(dest), "url": _to_static_url(dest)}
+        if request.get("return_path"):
+            dest = (STATIC_DIR / "managed-v1" / f"nine-grid-{uuid.uuid4().hex[:12]}.png").resolve()
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            await asyncio.to_thread(dest.write_bytes, image)
+            return {"file_path": str(dest), "path": str(dest), "url": _to_static_url(dest)}
         return base64.b64encode(image).decode("ascii")
 
     if action == "process_audio":
@@ -157,16 +230,28 @@ def _protocol_stdout():
     return protocol
 
 
-def main() -> None:
-    out = _protocol_stdout()
-    for line in sys.stdin:
+async def _serve_loop(out: TextIO) -> None:
+    """Single long-lived asyncio event loop reading newline-delimited JSON requests."""
+    loop = asyncio.get_running_loop()
+    while True:
+        line = await loop.run_in_executor(None, sys.stdin.readline)
+        if not line:
+            break
+        stripped = line.strip()
+        if not stripped:
+            continue
         try:
-            result = asyncio.run(handle(json.loads(line)))
+            result = await handle(json.loads(stripped))
         except Exception as error:
             logger.exception("Engine media operation failed")
             result = {"error": str(error)}
         out.write(json.dumps(result) + "\n")
         out.flush()
+
+
+def main() -> None:
+    out = _protocol_stdout()
+    asyncio.run(_serve_loop(out))
 
 
 if __name__ == "__main__":

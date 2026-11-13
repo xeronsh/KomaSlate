@@ -333,4 +333,164 @@ describe("pipeline runner (fake providers, auto-mode)", () => {
     expect(shared.getRun(runId)?.status).toBe("running");
     edb.close();
   });
+
+  it("reclaim-lease-waiting-for-approval: reclaims expired waiting_for_approval and Execution lease errors (ENG-02)", () => {
+    const { shared, edb } = boot();
+    const projectId = seedProject(edb);
+    edb.db
+      .prepare(
+        `INSERT INTO agentrun (project_id, status, current_agent, progress, confirm_requested,
+                               lease_owner, lease_token, lease_expires_at, created_at, updated_at)
+         VALUES (?, 'waiting_for_approval', 'outline', 0.2, 0,
+                 'engine-1', 'tok-gate', datetime('now', '-300 seconds'),
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))`,
+      )
+      .run(projectId);
+    const runId = Number(
+      (edb.db.prepare("SELECT MAX(id) AS id FROM agentrun").get() as { id: number | null }).id ?? 0,
+    );
+
+    expect(shared.reclaimRunLease(runId, "engine-1", "tok-gate", 120)).toBe(true);
+    expect(shared.getRun(runId)?.status).toBe("waiting_for_approval");
+    expect(shared.runLeaseOwned(runId, "tok-gate")).toBe(true);
+
+    // Also verifies backend startup lease expiry wording ('Execution lease expired') is reclaimable.
+    edb.db
+      .prepare(
+        `UPDATE agentrun
+         SET status = 'failed', error = 'Execution lease expired; run is safe to resume',
+             lease_owner = NULL, lease_token = NULL, lease_expires_at = NULL
+         WHERE id = ?`,
+      )
+      .run(runId);
+    expect(shared.reclaimRunLease(runId, "engine-2", "tok-2", 120)).toBe(true);
+    expect(shared.getRun(runId)?.status).toBe("running");
+    expect(shared.getRun(runId)?.error).toBeNull();
+    edb.close();
+  });
+
+  it("plan-context-visual-bible: PlanAgent injects project.visual_bible into prompt payload (ENG-03)", async () => {
+    const { runnerFor, shared, edb } = boot();
+    const projectId = seedProject(edb);
+    const bibleText = "水墨赛璐珞质感，青灰夜色，关键道具设定：透明玻璃瓶。";
+    shared.updateProject(projectId, { visual_bible: bibleText, outline_approved: 1 });
+    edb.db
+      .prepare(
+        `INSERT INTO agentrun (project_id, status, current_agent, progress, confirm_requested, created_at, updated_at)
+         VALUES (?, 'queued', 'plan', 0.2, 0, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))`,
+      )
+      .run(projectId);
+    const runId = Number(
+      (edb.db.prepare("SELECT MAX(id) AS id FROM agentrun").get() as { id: number | null }).id ?? 0,
+    );
+
+    const capturedPrompts: string[] = [];
+    const llm = new TextLlmService(edb);
+    const origGenerate = llm.generate.bind(llm);
+    llm.generate = async (req) => {
+      capturedPrompts.push(req.prompt);
+      return origGenerate(req);
+    };
+
+    const runner = new PipelineRunner(edb, leaseRun(shared, runId), llm);
+    const confirmer = setInterval(() => shared.updateRun(runId, { confirm_requested: 1 }), 50);
+    try {
+      // Run starting at plan_characters and stop after shots_approval by cancelling on render_characters.
+      const originalSave = edb.saveCheckpoint.bind(edb);
+      edb.saveCheckpoint = (rid, stage, state) => {
+        originalSave(rid, stage, state);
+        if (stage === "plan_shots") runner.requestCancel();
+      };
+      await runner.run({
+        projectId,
+        runId,
+        autoMode: true,
+        userFeedback: "",
+        startStage: "plan_characters",
+      });
+    } finally {
+      clearInterval(confirmer);
+    }
+    void runnerFor;
+
+    expect(capturedPrompts.length).toBeGreaterThanOrEqual(2);
+    for (const prompt of capturedPrompts) {
+      expect(prompt).toContain(bibleText);
+      const parsed = JSON.parse(prompt) as { project?: { visual_bible?: string }; visual_bible?: string };
+      expect(parsed.project?.visual_bible).toBe(bibleText);
+      expect(parsed.visual_bible).toBe(bibleText);
+    }
+    edb.close();
+  }, 60000);
+
+  it("crash-recovery-critique: persists and restores critiqueRounds & critiqueNotes across resume (ENG-04)", async () => {
+    const { shared, edb } = boot();
+    const projectId = seedProject(edb);
+    edb.db
+      .prepare(
+        `INSERT INTO agentrun (project_id, status, current_agent, progress, confirm_requested, created_at, updated_at)
+         VALUES (?, 'queued', 'render', 0.5, 0, strftime('%Y-%m-%dT%H:%M:%fZ','now'), strftime('%Y-%m-%dT%H:%M:%fZ','now'))`,
+      )
+      .run(projectId);
+    const runId = Number(
+      (edb.db.prepare("SELECT MAX(id) AS id FROM agentrun").get() as { id: number | null }).id ?? 0,
+    );
+    edb.db
+      .prepare('INSERT INTO shot (project_id, "order", description, character_ids) VALUES (?, 1, ?, ?)')
+      .run(projectId, "主角推门", "[]");
+    const shotId = Number(
+      (edb.db.prepare("SELECT MAX(id) AS id FROM shot WHERE project_id = ?").get(projectId) as { id: number }).id,
+    );
+
+    // Simulate round 2 state persisted in engine_checkpoints before crash.
+    edb.saveCheckpoint(runId, "character_images_approval", { completed_at: "2026-11-13T00:00:00Z", approved: true });
+    edb.saveCheckpoint(runId, "stage_critique_state", {
+      critiqueRounds: { characters: 0, shots: 2 },
+      critiqueNotes: [[shotId, "玻璃瓶透明度不足，保持上一轮设定"]],
+    });
+
+    process.env.CRITIQUE_MAX_ROUNDS = "2";
+    const llm = new TextLlmService(edb);
+    const origGenerate = llm.generate.bind(llm);
+    llm.generate = async (req) => {
+      // Force low critic score; because recovered critiqueRounds.shots === 2 == CRITIQUE_MAX_ROUNDS,
+      // it MUST NOT enter an infinite redraw loop!
+      if (req.system.includes("CriticAgent")) {
+        return {
+          text: JSON.stringify({
+            score: 3,
+            dimensions: { consistency: 3, quality: 3, composition: 3 },
+            issues: ["仍不达标"],
+            suggestions: ["手工调整"],
+          }),
+          provider: "fake",
+          model: "fake",
+        };
+      }
+      return origGenerate(req);
+    };
+
+    const runner = new PipelineRunner(edb, leaseRun(shared, runId), llm);
+    const confirmer = setInterval(() => shared.updateRun(runId, { confirm_requested: 1 }), 50);
+    let outcome: Awaited<ReturnType<PipelineRunner["resume"]>>;
+    try {
+      outcome = await runner.resume({ projectId, runId, autoMode: true, userFeedback: "" });
+    } finally {
+      clearInterval(confirmer);
+      delete process.env.CRITIQUE_MAX_ROUNDS;
+    }
+
+    expect(outcome.status, outcome.error ?? "").toBe("completed");
+    const renderAttempts = edb.db
+      .prepare("SELECT COUNT(*) AS n FROM engine_stage_attempts WHERE run_id = ? AND stage = 'render_shots'")
+      .get(runId) as { n: number };
+    // Rendered once on resume; critique stopped at round 2 without infinite loop.
+    expect(renderAttempts.n).toBe(1);
+    const critiqueState = edb.getCheckpoint<{
+      critiqueRounds: { characters: number; shots: number };
+      critiqueNotes: Array<[number, string]>;
+    }>(runId, "stage_critique_state");
+    expect(critiqueState?.critiqueRounds.shots).toBe(3);
+    edb.close();
+  }, 60000);
 });

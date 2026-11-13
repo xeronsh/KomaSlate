@@ -40,9 +40,19 @@ def _build_engine() -> AsyncEngine:
         def _sqlite_pragmas(dbapi_conn, _record):  # noqa: ANN001
             cursor = dbapi_conn.cursor()
             cursor.execute("PRAGMA journal_mode=WAL")
+            cursor.execute("PRAGMA synchronous=NORMAL")
+            cursor.execute("PRAGMA busy_timeout=15000")
             cursor.execute("PRAGMA foreign_keys=ON")
-            cursor.execute("PRAGMA busy_timeout=5000")
             cursor.close()
+
+        @event.listens_for(engine.sync_engine, "begin")
+        def _sqlite_begin(conn):  # noqa: ANN001
+            # Keep read-only sessions in DEFERRED mode so concurrent WAL reads
+            # never block behind writers; serialize write transactions up front.
+            if conn.get_execution_options().get("readonly"):
+                conn.exec_driver_sql("BEGIN DEFERRED")
+            else:
+                conn.exec_driver_sql("BEGIN IMMEDIATE")
 
     return engine
 
@@ -50,6 +60,9 @@ def _build_engine() -> AsyncEngine:
 engine: AsyncEngine = _build_engine()
 async_session_maker: async_sessionmaker[AsyncSession] = async_sessionmaker(
     engine, class_=AsyncSession, expire_on_commit=False
+)
+async_readonly_session_maker: async_sessionmaker[AsyncSession] = async_sessionmaker(
+    engine.execution_options(readonly=True), class_=AsyncSession, expire_on_commit=False
 )
 
 
@@ -102,8 +115,6 @@ async def init_db() -> None:
 
     async with async_session_maker() as session:
         config_service = ConfigService(session)
-        await config_service.ensure_initialized()
-        await config_service.ensure_provider_configs_initialized()
         await config_service.apply_settings_overrides()
         await ensure_builtin_templates(session)
 
@@ -131,7 +142,7 @@ async def init_db() -> None:
                 status=case((AgentRun.cancel_requested_at.is_not(None), "cancelled"), else_="failed"),  # type: ignore[union-attr]
                 error=case(
                     (AgentRun.cancel_requested_at.is_not(None), None),  # type: ignore[union-attr]
-                    else_="Execution lease expired; run is safe to resume",
+                    else_="Execution lease expired",
                 ),
                 lease_owner=None,
                 lease_token=None,
@@ -154,4 +165,9 @@ async def init_db() -> None:
 
 async def get_session() -> AsyncGenerator[AsyncSession, None]:
     async with async_session_maker() as session:
+        yield session
+
+
+async def get_readonly_session() -> AsyncGenerator[AsyncSession, None]:
+    async with async_readonly_session_maker() as session:
         yield session

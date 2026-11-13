@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import type { ComicWorkflowNode } from "../../graph/types";
 import { CardContextMenu, menuPosition } from "./CardContextMenu";
@@ -20,13 +21,14 @@ describe("CardContextMenu", () => {
 		expect(screen.getByRole("button", { name: "重做首帧" })).toHaveFocus();
 	});
 
-	it("closes on Escape and on an outside pointer", () => {
+	it("closes on Escape and on an outside pointer", async () => {
+		const user = userEvent.setup();
 		const onClose = vi.fn();
 		render(
 			<CardContextMenu menu={{ node, x: 10, y: 10 }} projectId={1} structureLocked={false} onClose={onClose} />,
 		);
-		fireEvent.keyDown(window, { key: "Escape" });
-		fireEvent.pointerDown(document.body);
+		await user.keyboard("{Escape}");
+		await user.click(document.body);
 		expect(onClose).toHaveBeenCalledTimes(2);
 	});
 

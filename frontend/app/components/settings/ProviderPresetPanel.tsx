@@ -1,7 +1,9 @@
 import { useMemo, useRef, useState } from "react";
 import type { ConfigItem, ConfigValue } from "~/types";
-import { SvgIcon } from "~/components/ui/SvgIcon";
+import { Combobox } from "~/components/ui/Combobox";
 import { PlainButton } from "~/components/ui/PlainButton";
+import { RadioGroup, RadioGroupItem } from "~/components/ui/RadioGroup";
+import { SvgIcon } from "~/components/ui/SvgIcon";
 import { ConfigField, type ConfigChangeHandler } from "./ConfigField";
 import {
 	PRESET_GROUP_LABEL,
@@ -159,7 +161,15 @@ export function ProviderPresetPanel({ service, items, formState, onChange, onApp
 
 	return (
 		<div className="space-y-3" data-testid="provider-presets">
-			<div role="radiogroup" aria-label="选择服务商" className="space-y-2">
+			<RadioGroup
+				value={preset.id}
+				onValueChange={(nextId) => {
+					const found = PROVIDER_PRESETS[service].find((p) => p.id === nextId);
+					if (found) choose(found);
+				}}
+				aria-label="选择服务商"
+				className="space-y-2"
+			>
 				{GROUPS.map((group) => {
 					const presets = PROVIDER_PRESETS[service].filter((p) => p.group === group && !isTestMode(p));
 					if (presets.length === 0) return null;
@@ -170,22 +180,21 @@ export function ProviderPresetPanel({ service, items, formState, onChange, onApp
 								{presets.map((p) => {
 									const selected = p.id === preset.id;
 									return (
-										<PlainButton
+										<RadioGroupItem
 											key={p.id}
-											role="radio"
-											aria-checked={selected}
+											value={p.id}
 											data-preset={p.id}
-											onClick={() => choose(p)}
-											className={`touch-target-dense flex min-w-0 items-center gap-2 rounded-md border px-2 py-1.5 text-left transition-colors duration-fast ${
-												selected ? "border-primary bg-primary/10" : "border-line-strong bg-paper-100 hover:bg-paper-300"
-											}`}
+											variant="card"
+											className={
+												selected ? "border-primary bg-primary/10" : ""
+											}
 										>
 											<ProviderMark preset={p} selected={selected} />
 											<span className="min-w-0">
 												<span className="block text-sm font-semibold leading-snug">{p.name}</span>
 												<span className="hidden truncate text-xs text-ink-muted sm:block">{p.tagline}</span>
 											</span>
-										</PlainButton>
+										</RadioGroupItem>
 									);
 								})}
 							</div>
@@ -193,12 +202,11 @@ export function ProviderPresetPanel({ service, items, formState, onChange, onApp
 					);
 				})}
 				{testMode ? (
-					<PlainButton
-						role="radio"
-						aria-checked={testMode.id === preset.id}
+					<RadioGroupItem
+						value={testMode.id}
 						data-preset={testMode.id}
-						onClick={() => choose(testMode)}
-						className={`touch-target-dense inline-flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs transition-colors duration-fast ${
+						variant="card"
+						className={`inline-flex items-center gap-1.5 px-2 py-1 text-xs ${
 							testMode.id === preset.id
 								? "border-primary bg-primary/10 text-ink"
 								: "border-dashed border-line-strong text-ink-muted hover:bg-paper-300"
@@ -207,9 +215,9 @@ export function ProviderPresetPanel({ service, items, formState, onChange, onApp
 						<SvgIcon name="tools" size={12} />
 						{testMode.name}
 						<span className="text-ink-muted">· {testMode.tagline}</span>
-					</PlainButton>
+					</RadioGroupItem>
 				) : null}
-			</div>
+			</RadioGroup>
 
 			<section
 				ref={detailRef}
@@ -263,24 +271,22 @@ export function ProviderPresetPanel({ service, items, formState, onChange, onApp
 				{preset.regions.length > 1 ? (
 					<div className="space-y-1">
 						<p className="m-0 text-xs font-semibold">地域</p>
-						<div role="radiogroup" aria-label="地域" className="flex flex-wrap gap-1">
-							{preset.regions.map((r) => {
-								const on = r.id === region?.id;
-								return (
-									<PlainButton
-										key={r.id}
-										role="radio"
-										aria-checked={on}
-										onClick={() => chooseRegion(r.id)}
-										className={`touch-target-dense rounded-md border px-2 py-1 text-xs font-semibold transition-colors duration-fast ${
-											on ? "border-primary bg-primary text-primary-content" : "border-line-strong bg-paper-100 hover:bg-paper-300"
-										}`}
-									>
-										{r.label}
-									</PlainButton>
-								);
-							})}
-						</div>
+						<RadioGroup
+							value={region?.id ?? ""}
+							onValueChange={chooseRegion}
+							aria-label="地域"
+							className="flex flex-wrap gap-1"
+						>
+							{preset.regions.map((r) => (
+								<RadioGroupItem
+									key={r.id}
+									value={r.id}
+									variant="pill"
+								>
+									{r.label}
+								</RadioGroupItem>
+							))}
+						</RadioGroup>
 					</div>
 				) : null}
 
@@ -321,37 +327,32 @@ export function ProviderPresetPanel({ service, items, formState, onChange, onApp
 						<label htmlFor={`preset-model-${service}`} className="block text-xs font-semibold">
 							{preset.modelLabel ?? "模型"}
 						</label>
-						<input
+						<Combobox
 							id={`preset-model-${service}`}
 							name={keys.model}
 							value={model}
-							onChange={onChange}
-							list={preset.models.length ? `preset-models-${service}` : undefined}
-							autoComplete="off"
-							className="input-doodle h-9 touch-target-dense w-full border border-line-strong bg-paper-100 px-2.5 font-mono text-xs"
+							options={preset.models}
+							onValueChange={(value) => {
+								if (keys.model) onApply({ [keys.model]: value });
+							}}
+							searchPlaceholder="搜索推荐模型…"
+							inputClassName="h-9 touch-target-dense border-line-strong bg-paper-100 px-2.5 font-mono text-xs"
 						/>
 						{preset.models.length ? (
-							<>
-								<datalist id={`preset-models-${service}`}>
-									{preset.models.map((m) => (
-										<option key={m} value={m} />
-									))}
-								</datalist>
-								<div className="flex flex-wrap gap-1" aria-label="推荐模型">
-									{preset.models.map((m) => (
-										<PlainButton
-											key={m}
-											aria-pressed={m === model}
-											onClick={() => onApply({ [keys.model!]: m })}
-											className={`touch-target-dense rounded-sm border px-2 py-0.5 font-mono text-xs transition-colors duration-fast ${
-												m === model ? "border-primary bg-primary/10 text-ink" : "border-line bg-paper-100 text-ink-muted hover:bg-paper-300"
-											}`}
-										>
-											{m}
-										</PlainButton>
-									))}
-								</div>
-							</>
+							<div className="flex flex-wrap gap-1" aria-label="推荐模型">
+								{preset.models.map((m) => (
+									<PlainButton
+										key={m}
+										aria-pressed={m === model}
+										onClick={() => onApply({ [keys.model!]: m })}
+										className={`touch-target-dense rounded-sm border px-2 py-0.5 font-mono text-xs transition-colors duration-fast ${
+											m === model ? "border-primary bg-primary/10 text-ink" : "border-line bg-paper-100 text-ink-muted hover:bg-paper-300"
+										}`}
+									>
+										{m}
+									</PlainButton>
+								))}
+							</div>
 						) : null}
 					</div>
 				) : null}
@@ -361,38 +362,33 @@ export function ProviderPresetPanel({ service, items, formState, onChange, onApp
 						<label htmlFor={`preset-voice-${service}`} className="block text-xs font-semibold">
 							默认音色
 						</label>
-						<input
+						<Combobox
 							id={`preset-voice-${service}`}
 							name={keys.voice}
 							value={voice}
-							onChange={onChange}
-							list={voices.length ? `preset-voices-${service}` : undefined}
-							autoComplete="off"
-							className="input-doodle h-9 touch-target-dense w-full border border-line-strong bg-paper-100 px-2.5 font-mono text-xs"
+							options={voices}
+							onValueChange={(value) => {
+								if (keys.voice) onApply({ [keys.voice]: value });
+							}}
+							searchPlaceholder="搜索推荐音色…"
+							inputClassName="h-9 touch-target-dense border-line-strong bg-paper-100 px-2.5 font-mono text-xs"
 						/>
 						<p className="m-0 text-xs text-ink-muted">角色没有单独指定音色时用这个；角色音色在画布的属性面板里改。</p>
 						{voices.length ? (
-							<>
-								<datalist id={`preset-voices-${service}`}>
-									{voices.map((v) => (
-										<option key={v} value={v} />
-									))}
-								</datalist>
-								<div className="flex flex-wrap gap-1" aria-label="推荐音色">
-									{voices.map((v) => (
-										<PlainButton
-											key={v}
-											aria-pressed={v === voice}
-											onClick={() => onApply({ [keys.voice!]: v })}
-											className={`touch-target-dense rounded-sm border px-2 py-0.5 font-mono text-xs transition-colors duration-fast ${
-												v === voice ? "border-primary bg-primary/10 text-ink" : "border-line bg-paper-100 text-ink-muted hover:bg-paper-300"
-											}`}
-										>
-											{v}
-										</PlainButton>
-									))}
-								</div>
-							</>
+							<div className="flex flex-wrap gap-1" aria-label="推荐音色">
+								{voices.map((v) => (
+									<PlainButton
+										key={v}
+										aria-pressed={v === voice}
+										onClick={() => onApply({ [keys.voice!]: v })}
+										className={`touch-target-dense rounded-sm border px-2 py-0.5 font-mono text-xs transition-colors duration-fast ${
+											v === voice ? "border-primary bg-primary/10 text-ink" : "border-line bg-paper-100 text-ink-muted hover:bg-paper-300"
+										}`}
+									>
+										{v}
+									</PlainButton>
+								))}
+							</div>
 						) : null}
 					</div>
 				) : null}

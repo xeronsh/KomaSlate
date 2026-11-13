@@ -1,10 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import SqliteDatabase from "better-sqlite3";
 import { createEngineApp } from "../src/index.js";
 import { WORKFLOW_VERSION } from "../src/contract.js";
+import { assertSafeMediaPath, McpClientPool, resolveStaticMediaReference } from "../src/mcp/index.js";
 import { PipelineRunner, type PipelineRequest } from "../src/pipeline/runner.js";
 import { installEngineRuntimeSchema, installExecutionLeaseColumns } from "./test-db.js";
 
@@ -467,5 +468,142 @@ describe("engine sidecar server", () => {
     const res = await post("/runs", "{not json");
     expect(res.status).toBe(400);
     expect(res.body.error.code).toBe("INVALID_JSON");
+  });
+
+  it("enforces assertSafeMediaPath against prefix lookalikes & symlinks and resolves stdio vs HTTP media refs", () => {
+    const root = join(dir, "static");
+    const leakDir = join(dir, "static_leak");
+    const outsideDir = join(dir, "outside");
+    mkdirSync(root, { recursive: true });
+    mkdirSync(leakDir, { recursive: true });
+    mkdirSync(outsideDir, { recursive: true });
+
+    const validFile = join(root, "frame.png");
+    const leakFile = join(leakDir, "secret.png");
+    const outsideFile = join(outsideDir, "secret.png");
+    const symlinkEscape = join(root, "escape.png");
+    writeFileSync(validFile, "ok");
+    writeFileSync(leakFile, "no");
+    writeFileSync(outsideFile, "no");
+    symlinkSync(outsideFile, symlinkEscape);
+
+    expect(assertSafeMediaPath(validFile, [root])).toBe(validFile);
+    expect(() => assertSafeMediaPath(leakFile, [root])).toThrow(/Security violation/);
+    expect(() => assertSafeMediaPath(symlinkEscape, [root])).toThrow(/Security violation/);
+
+    expect(
+      resolveStaticMediaReference("/static/frame.png", {
+        staticDir: root,
+        transport: "stdio",
+      }),
+    ).toBe(validFile);
+    expect(
+      resolveStaticMediaReference("/static/frame.png", {
+        staticDir: root,
+        transport: "http",
+        gatewayBaseUrl: "http://127.0.0.1:18765",
+      }),
+    ).toBe("http://127.0.0.1:18765/static/frame.png");
+  });
+
+  it("exposes MCP client pool status, 2-failure unhealthy ping, AbortSignal, policy updates, and CLI dry-run routes", async () => {
+    const mcpScript = join(dir, "fake-mcp.mjs");
+    writeFileSync(
+      mcpScript,
+      `#!/usr/bin/env node
+import readline from "node:readline";
+const rl = readline.createInterface({ input: process.stdin });
+let failPing = false;
+rl.on("line", (line) => {
+  const msg = JSON.parse(line);
+  if (msg.id === undefined) return;
+  if (msg.method === "initialize") {
+    process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { protocolVersion: "2024-11-05", capabilities: {} } }) + "\\n");
+  } else if (msg.method === "ping") {
+    if (failPing) {
+      process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: msg.id, error: { code: -32000, message: "ping failed" } }) + "\\n");
+    } else {
+      process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: {} }) + "\\n");
+    }
+  } else if (msg.method === "tools/list") {
+    process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { tools: [{ name: "inpaint", description: "Inpaint shot" }] } }) + "\\n");
+  } else if (msg.method === "tools/call") {
+    if (msg.params?.name === "fail_next_pings") {
+      failPing = true;
+      process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { ok: true } }) + "\\n");
+    } else if (msg.params?.name === "slow") {
+      setTimeout(() => {
+        process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: msg.id, result: { content: [] } }) + "\\n");
+      }, 5000);
+    }
+  }
+});
+`,
+    );
+    chmodSync(mcpScript, 0o755);
+
+    app.mcpPool.registerServer({
+      name: "comfyui-local",
+      transport: "stdio",
+      command: process.execPath,
+      args: [mcpScript],
+    });
+
+    const listRes = await (await fetch(`${base}/mcp/servers`)).json() as {
+      servers: Array<{ server_name: string; enabled: boolean; status: string }>;
+    };
+    expect(listRes.servers).toMatchObject([{ server_name: "comfyui-local", enabled: true, status: "disconnected" }]);
+
+    const pingRes = await post("/mcp/servers/comfyui-local/ping", { project_id: 1 });
+    expect(pingRes.status).toBe(200);
+    expect(pingRes.body.ok).toBe(true);
+    expect(pingRes.body.server).toMatchObject({ server_name: "comfyui-local", status: "connected", enabled: true });
+
+    // AbortSignal cancels an in-flight MCP tool call cleanly.
+    const abortCtrl = new AbortController();
+    const slowPromise = app.mcpPool.callTool("comfyui-local", "slow", {}, { signal: abortCtrl.signal, projectId: 1 });
+    setTimeout(() => abortCtrl.abort(), 30);
+    await expect(slowPromise).rejects.toThrow(/aborted/);
+
+    // 2 consecutive ping failures transition status -> unhealthy.
+    await app.mcpPool.callTool("comfyui-local", "fail_next_pings", {}, { projectId: 1 });
+    const fail1 = await post("/mcp/servers/comfyui-local/ping", { project_id: 1 });
+    expect(fail1.body.server.status).toBe("disconnected");
+    const fail2 = await post("/mcp/servers/comfyui-local/ping", { project_id: 1 });
+    expect(fail2.body.server.status).toBe("unhealthy");
+
+    // Policy & enable toggles
+    const policyRes = await fetch(`${base}/mcp/servers/comfyui-local/policy`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ policy: "auto_readonly" }),
+    });
+    expect(policyRes.status).toBe(200);
+    expect(await policyRes.json()).toMatchObject({ policy: "read_only_auto" });
+
+    const disableRes = await fetch(`${base}/mcp/servers/comfyui-local`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enabled: false }),
+    });
+    expect(disableRes.status).toBe(200);
+    expect(await disableRes.json()).toMatchObject({ enabled: false, status: "disconnected" });
+
+    // CLI tools + dry-run + structured Outbox telemetry
+    const cliToolsRes = await (await fetch(`${base}/cli/tools`)).json() as { tools: Array<{ id: string }> };
+    expect(cliToolsRes.tools.map((t) => t.id)).toContain("komaslate");
+    const dryRunRes = await post("/cli/dry-run", { tool: "komaslate", project_id: 1 });
+    expect(dryRunRes.status).toBe(200);
+    const eventsRes = await (await fetch(`${base}/mcp/events?project_id=1`)).json() as {
+      events: Array<{ type: string }>;
+    };
+    const eventTypes = eventsRes.events.map((e) => e.type);
+    expect(eventTypes).toContain("mcp_server_status");
+    expect(eventTypes).toContain("mcp_rpc_request");
+    expect(eventTypes).toContain("mcp_rpc_response");
+    expect(eventTypes).toContain("mcp_tool_called");
+    expect(eventTypes).toContain("cli_process_started");
+    expect(eventTypes).toContain("cli_process_exited");
+    void McpClientPool;
   });
 });

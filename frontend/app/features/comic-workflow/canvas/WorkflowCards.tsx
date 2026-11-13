@@ -1,6 +1,8 @@
 import { MEDIA, imageReady, videoReady } from "~/components/ui/media";
-import { useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 import { SvgIcon } from "~/components/ui/SvgIcon";
+import { Tooltip } from "~/components/ui/Tooltip";
+import type { SemanticLodTier } from "~/features/workbench/nodegraph/bezierWires";
 import { getStaticUrl } from "~/services/api";
 import { canvasEvents } from "~/components/canvas/canvasEvents";
 import { NodeStatusBadge } from "./nodeStatus";
@@ -423,17 +425,20 @@ function ShotCard({ node }: { node: Extract<ComicWorkflowNode, { kind: "shot" }>
 				</div>
 				<div className="mt-auto flex flex-wrap gap-1 pt-1.5">
 					{node.characterNames.length > 0 ? (
-						<span
-							className={`${TAG_PILL} border-primary/25 bg-primary/10 font-medium text-primary`}
-							title={node.characterNames.join("、")}
-						>
-							{node.characterNames.join("、")}
-						</span>
+						<Tooltip content={node.characterNames.join("、")}>
+							<span
+								className={`${TAG_PILL} border-primary/25 bg-primary/10 font-medium text-primary`}
+							>
+								{node.characterNames.join("、")}
+							</span>
+						</Tooltip>
 					) : null}
 					{node.shot.camera ? (
-						<span className={`${TAG_PILL} border-line bg-paper-100/80 text-ink-muted`} title={node.shot.camera}>
-							{node.shot.camera}
-						</span>
+						<Tooltip content={node.shot.camera}>
+							<span className={`${TAG_PILL} border-line bg-paper-100/80 text-ink-muted`}>
+								{node.shot.camera}
+							</span>
+						</Tooltip>
 					) : null}
 					<ReviewPill status={node.shot.review_status} note={node.shot.review_note} />
 				</div>
@@ -446,16 +451,20 @@ function ShotCard({ node }: { node: Extract<ComicWorkflowNode, { kind: "shot" }>
 function ReviewPill({ status, note }: { status?: string | null; note?: string | null }) {
 	if (status === "unchecked") {
 		return (
-			<span className={`${TAG_PILL} border-transparent bg-warning-bg text-warning-fg`} title={note || "视觉审查没有运行"}>
-				未检查
-			</span>
+			<Tooltip content={note || "视觉审查没有运行"}>
+				<span className={`${TAG_PILL} border-transparent bg-warning-bg text-warning-fg`}>
+					未检查
+				</span>
+			</Tooltip>
 		);
 	}
 	if (status === "failed") {
 		return (
-			<span className={`${TAG_PILL} border-transparent bg-error-bg text-error-fg`} title={note || "未通过检查"}>
-				未通过
-			</span>
+			<Tooltip content={note || "未通过检查"}>
+				<span className={`${TAG_PILL} border-transparent bg-error-bg text-error-fg`}>
+					未通过
+				</span>
+			</Tooltip>
 		);
 	}
 	if (status === "passed") {
@@ -697,6 +706,89 @@ const CARD_TONE: Partial<Record<WorkflowNodeStatus, string>> & { draft: string }
 	blocked: "border-error/50",
 };
 
+export const WorkflowLodContext = createContext<SemanticLodTier>("mid");
+
+export function useWorkflowLod(): SemanticLodTier {
+	return useContext(WorkflowLodContext);
+}
+
+function MacroCapsuleCard({ node }: { node: ComicWorkflowNode }) {
+	const icon =
+		node.kind === "character"
+			? "user"
+			: node.kind === "shot"
+				? "shot"
+				: node.kind === "output"
+					? "render"
+					: "lightbulb";
+	const kindLabel =
+		node.kind === "character"
+			? "CHAR"
+			: node.kind === "shot"
+				? "SHOT"
+				: node.kind === "output"
+					? "OUTPUT"
+					: "BRIEF";
+	return (
+		<div
+			className="flex h-full flex-col justify-between bg-paper-100 p-4"
+			data-lod-view="macro"
+		>
+			<div className="flex items-center justify-between gap-2">
+				<span className="inline-flex items-center gap-1.5 rounded-full border border-line bg-paper-200 px-2.5 py-1 font-mono text-sm font-semibold text-ink-muted">
+					<SvgIcon name={icon} size={16} />
+					{kindLabel}
+				</span>
+				{statusBadge(node.status)}
+			</div>
+			<div className="my-auto flex flex-col gap-1">
+				<p className="m-0 truncate text-2xl font-bold leading-tight text-ink">
+					{node.title}
+				</p>
+				<p className="m-0 truncate text-base text-ink-muted">
+					{node.subtitle}
+				</p>
+			</div>
+			<div className="flex items-center justify-between border-t border-line pt-2 font-mono text-sm text-ink-muted">
+				<span>
+					{node.kind === "shot"
+						? `rev=${node.shot.revision ?? 1}`
+						: node.kind === "character"
+							? `rev=${node.character.revision ?? 1}`
+							: "stage"}
+				</span>
+				<span>MACRO</span>
+			</div>
+		</div>
+	);
+}
+
+function MicroPortStrip({ node }: { node: ComicWorkflowNode }) {
+	const rev =
+		node.kind === "shot"
+			? node.shot.revision ?? 1
+			: node.kind === "character"
+				? node.character.revision ?? 1
+				: null;
+	const ports =
+		node.kind === "shot"
+			? `in: cast(${node.characterNames.length}) -> out: frame/clip`
+			: node.kind === "character"
+				? `in: ref(${node.character.reference_images?.length ?? 0}) -> out: bible`
+				: "in: shots -> out: final.mp4";
+	return (
+		<div
+			className="flex shrink-0 items-center justify-between gap-2 border-t border-line bg-paper-200 px-2.5 py-1 font-mono text-xs text-ink-muted"
+			data-lod-view="micro"
+		>
+			<span className="truncate">{ports}</span>
+			{rev != null ? (
+				<span className="shrink-0 rounded-sm bg-surface px-1 text-ink">rev={rev}</span>
+			) : null}
+		</div>
+	);
+}
+
 /** 业务卡片（React Flow 节点）。选中由 React Flow 管理。 */
 export function WorkflowCardView({
 	node,
@@ -708,18 +800,28 @@ export function WorkflowCardView({
 	selected?: boolean;
 }) {
 	const output = node.kind === "output";
+	const lod = useWorkflowLod();
 	return (
-		<div className="panel-marks relative h-full" data-selected={selected || undefined}>
+		<div className="panel-marks relative h-full" data-selected={selected || undefined} data-lod={lod}>
 			<article
 				aria-label={node.title}
 				data-status={node.status}
-				className={`h-full select-none overflow-hidden rounded-sm bg-paper-100 text-ink transition duration-fast ease-standard ${
+				className={`flex h-full select-none flex-col overflow-hidden rounded-sm bg-paper-100 text-ink transition duration-fast ease-standard ${
 					output ? "comic-frame" : `border ${CARD_TONE[node.status] ?? CARD_TONE.draft}`
 				} ${draggable ? "cursor-grab active:cursor-grabbing" : ""} ${selected ? "ring-2 ring-primary ring-offset-2 ring-offset-paper-100" : ""}`}
 			>
-				{node.kind === "character" ? <CharacterCard node={node} /> : null}
-				{node.kind === "shot" ? <ShotCard node={node} /> : null}
-				{output ? <OutputCard node={node} /> : null}
+				{lod === "macro" ? (
+					<MacroCapsuleCard node={node} />
+				) : (
+					<>
+						<div className="min-h-0 flex-1 overflow-hidden">
+							{node.kind === "character" ? <CharacterCard node={node} /> : null}
+							{node.kind === "shot" ? <ShotCard node={node} /> : null}
+							{output ? <OutputCard node={node} /> : null}
+						</div>
+						{lod === "micro" ? <MicroPortStrip node={node} /> : null}
+					</>
+				)}
 			</article>
 			{/* 选中：四角裁切线（印刷裁切标记），纯装饰 */}
 			<span className="crop-marks" aria-hidden="true" />

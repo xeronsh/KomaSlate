@@ -17,7 +17,16 @@ import { piModels, registerFake } from "../src/pi-models.js";
 import type { AgentMessage, StreamFn } from "@earendil-works/pi-agent-core";
 import { EngineDatabase } from "../src/db.js";
 import { TextLlmService } from "../src/llm.js";
-import { ChatAgents, ChatBusyError, chatItem, MAX_TURNS, recentContext, SYSTEM_PROMPT, type ChatItem } from "../src/agent/index.js";
+import {
+  ChatAgents,
+  ChatBusyError,
+  chatItem,
+  MAX_TURNS,
+  recentContext,
+  repairOrphanToolCalls,
+  SYSTEM_PROMPT,
+  type ChatItem,
+} from "../src/agent/index.js";
 import { BackendError, backendFetch, chatTools, readTools, writeTools, type BackendFetch } from "../src/agent/tools.js";
 import { createEngineApp } from "../src/index.js";
 import { installEngineRuntimeSchema } from "./test-db.js";
@@ -28,12 +37,12 @@ const SECRET = "sk-test-never-shown";
 const FIXTURES: Record<string, unknown> = {
   "/projects/1": { id: 1, title: "雨夜", status: "draft", style: "anime", story_outline: { logline: "一个雨夜" }, video_url: null },
   "/projects/1/characters": [
-    { id: 11, name: "林", image_url: "/c/11.png", approval_state: "approved" },
-    { id: 12, name: "雨", image_url: null, approval_state: "draft" },
+    { id: 11, name: "林", revision: 3, image_url: "/c/11.png", approval_state: "approved" },
+    { id: 12, name: "雨", revision: 2, image_url: null, approval_state: "draft" },
   ],
   "/projects/1/shots": [
-    { id: 21, order: 1, description: "开场", image_url: "/s/21.png", video_url: null, review_status: "passed", approval_state: "draft" },
-    { id: 22, order: 2, description: "x".repeat(300), image_url: null, video_url: null, approval_state: "draft" },
+    { id: 21, order: 1, revision: 4, description: "开场", image_url: "/s/21.png", video_url: null, review_status: "passed", approval_state: "draft" },
+    { id: 22, order: 2, revision: 5, description: "x".repeat(300), image_url: null, video_url: null, approval_state: "draft" },
   ],
   "/projects/1/runs/current": { state: "active", active_run: { id: 7, status: "running" }, awaiting_gate: null },
   "/runs/7/timing": { run_id: 7, current_stage: "render_shots", at_gate: false, elapsed_seconds: 12 },
@@ -254,8 +263,8 @@ describe("chat agent", () => {
     await tool("recompose").execute("c", {});
     expect(calls.filter((call) => /^(POST|PUT|PATCH)/.test(call))).toEqual([
       'POST /characters/12/regenerate {"type":"image","description":"红伞"}',
-      'PATCH /shots/21 {"dialogue":"走吧"}',
-      'PATCH /characters/11 {"name":"林夕"}',
+      'PATCH /shots/21 {"dialogue":"走吧","expected_revision":4}',
+      'PATCH /characters/11 {"name":"林夕","expected_revision":3}',
       'PUT /projects/1/outline {"logline":"雨停了"}',
       'POST /projects/1/runs {"notes":null,"auto_mode":false}',
       "POST /runs/7/resume null",
@@ -303,11 +312,134 @@ describe("chat agent", () => {
 
   it("keeps the newest turns in the model context without orphaning tool results", () => {
     const user = (n: number) => ({ role: "user", content: `u${n}`, timestamp: n }) as AgentMessage;
-    const tool = (n: number) => ({ role: "toolResult", toolCallId: `t${n}`, toolName: "x", content: [], isError: false, timestamp: n }) as AgentMessage;
-    const short = [user(1), tool(2)];
+    const call = (n: number) =>
+      ({
+        role: "assistant",
+        content: [{ type: "toolCall", id: `t${n}`, name: "x", arguments: {} }],
+        timestamp: n,
+      }) as unknown as AgentMessage;
+    const tool = (n: number) =>
+      ({ role: "toolResult", toolCallId: `t${n}`, toolName: "x", content: [], isError: false, timestamp: n }) as AgentMessage;
+    const short = [user(1), call(2), tool(2)];
     expect(recentContext(short, 4)).toBe(short);
-    expect(recentContext([user(1), tool(2), tool(3), user(4), tool(5)], 4).map((m) => m.timestamp)).toEqual([4, 5]);
-    expect(recentContext([user(1), tool(2), tool(3), tool(4)], 2)).toHaveLength(2);
+    expect(recentContext([user(1), call(2), tool(2), user(4), call(5), tool(5)], 4).map((m) => m.timestamp)).toEqual([
+      4,
+      5,
+      5,
+    ]);
+    expect(recentContext([user(1), call(2), tool(2), user(4)], 2)).toHaveLength(1);
+  });
+
+  it("transcript-recovery: heals orphan toolUse on restart and expires pending chat_confirmation cards (ENG-01)", async () => {
+    // Seed a pending confirmation card and an assistant toolCall with no toolResult.
+    db.db.prepare("INSERT INTO project (id, title, story, style, status, outline_approved, created_at, updated_at) VALUES (1, '雨夜', 's', 'anime', 'draft', 0, '2026-11-13T00:00:00Z', '2026-11-13T00:00:00Z')").run();
+    db.upsertChatConfirmation({
+      projectId: 1,
+      toolCallId: "orphan-call-1",
+      toolName: "regenerate_shot",
+      toolLabel: "重画分镜",
+      parametersJson: '{"shot_id":21,"type":"image"}',
+      summary: "重新生成分镜 #21 的画面",
+    });
+    db.appendChatMessage(1, { role: "user", content: "重画第1镜", timestamp: 1 });
+    db.appendChatMessage(1, {
+      ...fauxAssistantMessage(fauxToolCall("regenerate_shot", { shot_id: 21, type: "image" }), { stopReason: "toolUse" }),
+      content: [{ type: "toolCall", id: "orphan-call-1", name: "regenerate_shot", arguments: { shot_id: 21, type: "image" } }],
+    });
+
+    // Simulate process restart: ChatAgents constructor runs startup expiry sweep.
+    const restarted = new ChatAgents({ db, llm: new TextLlmService(db), api: fixtureApi() });
+    const row = db.db
+      .prepare("SELECT status, resolved_by FROM chat_confirmation WHERE tool_call_id = ?")
+      .get("orphan-call-1") as { status: string; resolved_by: string };
+    expect(row).toEqual({ status: "expired", resolved_by: "recovery" });
+    expect(events(db, "chat_confirmation_expired")).toHaveLength(1);
+
+    // Loading history / sending a follow-up heals the orphan toolCall with a synthetic toolResult.
+    await restarted.send(1, "项目状态").done;
+    const msgs = saved(db);
+    const healedResult = msgs.find(
+      (m) => m.role === "toolResult" && m.toolCallId === "orphan-call-1",
+    ) as Extract<AgentMessage, { role: "toolResult" }> | undefined;
+    expect(healedResult).toBeDefined();
+    expect(healedResult?.isError).toBe(true);
+    expect(lastText(msgs)).toContain("项目「雨夜」");
+
+    // Direct unit check on bidirectional repair (forward + backward orphan cleanup).
+    const repaired = repairOrphanToolCalls([
+      { role: "toolResult", toolCallId: "missing-call", toolName: "x", content: [], isError: false, timestamp: 1 } as AgentMessage,
+      {
+        role: "assistant",
+        content: [{ type: "toolCall", id: "dangling-1", name: "get_run_status", arguments: {} }],
+        timestamp: 2,
+      } as unknown as AgentMessage,
+    ]);
+    expect(repaired.map((m) => m.role)).toEqual(["assistant", "toolResult"]);
+    expect((repaired[1] as Extract<AgentMessage, { role: "toolResult" }>).toolCallId).toBe("dangling-1");
+  });
+
+  it("tools-cas: update_shot and update_character send expected_revision and surface 409 conflict (ENG-06)", async () => {
+    const patchCalls: Array<{ path: string; body: unknown }> = [];
+    const conflictApi: BackendFetch = async (path, init) => {
+      if ((init?.method ?? "GET") === "PATCH") {
+        patchCalls.push({ path, body: init?.body });
+        throw new BackendError(409, "Entity was modified concurrently");
+      }
+      return FIXTURES[path] ?? {};
+    };
+    const tools = writeTools(1, conflictApi);
+    const updateShot = tools.find((t) => t.name === "update_shot")!;
+    const updateCharacter = tools.find((t) => t.name === "update_character")!;
+
+    await expect(updateShot.execute("c1", { shot_id: 21, dialogue: "新台词" })).rejects.toThrow(/409 Conflict/);
+    await expect(updateCharacter.execute("c2", { character_id: 11, name: "新名", expected_revision: 9 })).rejects.toThrow(
+      /409 Conflict/,
+    );
+    expect(patchCalls).toEqual([
+      { path: "/shots/21", body: { dialogue: "新台词", expected_revision: 4 } },
+      { path: "/characters/11", body: { name: "新名", expected_revision: 9 } },
+    ]);
+  });
+
+  it("context-boundary: recentContext never splits toolCall/toolResult pairs across 60 messages (ENG-08)", () => {
+    const history: AgentMessage[] = [
+      { role: "user", content: "start", timestamp: 0 } as AgentMessage,
+    ];
+    for (let i = 1; i <= 30; i += 1) {
+      history.push({
+        role: "assistant",
+        content: [{ type: "toolCall", id: `call-${i}`, name: "get_run_status", arguments: {} }],
+        timestamp: i * 2 - 1,
+      } as unknown as AgentMessage);
+      history.push({
+        role: "toolResult",
+        toolCallId: `call-${i}`,
+        toolName: "get_run_status",
+        content: [{ type: "text", text: `ok-${i}` }],
+        isError: false,
+        timestamp: i * 2,
+      } as AgentMessage);
+    }
+    expect(history.length).toBe(61);
+
+    const windowed = recentContext(history, 40);
+    expect(windowed.length).toBeLessThanOrEqual(40);
+    expect(windowed.length).toBeGreaterThan(0);
+    expect(windowed[0]!.role).not.toBe("toolResult");
+
+    const declaredIds = new Set<string>();
+    const resultIds = new Set<string>();
+    for (const msg of windowed) {
+      if (msg.role === "assistant" && Array.isArray(msg.content)) {
+        for (const block of msg.content as Array<{ type?: string; id?: string }>) {
+          if (block.type === "toolCall" && block.id) declaredIds.add(block.id);
+        }
+      } else if (msg.role === "toolResult") {
+        resultIds.add(msg.toolCallId);
+      }
+    }
+    expect(declaredIds.size).toBeGreaterThan(0);
+    expect(resultIds).toEqual(declaredIds);
   });
 
   it("uses the configured text model for real providers", () => {

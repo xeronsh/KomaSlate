@@ -12,7 +12,7 @@ from app.api.v1.routes import export as export_routes
 from app.db.utils import utcnow
 from app.models.export_cache import ExportCache
 from app.schemas.export import ExportResponse
-from tests.factories import create_project, create_shot
+from tests.factories import create_project, create_shot, read_outbox_events
 
 
 class FakeExporter:
@@ -54,12 +54,12 @@ def export_env(monkeypatch, shared_session_maker):
     return tasks, use
 
 
-def _export_events(ws_manager):
-    return [event["data"] for _, event in ws_manager.events if event["type"] == "export_completed"]
+async def _export_events(session):
+    return [e["data"] for e in await read_outbox_events(session, "export_completed")]
 
 
 @pytest.mark.asyncio
-async def test_pdf_export_completes_and_is_recorded(async_client, test_session, ws_manager, export_env):
+async def test_pdf_export_completes_and_is_recorded(async_client, test_session, export_env):
     tasks, use = export_env
     exporter = use(FakeExporter())
     project = await create_project(test_session)
@@ -78,7 +78,7 @@ async def test_pdf_export_completes_and_is_recorded(async_client, test_session, 
     assert exporter.calls == [("pdf", project.id, [1, 2])]
     await test_session.refresh(project)
     assert project.exports == [f"/static/exports/{project.id}.pdf"]
-    assert _export_events(ws_manager) == [
+    assert await _export_events(test_session) == [
         {
             "export_id": export_id,
             "format": "pdf",
@@ -117,7 +117,7 @@ async def test_webtoon_export_uses_the_strip_exporter(async_client, test_session
 
 
 @pytest.mark.asyncio
-async def test_failed_export_reports_failed_with_the_reason(async_client, test_session, ws_manager, export_env):
+async def test_failed_export_reports_failed_with_the_reason(async_client, test_session, export_env):
     tasks, use = export_env
     use(FakeExporter(fail=True))
     project = await create_project(test_session)
@@ -129,8 +129,9 @@ async def test_failed_export_reports_failed_with_the_reason(async_client, test_s
     status = await async_client.get(f"/api/v1/projects/{project.id}/export/{export_id}/status")
     assert status.json()["status"] == "failed"
     assert status.json()["download_url"] is None
-    assert _export_events(ws_manager)[0]["status"] == "failed"
-    assert _export_events(ws_manager)[0]["error"] == "disk full"
+    events = await _export_events(test_session)
+    assert events[0]["status"] == "failed"
+    assert events[0]["error"] == "disk full"
     await test_session.refresh(project)
     assert not project.exports
 

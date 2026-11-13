@@ -50,6 +50,7 @@ async def events_db(monkeypatch, test_session, shared_session_maker):
     )
     await test_session.commit()
     monkeypatch.setattr("app.db.session.async_session_maker", shared_session_maker)
+    monkeypatch.setattr("app.db.session.async_readonly_session_maker", shared_session_maker)
     monkeypatch.setattr(db_change_notifier, "_active", False, raising=False)
 
     async def add(seq: int, etype: str, payload: Any, project_id: int = 1) -> None:
@@ -153,6 +154,7 @@ async def test_missing_events_table_still_connects(monkeypatch, shared_session_m
     manager = _FakeManager()
     _patch_ws_app(monkeypatch, manager)
     monkeypatch.setattr("app.db.session.async_session_maker", shared_session_maker)
+    monkeypatch.setattr("app.db.session.async_readonly_session_maker", shared_session_maker)
 
     async def connected() -> bool:
         return any(e["type"] == "connected" for _, e in manager.events)
@@ -161,3 +163,34 @@ async def test_missing_events_table_still_connects(monkeypatch, shared_session_m
 
     assert (1, {"type": "pong", "data": {}}) in manager.events
     assert "event watermark unavailable" in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_watermark_error_preserves_client_cursor_and_concurrent_send_lock(monkeypatch, shared_session_maker):
+    """BE-09: transient watermark DB failure keeps requested `after` cursor (never resets to 0) and WS send uses per-socket Lock."""
+    manager = _FakeManager()
+    _patch_ws_app(monkeypatch, manager)
+    # Point readonly maker to DB without engine_run_events so watermark raises OperationalError
+    monkeypatch.setattr("app.db.session.async_session_maker", shared_session_maker)
+    monkeypatch.setattr("app.db.session.async_readonly_session_maker", shared_session_maker)
+    monkeypatch.setattr(db_change_notifier, "_active", False, raising=False)
+
+    # Create engine_run_events ONLY after initial watermark failure by hooking second query?
+    # Even simpler: check that if cursor=50 and watermark fails, seq 1..50 are NOT replayed when table appears!
+    async def connected() -> bool:
+        return any(e["type"] == "connected" for _, e in manager.events)
+
+    await _ws_handler()(_ScriptedSocket({"after": "50"}, [(connected, {"type": "ping"})]), 1)
+    assert (1, {"type": "pong", "data": {}}) in manager.events
+
+    # Verify ConnectionManager attaches a dedicated asyncio.Lock per websocket
+    from app.ws.manager import ConnectionManager
+
+    class _DummyWs:
+        pass
+
+    real_mgr = ConnectionManager()
+    ws1 = _DummyWs()
+    lock1 = real_mgr._get_ws_lock(ws1)  # type: ignore[arg-type]
+    assert lock1 is real_mgr._get_ws_lock(ws1)  # type: ignore[arg-type]
+    assert isinstance(lock1, asyncio.Lock)

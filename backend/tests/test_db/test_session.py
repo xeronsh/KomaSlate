@@ -68,10 +68,47 @@ async def test_init_db_runs_schema_check_and_config(monkeypatch):
 
     assert calls == {
         "alembic_upgrade": True,
-        "ensure_initialized": True,
-        "ensure_provider_configs": True,
+        "ensure_initialized": False,
+        "ensure_provider_configs": False,
         "apply_overrides": True,
     }
+
+
+@pytest.mark.asyncio
+async def test_sqlite_wal_begin_immediate_concurrent_reads_and_writes(tmp_path, monkeypatch):
+    """BE-02: 50 concurrent read/write tasks complete with 0 database-is-locked errors."""
+    import asyncio
+    from sqlalchemy import text
+    from app.models.project import Project
+
+    db_file = tmp_path / "concurrent.db"
+    fake_settings = SimpleNamespace(database_url=f"sqlite+aiosqlite:///{db_file}", db_echo=False)
+    monkeypatch.setattr(session_module, "get_settings", lambda: fake_settings)
+
+    eng = session_module._build_engine()
+    from sqlmodel import SQLModel
+    from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession
+
+    async with eng.begin() as conn:
+        await conn.run_sync(SQLModel.metadata.create_all)
+
+    rw_maker = async_sessionmaker(eng, class_=AsyncSession, expire_on_commit=False)
+    ro_maker = async_sessionmaker(eng.execution_options(readonly=True), class_=AsyncSession, expire_on_commit=False)
+
+    async def worker(idx: int) -> None:
+        if idx % 2 == 0:
+            async with rw_maker() as s:
+                s.add(Project(title=f"P{idx}", story="s", style="anime"))
+                await s.commit()
+        else:
+            async with ro_maker() as s:
+                await s.execute(text("SELECT COUNT(*) FROM project"))
+
+    await asyncio.gather(*(worker(i) for i in range(50)))
+    async with ro_maker() as s:
+        total = (await s.execute(text("SELECT COUNT(*) FROM project"))).scalar()
+    assert total == 25
+    await eng.dispose()
 
 
 @pytest.mark.asyncio

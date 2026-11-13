@@ -69,11 +69,10 @@ describe("GenerationSection · shot", () => {
 		expect(screen.getByRole("note")).toHaveTextContent("生成运行中，结构写入操作已锁定。");
 		expect(button("已批准")).toBeDisabled();
 		for (const name of ["重做首帧 · S02", "重做视频 · S02", "换回上一版", "保存到资产库", "删除"]) expect(button(name)).toBeDisabled();
-		expect(button("删除").parentElement).toHaveAttribute("title", "生成运行中，暂不可用");
 		unmount();
 		renderSection(shotNode, { structureLocked: true, atGate: true });
 		expect(screen.getByRole("note")).toHaveTextContent("正在等你确认这一步");
-		expect(button("删除").parentElement).toHaveAttribute("title", "审批门待确认：请用修改意见，确认后可单独重做");
+		expect(button("删除")).toBeDisabled();
 	});
 
 	it("swaps to the previous version, or says there is none yet", async () => {
@@ -91,16 +90,20 @@ describe("GenerationSection · shot", () => {
 		await waitFor(() => expect(toast.success).toHaveBeenCalledWith({ title: "已换回上一版", message: "内容来自 v2，再点一次可切回" }));
 	});
 
-	it("deletes a shot only after confirmation and drops it from the cache", async () => {
+	it("deletes a shot only after ConfirmModal confirmation and drops it from the cache", async () => {
 		client.setQueryData(["shots", 3], [shot, { ...shot, id: 32 }]);
-		const confirm = vi.spyOn(window, "confirm").mockReturnValueOnce(false).mockReturnValueOnce(true);
 		api.shotsApi.delete.mockResolvedValue(undefined);
 		renderSection(shotNode);
 		fireEvent.click(button("删除"));
-		await waitFor(() => expect(confirm).toHaveBeenCalledWith("确定删除这个镜头吗？镜头顺序和最终合成需要重新确认。"));
+		const dialog = await screen.findByRole("dialog");
+		expect(dialog).toHaveTextContent("确定删除这个镜头吗？镜头顺序和最终合成需要重新确认。");
+		fireEvent.click(screen.getByRole("button", { name: "取消" }));
 		expect(api.shotsApi.delete).not.toHaveBeenCalled();
-		await waitFor(() => expect(button("删除")).not.toBeDisabled());
+
 		fireEvent.click(button("删除"));
+		const dialog2 = await screen.findByRole("dialog");
+		const confirmButtons = dialog2.querySelectorAll("button");
+		fireEvent.click(confirmButtons[confirmButtons.length - 1]!);
 		await waitFor(() => expect(toast.success).toHaveBeenCalledWith({ title: "删除", message: "已删除" }));
 		expect(api.shotsApi.delete).toHaveBeenCalledWith(31);
 		expect((client.getQueryData(["shots", 3]) as Array<{ id: number }>).map((s) => s.id)).toEqual([32]);
@@ -128,7 +131,6 @@ describe("GenerationSection · character", () => {
 		api.charactersApi.approve.mockResolvedValue({ ...character, approval_version: 3 });
 		api.assetsApi.createFromCharacter.mockResolvedValue(undefined);
 		api.charactersApi.delete.mockResolvedValue(undefined);
-		vi.spyOn(window, "confirm").mockReturnValue(true);
 		renderSection(characterNode);
 		expect(screen.queryByRole("button", { name: "提升到宇宙共享角色" })).toBeNull();
 
@@ -142,8 +144,11 @@ describe("GenerationSection · character", () => {
 		await waitFor(() => expect(api.assetsApi.createFromCharacter).toHaveBeenCalledWith(21));
 		await waitFor(() => expect(button("删除")).not.toBeDisabled());
 		fireEvent.click(button("删除"));
+		const dialog = await screen.findByRole("dialog");
+		expect(dialog).toHaveTextContent("确定删除这个角色吗？引用它的镜头会失去角色关联。");
+		const confirmButtons = dialog.querySelectorAll("button");
+		fireEvent.click(confirmButtons[confirmButtons.length - 1]!);
 		await waitFor(() => expect(api.charactersApi.delete).toHaveBeenCalledWith(21));
-		expect(window.confirm).toHaveBeenCalledWith("确定删除这个角色吗？引用它的镜头会失去角色关联。");
 		await waitFor(() => expect(client.getQueryData(["characters", 3])).toEqual([]));
 	});
 

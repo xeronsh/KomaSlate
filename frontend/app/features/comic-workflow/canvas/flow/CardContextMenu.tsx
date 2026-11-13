@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import { Popover, PopoverAnchor, PopoverContent } from "~/components/ui/Popover";
 import type { ComicWorkflowNode } from "../../graph/types";
 import { GenerationSection } from "../../inspector/GenerationSection";
 
@@ -11,7 +12,7 @@ export interface CardMenuState {
 const MENU_WIDTH = 240;
 const MENU_HEIGHT = 320;
 
-/** 把菜单夹在画布容器里，靠边时不被裁掉。 */
+/** 把菜单锚点夹在画布容器里，配合 Popover Popper 自动避让视口边界。 */
 export function menuPosition(
 	point: { x: number; y: number },
 	box: { left: number; top: number; width: number; height: number },
@@ -22,7 +23,7 @@ export function menuPosition(
 	};
 }
 
-/** 右键菜单：直接复用检查器「生成」页的动作，不另起一套。 */
+/** 右键菜单：基于 Radix Popover 自动处理视口碰撞翻转与焦点管理，复用检查器「生成」页动作。 */
 export function CardContextMenu({
 	menu,
 	projectId,
@@ -34,41 +35,41 @@ export function CardContextMenu({
 	structureLocked: boolean;
 	onClose: () => void;
 }) {
-	const ref = useRef<HTMLElement>(null);
-
-	useEffect(() => {
-		ref.current?.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
-		const onKey = (event: KeyboardEvent) => {
-			if (event.key === "Escape") onClose();
-		};
-		const onPointer = (event: PointerEvent) => {
-			if (!ref.current?.contains(event.target as Node)) onClose();
-		};
-		window.addEventListener("keydown", onKey);
-		window.addEventListener("pointerdown", onPointer, true);
-		return () => {
-			window.removeEventListener("keydown", onKey);
-			window.removeEventListener("pointerdown", onPointer, true);
-		};
-	}, [onClose]);
+	const anchorRef = useRef<HTMLSpanElement>(null);
 
 	return (
-		<section
-			ref={ref}
-			aria-label={`${menu.node.title} 的操作`}
-			className="absolute z-popover w-60 rounded-lg border border-line bg-surface p-2 shadow-panel"
-			style={{ left: menu.x, top: menu.y }}
-			onClickCapture={(event) => {
-				// 点了动作就收起；动作本身照常执行
-				if ((event.target as HTMLElement).closest("button")) setTimeout(onClose, 0);
-			}}
-		>
-			<GenerationSection
-				projectId={projectId}
-				node={menu.node}
-				structureLocked={structureLocked}
-				compact
+		<>
+			<span
+				ref={anchorRef}
+				aria-hidden="true"
+				className="pointer-events-none absolute h-0 w-0"
+				style={{ left: menu.x, top: menu.y }}
 			/>
-		</section>
+			<Popover
+				open
+				onOpenChange={(open) => {
+					if (!open) onClose();
+				}}
+			>
+				<PopoverAnchor virtualRef={anchorRef} />
+				<PopoverContent
+					side="bottom"
+					align="start"
+					sideOffset={0}
+					collisionPadding={8}
+					className="w-60 p-2"
+				>
+					<section aria-label={`${menu.node.title} 的操作`}>
+						<GenerationSection
+							projectId={projectId}
+							node={menu.node}
+							structureLocked={structureLocked}
+							compact
+							onActionDone={onClose}
+						/>
+					</section>
+				</PopoverContent>
+			</Popover>
+		</>
 	);
 }
